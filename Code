@@ -1,215 +1,32 @@
-The type or namespace name 'GlobalFilterCollection' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
+The type 'IListSource' is defined in an assembly that is not referenced. You must add a reference to assembly 'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.
+The type or namespace name 'Optimization' does not exist in the namespace 'System.Web' (are you missing an assembly reference?)
 The type or namespace name 'BundleCollection' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
+The type or namespace name 'Routing' does not exist in the namespace 'System.Web' (are you missing an assembly reference?)
 The type or namespace name 'RouteCollection' could not be found (are you missing a using directive or an assembly reference?)
-The name 'UrlParameter' does not exist in the current context
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
 The type or namespace name 'AspNet' does not exist in the namespace 'Microsoft' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Controller' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The name 'Session' does not exist in the current context
-The name 'Session' does not exist in the current context
-The name 'HttpNotFound' does not exist in the current context
-The name 'View' does not exist in the current context
-The type or namespace name 'HandleErrorAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HandleError' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The name 'View' does not exist in the current context
-The type or namespace name 'HttpGetAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpGet' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The name 'View' does not exist in the current context
-The type or namespace name 'HttpPostAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPost' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The name 'ModelState' does not exist in the current context
-The name 'ViewBag' does not exist in the current context
-'LearnDBEntities4' does not contain a definition for 'SaveChanges' and no accessible extension method 'SaveChanges' accepting a first argument of type 'LearnDBEntities4' could be found (are you missing a using directive or an assembly reference?)
-The name 'Response' does not exist in the current context
-The name 'View' does not exist in the current context
-The type or namespace name 'HttpGetAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpGet' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The name 'View' does not exist in the current context
-The type or namespace name 'HttpPostAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPost' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The name 'Session' does not exist in the current context
-The name 'Session' does not exist in the current context
-The name 'Session' does not exist in the current context
-The name 'RedirectToAction' does not exist in the current context
-The name 'Session' does not exist in the current context
-The name 'Session' does not exist in the current context
-The name 'Session' does not exist in the current context
-The name 'RedirectToAction' does not exist in the current context
-The name 'ViewBag' does not exist in the current context
-The name 'View' does not exist in the current context
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The name 'Session' does not exist in the current context
-The name 'Session' does not exist in the current context
-The name 'Session' does not exist in the current context
-The name 'RedirectToAction' does not exist in the current context
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Controller' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Data' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Data' does not exist in the namespace 'System' (are you missing an assembly reference?)
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'IListSource' is defined in an assembly that is not referenced. You must add a reference to assembly 'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.
+The type 'IListSource' is defined in an assembly that is not referenced. You must add a reference to assembly 'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.
+The type 'HttpResponseBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'IListSource' is defined in an assembly that is not referenced. You must add a reference to assembly 'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'RouteValueDictionary' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'RouteValueDictionary' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'HttpSessionStateBase' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'RouteValueDictionary' is defined in an assembly that is not referenced. You must add a reference to assembly 'System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a'.
+The type 'IListSource' is defined in an assembly that is not referenced. You must add a reference to assembly 'System, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089'.
 The type or namespace name 'Net' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Controller' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPostAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPost' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ValidateAntiForgeryTokenAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ValidateAntiForgeryToken' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'BindAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Bind' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPostAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPost' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ValidateAntiForgeryTokenAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ValidateAntiForgeryToken' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'BindAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Bind' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPostAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPost' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionNameAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionName' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ValidateAntiForgeryTokenAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ValidateAntiForgeryToken' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Controller' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPostAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'HttpPost' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Controller' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ActionResult' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'ComponentModel' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'KeyAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Key' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'StringLengthAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'StringLength' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RegularExpressionAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RegularExpression' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DataTypeAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DataType' could not be found (are you missing a using directive or an assembly reference?)
-The name 'DataType' does not exist in the current context
-The type or namespace name 'ComponentModel' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'KeyAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Key' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ComponentModel' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'KeyAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Key' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Data' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Data' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'DbContext' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DbModelBuilder' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'ComponentModel' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DataTypeAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DataType' could not be found (are you missing a using directive or an assembly reference?)
-The name 'DataType' does not exist in the current context
-The type or namespace name 'ComponentModel' does not exist in the namespace 'System' (are you missing an assembly reference?)
-The type or namespace name 'KeyAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Key' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'StringLengthAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'StringLength' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RegularExpressionAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RegularExpression' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DataTypeAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DataType' could not be found (are you missing a using directive or an assembly reference?)
-The name 'DataType' does not exist in the current context
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DataTypeAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DataType' could not be found (are you missing a using directive or an assembly reference?)
-The name 'DataType' does not exist in the current context
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DisplayAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Display' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'RequiredAttribute' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Required' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Web' does not exist in the namespace 'System' (are you missing an assembly reference?)
+The type or namespace name 'Optimization' does not exist in the namespace 'System.Web' (are you missing an assembly reference?)
+The type or namespace name 'Routing' does not exist in the namespace 'System.Web' (are you missing an assembly reference?)
+The type or namespace name 'HttpApplication' does not exist in the namespace 'System.Web' (are you missing an assembly reference?)
+Package 'jQuery.Validation' 1.17.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-jxwx-85vp-gvwm
+Package 'jQuery' 3.4.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-jpcq-cgw6-v4j6
+Package 'jQuery' 3.4.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gxr4-xjj5-5px2

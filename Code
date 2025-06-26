@@ -1,15 +1,185 @@
-                                        <td class="table_heading_opem8 a_TemplateSetupMaster" style="width:100px !important">
-                                            <input type="number" id="jobTrack+@item.JobId" class="jobTrack" size="10" placeholder="HH:MM" value="@item.JobTrack" style="width:50px !important; padding:2px" />
+////BJ Submit Button Click
+$(document).on("click", "#btn_BJSubmit", function () {
+    var jobid_submit = $(this).attr('data-jobid');
+    //$(this).parent('.a_TemplateSetupMaster').siblings('.a_TemplateSetupMaster')
+    var isactive_submit = $(this).closest('td').siblings('.a_TemplateSetupMaster').find('.enableCheckBox').is(":checked");
+    var isOneTime_submit = $(this).closest('td').siblings('.a_TemplateSetupMaster').find('.oneTimeCheckbox').is(":checked");
+    var startTime_submit = $(this).closest('td').siblings('.a_TemplateSetupMaster').find('.startTime').val();
+    var endTime_submit = $(this).closest('td').siblings('.a_TemplateSetupMaster').find('.endTime').val();
 
-                                        </td>
-                                        <td class="table_heading_opem9 a_TemplateSetupMaster" style="width:170px !important;">
-                                            <div style="display: inline-block;">
-                                                <button class="button submit" id="btn_BJSubmit" data-bs-dismiss="modal" data-Jobid="@item.JobId"
-                                                        style="width:70px !important;margin-left:0 !important">
-                                                    Submit
-                                                </button>
-                                                <button class="button cancel" id="btn_BJCancel" data-bs-dismiss="modal" data-Jobid="@item.JobId"
-                                                        style="width:70px !important;margin-right:0 !important;margin-left:10px !important" data-isActive="@item.IsActive"
-                                                        data-IsOneTime="@item.IsOneTime" data-StartTime="@item.StartTime" data-EndTime="@item.EndTime" data-JobTrack="@item.JobTrack">
-                                                    Reset
-                                                </button>
+    if (startTime_submit == '' && endTime_submit == '') {
+        $(".BJAlert").text('');
+        $(".BJAlert").text('Please provide a start time and end time.');
+        // $("#modal_BJTime_alert").modal('show');
+        var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
+        BJTimeAlertModal.show();
+    }
+    else if (startTime_submit == '') {
+        $(".BJAlert").text('');
+        $(".BJAlert").text('Please provide a valid start time.');
+        // $("#modal_BJTime_alert").modal('show');
+        var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
+        BJTimeAlertModal.show();
+    }
+    else if (endTime_submit == '') {
+        $(".BJAlert").text('');
+        $(".BJAlert").text('Please provide a valid end time.');
+        // $("#modal_BJTime_alert").modal('show');
+        var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
+        BJTimeAlertModal.show();
+    }
+    else if (startTime_submit > endTime_submit) {
+        $(".BJAlert").text('');
+        $(".BJAlert").text('Start time should be less than end time.');
+        // $("#modal_BJTime_alert").modal('show');
+        var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
+        BJTimeAlertModal.show();
+    }
+    else {
+        $('#hdn_BJ').removeAttr('data-jobid');
+        $('#hdn_BJ').removeAttr('data-isactive');
+        $('#hdn_BJ').removeAttr('data-isonetime');
+        $('#hdn_BJ').removeAttr('data-starttime');
+        $('#hdn_BJ').removeAttr('data-endtime');
+
+        $('#hdn_BJ').attr('data-jobid', jobid_submit);
+        $('#hdn_BJ').attr('data-isactive', isactive_submit)
+        $('#hdn_BJ').attr('data-isonetime', isOneTime_submit)
+        $('#hdn_BJ').attr('data-starttime', startTime_submit)
+        $('#hdn_BJ').attr('data-endtime', endTime_submit)
+
+        // $('#admmodal_BJ_submit').modal({
+        //     backdrop: 'static', keyboard: false, show: true
+        // });
+        var BJSubmitModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_submit'), {
+            backdrop: 'static',
+            keyboard: false
+        });
+        BJSubmitModal.show();
+    }
+});
+
+//Modal confirm button Click
+$(document).on("click", "#btn_modalconfirm_updateBJ ", function () {
+    // $("#modal_BJTime_alert").modal('hide');
+    var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
+    BJTimeAlertModal.hide();
+    // $("#admmodal_BJ_submit").modal('hide');
+    var BJSubmitModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_submit'));
+    BJSubmitModal.hide();
+    var jobid_confirm = $('#hdn_BJ').attr('data-jobid');
+    var isactive_confirm = $('#hdn_BJ').attr('data-isactive');
+    var isOneTime_confirm = $('#hdn_BJ').attr('data-isonetime');
+    var startTime_confirm = $('#hdn_BJ').attr('data-starttime');
+    var endTime_confirm = $('#hdn_BJ').attr('data-endtime');
+    UpdateBJDetails(jobid_confirm, isactive_confirm, isOneTime_confirm, startTime_confirm, endTime_confirm);
+});
+
+// function for UpdateBJDetails
+function UpdateBJDetails(jobId, isActive, isOneTime, startTime, endTime) {
+    var tokenval = $("input[name=__RequestVerificationToken]").val();
+    var dataUrl = global.webMethodList.UpdateBatchJobDetails;
+    datastg = '{"jobId":"' + jobId + '","isActive":"' + isActive + '","isOneTime":"' + isOneTime + '","startTime":"' + startTime + '","endTime":"' + endTime + '", "__RequestVerificationToken":"' + tokenval + '"}';
+    var data = {
+        jobId: jobId, isActive: isActive, isOneTime: isOneTime, startTime: startTime, endTime: endTime, __RequestVerificationToken: tokenval
+    }
+    $.ajax({
+        cache: false,
+        async: true,
+        type: "POST",
+        /*        contentType: 'application/json',*/
+        dataType: 'json',
+        data: data,
+        url: dataUrl,
+        responseType: "json",
+        success:
+            //function executes on success
+            function (data) {
+                if (data.StatusMsg == "1") {
+                    $('#divSuccess').text('');
+                    $('#divSuccess').text('Selected batch details updated successfully.');
+                    // $("#modal_BJChange_confirm-alert").modal('show');
+                    var BJChangeConfirmModal = new bootstrap.Modal(document.getElementById('modal_BJChange_confirm-alert'));
+                    BJChangeConfirmModal.show();
+                    $('.alertOk').attr('data-screen', 'BatchJob');
+                }
+                else {
+                    // $("#modal_txtchange_alert").modal('show');
+                    var txtChangeAlertModal = new bootstrap.Modal(document.getElementById('modal_txtchange_alert'));
+                    txtChangeAlertModal.show();
+                }
+            }
+    });
+}
+
+////BJ Cancel Button Click
+$(document).on("click", "#btn_BJCancel", function () {
+    $('#bjCancel').removeAttr('data-jobid');
+    $('#bjCancel').removeAttr('data-isactive');
+    $('#bjCancel').removeAttr('data-isonetime');
+    $('#bjCancel').removeAttr('data-starttime');
+    $('#bjCancel').removeAttr('data-endtime');
+
+    var jobid_Cancel = $(this).attr('data-jobid');
+    var isactive_Cancel = $(this).attr('data-isactive');
+    var isOneTime_Cancel = $(this).attr('data-isonetime');
+    var startTime_Cancel = $(this).attr('data-starttime');
+    var endTime_Cancel = $(this).attr('data-endtime');
+
+    $('#bjCancel').attr('data-jobid', jobid_Cancel);
+    $('#bjCancel').attr('data-isactive', isactive_Cancel);
+    $('#bjCancel').attr('data-isonetime', isOneTime_Cancel);
+    $('#bjCancel').attr('data-starttime', startTime_Cancel);
+    $('#bjCancel').attr('data-endtime', endTime_Cancel);
+
+
+    // $('#admmodal_BJ_cancel').modal(
+    //     {
+    //         backdrop: 'static', keyboard: false, show: true
+    //     }
+    // );
+    var BJCancelModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_cancel'), {
+        backdrop: 'static',
+        keyboard: false
+    });
+    BJCancelModal.show();
+});
+
+//Modal cancel confirm button Click
+$(document).on("click", "#btn_modalconfirm_cancelBJ ", function () {
+    var jobid_cancelBJ = $('#bjCancel').attr('data-jobid');
+    var isactive_cancelBJ = $('#bjCancel').attr('data-isactive');
+    var isOneTime_cancelBJ = $('#bjCancel').attr('data-isonetime');
+    var startTime_cancelBJ = $('#bjCancel').attr('data-starttime');
+    var endTime_cancelBJ = $('#bjCancel').attr('data-endtime');
+
+    $('.BJ_data_table tr').each(function () {
+        if ($(this).data('id') == jobid_cancelBJ) {
+            if (isactive_cancelBJ == 'True') {
+                $(this).find('.enableCheckBox').prop("checked", true);
+            }
+            else {
+                $(this).find('.enableCheckBox').prop("checked", false);
+            }
+
+            if (isOneTime_cancelBJ == 'True') {
+                $(this).find('.oneTimeCheckbox').prop("checked", true);
+            }
+            else {
+                $(this).find('.oneTimeCheckbox').prop("checked", false);
+            }
+            $(this).find('.startTime').val(startTime_cancelBJ);
+            $(this).find('.endTime').val(endTime_cancelBJ);
+        }
+    })
+    // $("#admmodal_BJ_cancel").modal('hide');
+    var BJCancelModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_cancel'));
+    BJCancelModal.hide();
+
+});
+
+$(document).on("click", "#btn_DownloadBatchJobs", function () {
+    var url = rootUrl + "Admin/DownloadBatchJobData";
+    window.location.replace(url);
+});
+//BJ END

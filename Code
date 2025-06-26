@@ -1,8 +1,3 @@
-Missing compiler required member 'Microsoft.CSharp.RuntimeBinder.CSharpArgumentInfo.Create'
-Missing compiler required member 'Microsoft.CSharp.RuntimeBinder.CSharpArgumentInfo.Create'
-Missing compiler required member 'Microsoft.CSharp.RuntimeBinder.CSharpArgumentInfo.Create'
-The type or namespace name 'LearnDBEntities4' could not be found (are you missing a using directive or an assembly reference?)
-Found conflicts between different versions of the same dependent assembly. In Visual Studio, double-click this warning (or select it and press Enter) to fix the conflicts; otherwise, add the following binding redirects to the "runtime" node in the application configuration file: <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1"><dependentAssembly><assemblyIdentity name="Newtonsoft.Json" culture="neutral" publicKeyToken="30ad4fe6b2a6aeed" /><bindingRedirect oldVersion="0.0.0.0-13.0.0.0" newVersion="13.0.0.0" /></dependentAssembly></assemblyBinding>
-Package 'jQuery.Validation' 1.17.0 has a known high severity vulnerability, https://github.com/advisories/GHSA-jxwx-85vp-gvwm
-Package 'jQuery' 3.4.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-jpcq-cgw6-v4j6
-Package 'jQuery' 3.4.1 has a known moderate severity vulnerability, https://github.com/advisories/GHSA-gxr4-xjj5-5px2
+<connectionStrings>
+  <add name="LearnDBEntities4" connectionString="metadata=res://*/Models.Learning.csdl|res://*/Models.Learning.ssdl|res://*/Models.Learning.msl;provider=System.Data.SqlClient;provider connection string=&quot;data source=LTIN616120\SQLEXPRESS;initial catalog=LearnDB;integrated security=True;trustservercertificate=True;MultipleActiveResultSets=True;App=EntityFramework&quot;" providerName="System.Data.EntityClient" />
+</connectionStrings>

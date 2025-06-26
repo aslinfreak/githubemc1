@@ -1,64 +1,15 @@
-Server Error in '/' Application.
-Could not load file or assembly 'WebGrease, Version=1.5.1.25624, Culture=neutral, PublicKeyToken=31bf3856ad364e35' or one of its dependencies. The system cannot find the file specified.
-Description: An unhandled exception occurred during the execution of the current web request. Please review the stack trace for more information about the error and where it originated in the code.
+                                        <td class="table_heading_opem8 a_TemplateSetupMaster" style="width:100px !important">
+                                            <input type="number" id="jobTrack+@item.JobId" class="jobTrack" size="10" placeholder="HH:MM" value="@item.JobTrack" style="width:50px !important; padding:2px" />
 
-Exception Details: System.IO.FileNotFoundException: Could not load file or assembly 'WebGrease, Version=1.5.1.25624, Culture=neutral, PublicKeyToken=31bf3856ad364e35' or one of its dependencies. The system cannot find the file specified.
-
-Source Error:
-
-
-Line 5:      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-Line 6:      <title>@ViewBag.Title - My ASP.NET Application</title>
-Line 7:      @Styles.Render("~/Content/css")
-Line 8:      @Scripts.Render("~/bundles/modernizr")
-Line 9:  </head>
-
-Source File: c:\Users\2318190\LMS-main\Views\Shared\_Layout.cshtml    Line: 7
-
-Assembly Load Trace: The following information can be helpful to determine why the assembly 'WebGrease, Version=1.5.1.25624, Culture=neutral, PublicKeyToken=31bf3856ad364e35' could not be loaded.
-
-
-WRN: Assembly binding logging is turned OFF.
-To enable assembly bind failure logging, set the registry value [HKLM\Software\Microsoft\Fusion!EnableLog] (DWORD) to 1.
-Note: There is some performance penalty associated with assembly bind failure logging.
-To turn this feature off, remove the registry value [HKLM\Software\Microsoft\Fusion!EnableLog].
-
-Stack Trace:
-
-
-[FileNotFoundException: Could not load file or assembly 'WebGrease, Version=1.5.1.25624, Culture=neutral, PublicKeyToken=31bf3856ad364e35' or one of its dependencies. The system cannot find the file specified.]
-
-[FileNotFoundException: Could not load file or assembly 'WebGrease, Version=1.6.5135.21930, Culture=neutral, PublicKeyToken=31bf3856ad364e35' or one of its dependencies. The system cannot find the file specified.]
-   System.Web.Optimization.CssMinify.Process(BundleContext context, BundleResponse response) +0
-   System.Web.Optimization.Bundle.ApplyTransforms(BundleContext context, String bundleContent, IEnumerable`1 bundleFiles) +325
-   System.Web.Optimization.Bundle.GetBundleResponse(BundleContext context) +59
-   System.Web.Optimization.BundleResolver.GetBundleContents(String virtualPath) +213
-   System.Web.Optimization.AssetManager.DeterminePathsToRender(IEnumerable`1 assets) +421
-   System.Web.Optimization.AssetManager.RenderExplicit(String tagFormat, String[] paths) +34
-   ASP._Page_Views_Shared__Layout_cshtml.Execute() in c:\Users\2318190\LMS-main\Views\Shared\_Layout.cshtml:7
-   System.Web.WebPages.WebPageBase.ExecutePageHierarchy() +252
-   System.Web.Mvc.WebViewPage.ExecutePageHierarchy() +148
-   System.Web.WebPages.WebPageBase.ExecutePageHierarchy(WebPageContext pageContext, TextWriter writer, WebPageRenderingBase startPage) +122
-   System.Web.WebPages.<>c__DisplayClass40_0.<RenderPageCore>b__0(TextWriter writer) +309
-   System.Web.WebPages.WebPageBase.Write(HelperResult result) +108
-   System.Web.WebPages.WebPageBase.RenderSurrounding(String partialViewName, Action`1 body) +89
-   System.Web.WebPages.WebPageBase.PopContext() +310
-   System.Web.Mvc.ViewResultBase.ExecuteResult(ControllerContext context) +378
-   System.Web.Mvc.ControllerActionInvoker.InvokeActionResultFilterRecursive(IList`1 filters, Int32 filterIndex, ResultExecutingContext preContext, ControllerContext controllerContext, ActionResult actionResult) +91
-   System.Web.Mvc.ControllerActionInvoker.InvokeActionResultFilterRecursive(IList`1 filters, Int32 filterIndex, ResultExecutingContext preContext, ControllerContext controllerContext, ActionResult actionResult) +795
-   System.Web.Mvc.ControllerActionInvoker.InvokeActionResultWithFilters(ControllerContext controllerContext, IList`1 filters, ActionResult actionResult) +81
-   System.Web.Mvc.Async.<>c__DisplayClass3_0.<BeginInvokeAction>b__1(IAsyncResult asyncResult) +180
-   System.Web.Mvc.Async.AsyncControllerActionInvoker.EndInvokeAction(IAsyncResult asyncResult) +38
-   System.Web.Mvc.<>c.<BeginExecuteCore>b__152_1(IAsyncResult asyncResult, ExecuteCoreState innerState) +29
-   System.Web.Mvc.Async.WrappedAsyncVoid`1.CallEndDelegate(IAsyncResult asyncResult) +73
-   System.Web.Mvc.Controller.EndExecuteCore(IAsyncResult asyncResult) +52
-   System.Web.Mvc.Async.WrappedAsyncVoid`1.CallEndDelegate(IAsyncResult asyncResult) +39
-   System.Web.Mvc.Controller.EndExecute(IAsyncResult asyncResult) +38
-   System.Web.Mvc.<>c.<BeginProcessRequest>b__20_1(IAsyncResult asyncResult, ProcessRequestState innerState) +43
-   System.Web.Mvc.Async.WrappedAsyncVoid`1.CallEndDelegate(IAsyncResult asyncResult) +73
-   System.Web.Mvc.MvcHandler.EndProcessRequest(IAsyncResult asyncResult) +38
-   System.Web.CallHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute() +426
-   System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step) +172
-   System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously) +158
-
-Version Information: Microsoft .NET Framework Version:4.0.30319; ASP.NET Version:4.8.9282.0
+                                        </td>
+                                        <td class="table_heading_opem9 a_TemplateSetupMaster" style="width:170px !important;">
+                                            <div style="display: inline-block;">
+                                                <button class="button submit" id="btn_BJSubmit" data-bs-dismiss="modal" data-Jobid="@item.JobId"
+                                                        style="width:70px !important;margin-left:0 !important">
+                                                    Submit
+                                                </button>
+                                                <button class="button cancel" id="btn_BJCancel" data-bs-dismiss="modal" data-Jobid="@item.JobId"
+                                                        style="width:70px !important;margin-right:0 !important;margin-left:10px !important" data-isActive="@item.IsActive"
+                                                        data-IsOneTime="@item.IsOneTime" data-StartTime="@item.StartTime" data-EndTime="@item.EndTime" data-JobTrack="@item.JobTrack">
+                                                    Reset
+                                                </button>

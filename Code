@@ -1,20 +1,34 @@
-/// <summary>
-/// Method to update Batch Job Details
-/// </summary>
-/// <param name="batchJobDetails">the data to update</param>
-/// <returns>status of the operation</returns>
 public string UpdateBatchJobDetails(BatchJobData batchJobDetails)
 {
-    //// To update Batch Job Details
-    try
+    string statusMsg = string.Empty;
+    using (SqlConnection connectionString = new SqlConnection(ConfigurationManager.ConnectionStrings["MYPConnectionString"].ConnectionString))
     {
-        using (AdminPageDL objDl = new AdminPageDL())
+        try
         {
-            return objDl.UpdateBatchJobDetails(batchJobDetails);
+            connectionString.OpenWithMSI();
+
+            SqlCommand processCmd = new SqlCommand("[ADMIN].[usp_UpdateBatchJobDetails]", connectionString);
+            processCmd.CommandTimeout = 0;
+            processCmd.CommandType = CommandType.StoredProcedure;
+            processCmd.Parameters.AddWithValue("@JobId", batchJobDetails.JobId);
+            processCmd.Parameters.AddWithValue("@IsActive", batchJobDetails.IsActive);
+            processCmd.Parameters.AddWithValue("@IsOneTime", batchJobDetails.IsOneTime);
+            processCmd.Parameters.AddWithValue("@StartTime", batchJobDetails.StartTime);
+            processCmd.Parameters.AddWithValue("@EndTime", batchJobDetails.EndTime);
+            processCmd.Parameters.AddWithValue("@ModifiedBy", batchJobDetails.ModifiedBy);
+            statusMsg = Convert.ToString(processCmd.ExecuteScalar());
+            return statusMsg;
         }
-    }
-    catch (SystemException ex)
-    {
-        throw new SystemException("UpdateBatchJobDetails", ex);
+        catch (SystemException ex)
+        {
+            throw new SystemException("UpdateBatchJobDetails", ex);
+        }
+        finally
+        {
+            if (connectionString.State != ConnectionState.Closed)
+            {
+                connectionString.Dispose();
+            }
+        }
     }
 }

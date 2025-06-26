@@ -1,185 +1,100 @@
-////BJ Submit Button Click
-$(document).on("click", "#btn_BJSubmit", function () {
-    var jobid_submit = $(this).attr('data-jobid');
-    //$(this).parent('.a_TemplateSetupMaster').siblings('.a_TemplateSetupMaster')
-    var isactive_submit = $(this).closest('td').siblings('.a_TemplateSetupMaster').find('.enableCheckBox').is(":checked");
-    var isOneTime_submit = $(this).closest('td').siblings('.a_TemplateSetupMaster').find('.oneTimeCheckbox').is(":checked");
-    var startTime_submit = $(this).closest('td').siblings('.a_TemplateSetupMaster').find('.startTime').val();
-    var endTime_submit = $(this).closest('td').siblings('.a_TemplateSetupMaster').find('.endTime').val();
+ #region BatchJob
+ /// <summary>
+ /// To fetch all Batch jobs and its Schedule Details
+ /// </summary>
+ /// <returns>List of Batch Jobs and Schedule Details</returns>
+ public ActionResult FetchAllBatchJobs()
+ {
+     string associateId = this.Session["LoginID"].ToString();
+     AdminPageBL objBL = new AdminPageBL();
+     DataSet dataSetBatchJob = new DataSet();
+     BatchJobModel batchJobModel = new BatchJobModel();
+     BatchJobDetails batchJobDetails = new BatchJobDetails();
 
-    if (startTime_submit == '' && endTime_submit == '') {
-        $(".BJAlert").text('');
-        $(".BJAlert").text('Please provide a start time and end time.');
-        // $("#modal_BJTime_alert").modal('show');
-        var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
-        BJTimeAlertModal.show();
-    }
-    else if (startTime_submit == '') {
-        $(".BJAlert").text('');
-        $(".BJAlert").text('Please provide a valid start time.');
-        // $("#modal_BJTime_alert").modal('show');
-        var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
-        BJTimeAlertModal.show();
-    }
-    else if (endTime_submit == '') {
-        $(".BJAlert").text('');
-        $(".BJAlert").text('Please provide a valid end time.');
-        // $("#modal_BJTime_alert").modal('show');
-        var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
-        BJTimeAlertModal.show();
-    }
-    else if (startTime_submit > endTime_submit) {
-        $(".BJAlert").text('');
-        $(".BJAlert").text('Start time should be less than end time.');
-        // $("#modal_BJTime_alert").modal('show');
-        var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
-        BJTimeAlertModal.show();
-    }
-    else {
-        $('#hdn_BJ').removeAttr('data-jobid');
-        $('#hdn_BJ').removeAttr('data-isactive');
-        $('#hdn_BJ').removeAttr('data-isonetime');
-        $('#hdn_BJ').removeAttr('data-starttime');
-        $('#hdn_BJ').removeAttr('data-endtime');
+     dataSetBatchJob = objBL.GetAllBatchJobs(associateId);
+     if (dataSetBatchJob != null && dataSetBatchJob.Tables != null && dataSetBatchJob.Tables.Count > 0
+         && dataSetBatchJob.Tables[0] != null && dataSetBatchJob.Tables[0].Rows.Count > 0)
+     {
+         foreach (DataRow dr in dataSetBatchJob.Tables[0].Rows)
+         {
+             batchJobDetails = new BatchJobDetails();
+             batchJobDetails.JobId = Convert.ToInt32(dr["JobId"]);
+             batchJobDetails.JobName = dr["JobName"].ToString();
+             batchJobDetails.IsActive = Convert.ToBoolean(dr["IsActive"]);
+             batchJobDetails.IsOneTime = Convert.ToBoolean(dr["IsOneTime"]);
+             batchJobDetails.StartTime = dr["StartTime"].ToString();
+             batchJobDetails.EndTime = dr["EndTime"].ToString();
+             batchJobDetails.JobTrack = Convert.ToInt32(dr["JobTrack"]);
+             batchJobDetails.LastStartTime = Convert.ToDateTime(dr["LastStarttime"]);
+             batchJobDetails.LastRunTime = Convert.ToDateTime(dr["LastEndtime"]);
+             batchJobModel.BatchJobList.Add(batchJobDetails);
+         }
+     }
 
-        $('#hdn_BJ').attr('data-jobid', jobid_submit);
-        $('#hdn_BJ').attr('data-isactive', isactive_submit)
-        $('#hdn_BJ').attr('data-isonetime', isOneTime_submit)
-        $('#hdn_BJ').attr('data-starttime', startTime_submit)
-        $('#hdn_BJ').attr('data-endtime', endTime_submit)
+     return this.PartialView("_BatchJob", batchJobModel);
+ }
 
-        // $('#admmodal_BJ_submit').modal({
-        //     backdrop: 'static', keyboard: false, show: true
-        // });
-        var BJSubmitModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_submit'), {
-            backdrop: 'static',
-            keyboard: false
-        });
-        BJSubmitModal.show();
-    }
-});
+ /// <summary>
+ /// Method to update Batch Job Details
+ /// </summary>
+ /// <param name="jobId">selected Job</param>
+ /// <param name="isActive">property IsActive</param>
+ /// <param name="isOneTime">property isOnetime</param>
+ /// <param name="startTime">property startTime</param>
+ /// <param name="endTime">property endTime</param>
+ /// <returns>status update</returns>        
+ [ValidateAntiForgeryToken]
+ public JsonResult UpdateBatchJobDetails(string jobId, string isActive, string isOneTime, string startTime, string endTime)
+ {
+     //// To update Batch Job Details
+     string statusMsg = string.Empty;
+     try
+     {
+         AdminPageBL objBL = new AdminPageBL();
+         BatchJobData batchJobData = new BatchJobData();
 
-//Modal confirm button Click
-$(document).on("click", "#btn_modalconfirm_updateBJ ", function () {
-    // $("#modal_BJTime_alert").modal('hide');
-    var BJTimeAlertModal = new bootstrap.Modal(document.getElementById('modal_BJTime_alert'));
-    BJTimeAlertModal.hide();
-    // $("#admmodal_BJ_submit").modal('hide');
-    var BJSubmitModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_submit'));
-    BJSubmitModal.hide();
-    var jobid_confirm = $('#hdn_BJ').attr('data-jobid');
-    var isactive_confirm = $('#hdn_BJ').attr('data-isactive');
-    var isOneTime_confirm = $('#hdn_BJ').attr('data-isonetime');
-    var startTime_confirm = $('#hdn_BJ').attr('data-starttime');
-    var endTime_confirm = $('#hdn_BJ').attr('data-endtime');
-    UpdateBJDetails(jobid_confirm, isactive_confirm, isOneTime_confirm, startTime_confirm, endTime_confirm);
-});
+         batchJobData.JobId = Convert.ToInt32(jobId);
+         batchJobData.IsActive = Convert.ToBoolean(isActive);
+         batchJobData.IsOneTime = Convert.ToBoolean(isOneTime);
+         batchJobData.StartTime = startTime;
+         batchJobData.EndTime = endTime;
+         batchJobData.ModifiedBy = this.Session["loginID"].ToString();
 
-// function for UpdateBJDetails
-function UpdateBJDetails(jobId, isActive, isOneTime, startTime, endTime) {
-    var tokenval = $("input[name=__RequestVerificationToken]").val();
-    var dataUrl = global.webMethodList.UpdateBatchJobDetails;
-    datastg = '{"jobId":"' + jobId + '","isActive":"' + isActive + '","isOneTime":"' + isOneTime + '","startTime":"' + startTime + '","endTime":"' + endTime + '", "__RequestVerificationToken":"' + tokenval + '"}';
-    var data = {
-        jobId: jobId, isActive: isActive, isOneTime: isOneTime, startTime: startTime, endTime: endTime, __RequestVerificationToken: tokenval
-    }
-    $.ajax({
-        cache: false,
-        async: true,
-        type: "POST",
-        /*        contentType: 'application/json',*/
-        dataType: 'json',
-        data: data,
-        url: dataUrl,
-        responseType: "json",
-        success:
-            //function executes on success
-            function (data) {
-                if (data.StatusMsg == "1") {
-                    $('#divSuccess').text('');
-                    $('#divSuccess').text('Selected batch details updated successfully.');
-                    // $("#modal_BJChange_confirm-alert").modal('show');
-                    var BJChangeConfirmModal = new bootstrap.Modal(document.getElementById('modal_BJChange_confirm-alert'));
-                    BJChangeConfirmModal.show();
-                    $('.alertOk').attr('data-screen', 'BatchJob');
-                }
-                else {
-                    // $("#modal_txtchange_alert").modal('show');
-                    var txtChangeAlertModal = new bootstrap.Modal(document.getElementById('modal_txtchange_alert'));
-                    txtChangeAlertModal.show();
-                }
-            }
-    });
-}
+         statusMsg = Convert.ToString(objBL.UpdateBatchJobDetails(batchJobData));
+         return this.Json(new { StatusMsg = statusMsg }, JsonRequestBehavior.AllowGet);
+     }
+     catch (SystemException ex)
+     {
+         ex.LogException("UpdateBatchJobDetails", this.Session["loginID"].ToString());
+         statusMsg = "Failed";
+         return this.Json(new { StatusMsg = statusMsg }, JsonRequestBehavior.AllowGet);
+     }
+ }
 
-////BJ Cancel Button Click
-$(document).on("click", "#btn_BJCancel", function () {
-    $('#bjCancel').removeAttr('data-jobid');
-    $('#bjCancel').removeAttr('data-isactive');
-    $('#bjCancel').removeAttr('data-isonetime');
-    $('#bjCancel').removeAttr('data-starttime');
-    $('#bjCancel').removeAttr('data-endtime');
+ /// <summary>
+ /// Method to get all Batch jobs for Download functionality
+ /// </summary>
+ public void DownloadBatchJobData()
+ {
+     var associateId = this.Session["LoginID"].ToString();
+     //// To fetch all Batch jobs data
+     AdminPageBL objBL = new AdminPageBL();
+     UntypedDataset batchJobData = new UntypedDataset();
+     batchJobData = objBL.GetAllBatchJobsforDownload(associateId);
 
-    var jobid_Cancel = $(this).attr('data-jobid');
-    var isactive_Cancel = $(this).attr('data-isactive');
-    var isOneTime_Cancel = $(this).attr('data-isonetime');
-    var startTime_Cancel = $(this).attr('data-starttime');
-    var endTime_Cancel = $(this).attr('data-endtime');
-
-    $('#bjCancel').attr('data-jobid', jobid_Cancel);
-    $('#bjCancel').attr('data-isactive', isactive_Cancel);
-    $('#bjCancel').attr('data-isonetime', isOneTime_Cancel);
-    $('#bjCancel').attr('data-starttime', startTime_Cancel);
-    $('#bjCancel').attr('data-endtime', endTime_Cancel);
-
-
-    // $('#admmodal_BJ_cancel').modal(
-    //     {
-    //         backdrop: 'static', keyboard: false, show: true
-    //     }
-    // );
-    var BJCancelModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_cancel'), {
-        backdrop: 'static',
-        keyboard: false
-    });
-    BJCancelModal.show();
-});
-
-//Modal cancel confirm button Click
-$(document).on("click", "#btn_modalconfirm_cancelBJ ", function () {
-    var jobid_cancelBJ = $('#bjCancel').attr('data-jobid');
-    var isactive_cancelBJ = $('#bjCancel').attr('data-isactive');
-    var isOneTime_cancelBJ = $('#bjCancel').attr('data-isonetime');
-    var startTime_cancelBJ = $('#bjCancel').attr('data-starttime');
-    var endTime_cancelBJ = $('#bjCancel').attr('data-endtime');
-
-    $('.BJ_data_table tr').each(function () {
-        if ($(this).data('id') == jobid_cancelBJ) {
-            if (isactive_cancelBJ == 'True') {
-                $(this).find('.enableCheckBox').prop("checked", true);
-            }
-            else {
-                $(this).find('.enableCheckBox').prop("checked", false);
-            }
-
-            if (isOneTime_cancelBJ == 'True') {
-                $(this).find('.oneTimeCheckbox').prop("checked", true);
-            }
-            else {
-                $(this).find('.oneTimeCheckbox').prop("checked", false);
-            }
-            $(this).find('.startTime').val(startTime_cancelBJ);
-            $(this).find('.endTime').val(endTime_cancelBJ);
-        }
-    })
-    // $("#admmodal_BJ_cancel").modal('hide');
-    var BJCancelModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_cancel'));
-    BJCancelModal.hide();
-
-});
-
-$(document).on("click", "#btn_DownloadBatchJobs", function () {
-    var url = rootUrl + "Admin/DownloadBatchJobData";
-    window.location.replace(url);
-});
-//BJ END
+     //// To Fetch the corresponding flags for the respective Active List Excel Documents
+     if (batchJobData != null && batchJobData.Tables[0] != null && batchJobData.Tables[0].Rows.Count > 0)
+     {
+         batchJobData.Tables[0].ExportDatasetToExcel("Batch Job Details");
+     }
+     else
+     {
+         DataTable processDTError = new DataTable();
+         processDTError.Columns.Add("Remark");
+         DataRow row = processDTError.NewRow();
+         row[0] = "No active data found";
+         processDTError.Rows.Add(row);
+         processDTError.ExportDatasetToExcel("Batch Job Details");
+     }
+ }
+ #endregion

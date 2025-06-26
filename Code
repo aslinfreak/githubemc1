@@ -1,100 +1,20 @@
- #region BatchJob
- /// <summary>
- /// To fetch all Batch jobs and its Schedule Details
- /// </summary>
- /// <returns>List of Batch Jobs and Schedule Details</returns>
- public ActionResult FetchAllBatchJobs()
- {
-     string associateId = this.Session["LoginID"].ToString();
-     AdminPageBL objBL = new AdminPageBL();
-     DataSet dataSetBatchJob = new DataSet();
-     BatchJobModel batchJobModel = new BatchJobModel();
-     BatchJobDetails batchJobDetails = new BatchJobDetails();
-
-     dataSetBatchJob = objBL.GetAllBatchJobs(associateId);
-     if (dataSetBatchJob != null && dataSetBatchJob.Tables != null && dataSetBatchJob.Tables.Count > 0
-         && dataSetBatchJob.Tables[0] != null && dataSetBatchJob.Tables[0].Rows.Count > 0)
-     {
-         foreach (DataRow dr in dataSetBatchJob.Tables[0].Rows)
-         {
-             batchJobDetails = new BatchJobDetails();
-             batchJobDetails.JobId = Convert.ToInt32(dr["JobId"]);
-             batchJobDetails.JobName = dr["JobName"].ToString();
-             batchJobDetails.IsActive = Convert.ToBoolean(dr["IsActive"]);
-             batchJobDetails.IsOneTime = Convert.ToBoolean(dr["IsOneTime"]);
-             batchJobDetails.StartTime = dr["StartTime"].ToString();
-             batchJobDetails.EndTime = dr["EndTime"].ToString();
-             batchJobDetails.JobTrack = Convert.ToInt32(dr["JobTrack"]);
-             batchJobDetails.LastStartTime = Convert.ToDateTime(dr["LastStarttime"]);
-             batchJobDetails.LastRunTime = Convert.ToDateTime(dr["LastEndtime"]);
-             batchJobModel.BatchJobList.Add(batchJobDetails);
-         }
-     }
-
-     return this.PartialView("_BatchJob", batchJobModel);
- }
-
- /// <summary>
- /// Method to update Batch Job Details
- /// </summary>
- /// <param name="jobId">selected Job</param>
- /// <param name="isActive">property IsActive</param>
- /// <param name="isOneTime">property isOnetime</param>
- /// <param name="startTime">property startTime</param>
- /// <param name="endTime">property endTime</param>
- /// <returns>status update</returns>        
- [ValidateAntiForgeryToken]
- public JsonResult UpdateBatchJobDetails(string jobId, string isActive, string isOneTime, string startTime, string endTime)
- {
-     //// To update Batch Job Details
-     string statusMsg = string.Empty;
-     try
-     {
-         AdminPageBL objBL = new AdminPageBL();
-         BatchJobData batchJobData = new BatchJobData();
-
-         batchJobData.JobId = Convert.ToInt32(jobId);
-         batchJobData.IsActive = Convert.ToBoolean(isActive);
-         batchJobData.IsOneTime = Convert.ToBoolean(isOneTime);
-         batchJobData.StartTime = startTime;
-         batchJobData.EndTime = endTime;
-         batchJobData.ModifiedBy = this.Session["loginID"].ToString();
-
-         statusMsg = Convert.ToString(objBL.UpdateBatchJobDetails(batchJobData));
-         return this.Json(new { StatusMsg = statusMsg }, JsonRequestBehavior.AllowGet);
-     }
-     catch (SystemException ex)
-     {
-         ex.LogException("UpdateBatchJobDetails", this.Session["loginID"].ToString());
-         statusMsg = "Failed";
-         return this.Json(new { StatusMsg = statusMsg }, JsonRequestBehavior.AllowGet);
-     }
- }
-
- /// <summary>
- /// Method to get all Batch jobs for Download functionality
- /// </summary>
- public void DownloadBatchJobData()
- {
-     var associateId = this.Session["LoginID"].ToString();
-     //// To fetch all Batch jobs data
-     AdminPageBL objBL = new AdminPageBL();
-     UntypedDataset batchJobData = new UntypedDataset();
-     batchJobData = objBL.GetAllBatchJobsforDownload(associateId);
-
-     //// To Fetch the corresponding flags for the respective Active List Excel Documents
-     if (batchJobData != null && batchJobData.Tables[0] != null && batchJobData.Tables[0].Rows.Count > 0)
-     {
-         batchJobData.Tables[0].ExportDatasetToExcel("Batch Job Details");
-     }
-     else
-     {
-         DataTable processDTError = new DataTable();
-         processDTError.Columns.Add("Remark");
-         DataRow row = processDTError.NewRow();
-         row[0] = "No active data found";
-         processDTError.Rows.Add(row);
-         processDTError.ExportDatasetToExcel("Batch Job Details");
-     }
- }
- #endregion
+/// <summary>
+/// Method to update Batch Job Details
+/// </summary>
+/// <param name="batchJobDetails">the data to update</param>
+/// <returns>status of the operation</returns>
+public string UpdateBatchJobDetails(BatchJobData batchJobDetails)
+{
+    //// To update Batch Job Details
+    try
+    {
+        using (AdminPageDL objDl = new AdminPageDL())
+        {
+            return objDl.UpdateBatchJobDetails(batchJobDetails);
+        }
+    }
+    catch (SystemException ex)
+    {
+        throw new SystemException("UpdateBatchJobDetails", ex);
+    }
+}

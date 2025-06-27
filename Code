@@ -1,34 +1,123 @@
-public string UpdateBatchJobDetails(BatchJobData batchJobDetails)
-{
-    string statusMsg = string.Empty;
-    using (SqlConnection connectionString = new SqlConnection(ConfigurationManager.ConnectionStrings["MYPConnectionString"].ConnectionString))
-    {
-        try
-        {
-            connectionString.OpenWithMSI();
+This is my Dev version
 
-            SqlCommand processCmd = new SqlCommand("[ADMIN].[usp_UpdateBatchJobDetails]", connectionString);
-            processCmd.CommandTimeout = 0;
-            processCmd.CommandType = CommandType.StoredProcedure;
-            processCmd.Parameters.AddWithValue("@JobId", batchJobDetails.JobId);
-            processCmd.Parameters.AddWithValue("@IsActive", batchJobDetails.IsActive);
-            processCmd.Parameters.AddWithValue("@IsOneTime", batchJobDetails.IsOneTime);
-            processCmd.Parameters.AddWithValue("@StartTime", batchJobDetails.StartTime);
-            processCmd.Parameters.AddWithValue("@EndTime", batchJobDetails.EndTime);
-            processCmd.Parameters.AddWithValue("@ModifiedBy", batchJobDetails.ModifiedBy);
-            statusMsg = Convert.ToString(processCmd.ExecuteScalar());
-            return statusMsg;
-        }
-        catch (SystemException ex)
-        {
-            throw new SystemException("UpdateBatchJobDetails", ex);
-        }
-        finally
-        {
-            if (connectionString.State != ConnectionState.Closed)
-            {
-                connectionString.Dispose();
-            }
-        }
-    }
-}
+USE [OneC_2394]
+GO
+/****** Object:  StoredProcedure [ADMIN].[usp_FetchAllBatchJobs]    Script Date: 27-06-2025 11:06:32 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+/*exec [ADMIN].[usp_FetchAllBatchJobs] @associateid="452279"*/
+
+-- =============================================
+-- Author:		ARYA(205604)
+-- Create date: 7-OCT-2020
+-- Description:	Fetch all Batch jobs for Admin Module
+-- =============================================
+ALTER PROCEDURE [ADMIN].[usp_FetchAllBatchJobs]
+	@AssociateID VARCHAR(10)
+AS
+BEGIN
+BEGIN TRY
+	SET NOCOUNT ON;
+
+	SELECT DISTINCT JM.PK_JOBID AS JobId,
+		JM.JobName,
+		JM.IsActive,
+		JM.IsOneTime,
+		JS.StartTime,
+		JS.EndTime,
+		JM.LastEndtime,JM.JobTrack,JM.LastStartTime
+	FROM [MAS].[JobMaster] JM WITH (NOLOCK)
+	INNER JOIN [MYP].[JobScheduler] JS WITH (NOLOCK) on JM.PK_JOBID = JS.FK_JOBID
+	ORDER BY JM.JobName
+	
+SET NOCOUNT OFF
+END TRY
+BEGIN CATCH
+
+	DECLARE @ERROR_ID  VARCHAR(8000)    
+	DECLARE @ERROR_MSG  VARCHAR(8000)
+	DECLARE @ERROR_STATE  VARCHAR(100)            
+	DECLARE @ERROR_PROCEDURE  VARCHAR(100)    
+	DECLARE @ERROR_LINE  VARCHAR(100)    
+
+	SELECT    
+	@ERROR_ID= ERROR_NUMBER(),    
+	@ERROR_MSG= ERROR_MESSAGE(),  
+	@ERROR_STATE=ERROR_STATE(),  
+	@ERROR_PROCEDURE='[ADMIN].[usp_FetchAllBatchJobs]',    
+	@ERROR_LINE = ERROR_LINE()    
+
+	INSERT INTO MYP.ExceptionLog(ErrorSource, ExceptionMessage, ExceptionStackTrace, 
+	InnerException, ExceptionDateTime,LoginId)
+	VALUES('WEBAPP',@ERROR_ID+@ERROR_MSG,@ERROR_STATE+@ERROR_PROCEDURE,NULL,GETDATE(),@AssociateId)          
+
+	RAISERROR(@ERROR_ID,@ERROR_STATE,@ERROR_MSG);
+
+END CATCH  
+END
+
+This is my Test version
+
+USE [OneC_2394]
+GO
+/****** Object:  StoredProcedure [ADMIN].[usp_FetchAllBatchJobs]    Script Date: 27-06-2025 11:12:47 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+
+
+-- =============================================
+-- Author:		ARYA(205604)
+-- Create date: 7-OCT-2020
+-- Description:	Fetch all Batch jobs for Admin Module
+-- =============================================
+ALTER PROCEDURE [ADMIN].[usp_FetchAllBatchJobs]
+	@AssociateID VARCHAR(10)
+AS
+BEGIN
+BEGIN TRY
+	SET NOCOUNT ON;
+
+	SELECT DISTINCT JM.PK_JOBID AS JobId,
+		JM.JobName,
+		JM.IsActive,
+		JM.IsOneTime,
+		JS.StartTime,
+		JS.EndTime,
+		JM.LastEndtime
+	FROM [MAS].[JobMaster] JM WITH (NOLOCK)
+	INNER JOIN [MYP].[JobScheduler] JS WITH (NOLOCK) on JM.PK_JOBID = JS.FK_JOBID
+	ORDER BY JM.JobName
+	
+SET NOCOUNT OFF
+END TRY
+BEGIN CATCH
+
+	DECLARE @ERROR_ID  VARCHAR(8000)    
+	DECLARE @ERROR_MSG  VARCHAR(8000)
+	DECLARE @ERROR_STATE  VARCHAR(100)            
+	DECLARE @ERROR_PROCEDURE  VARCHAR(100)    
+	DECLARE @ERROR_LINE  VARCHAR(100)    
+
+	SELECT    
+	@ERROR_ID= ERROR_NUMBER(),    
+	@ERROR_MSG= ERROR_MESSAGE(),  
+	@ERROR_STATE=ERROR_STATE(),  
+	@ERROR_PROCEDURE='[ADMIN].[usp_FetchAllBatchJobs]',    
+	@ERROR_LINE = ERROR_LINE()    
+
+	INSERT INTO MYP.ExceptionLog(ErrorSource, ExceptionMessage, ExceptionStackTrace, 
+	InnerException, ExceptionDateTime,LoginId)
+	VALUES('WEBAPP',@ERROR_ID+@ERROR_MSG,@ERROR_STATE+@ERROR_PROCEDURE,NULL,GETDATE(),@AssociateId)          
+
+	RAISERROR(@ERROR_ID,@ERROR_STATE,@ERROR_MSG);
+
+END CATCH  
+END
+
+

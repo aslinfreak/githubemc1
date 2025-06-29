@@ -1,115 +1,412 @@
-// function for UpdateBJDetails
-      //function UpdateBJDetails(jobId, isActive, isOneTime, startTime, endTime)
-    function UpdateBJDetails(jobId, isActive, isOneTime, startTime, endTime, jobTrack)
-{
-    var tokenval = $("input[name=__RequestVerificationToken]").val();
-    var dataUrl = global.webMethodList.UpdateBatchJobDetails;
-    //datastg = '{"jobId":"' + jobId + '","isActive":"' + isActive + '","isOneTime":"' + isOneTime + '","startTime":"' + startTime + '","endTime":"' + endTime + '", "__RequestVerificationToken":"' + tokenval + '"}';
-    datastg = '{"jobId":"' + jobId + '","isActive":"' + isActive + '","isOneTime":"' + isOneTime + '","startTime":"' + startTime + '","endTime":"' + endTime + '","jobTrack":"' + jobTrack + '", "__RequestVerificationToken":"' + tokenval + '"}';
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  For more information on how to configure your ASP.NET application, please visit
+  http://go.microsoft.com/fwlink/?LinkId=169433
+  -->
+<configuration>
+  <configSections>
+    <!-- For more information on Entity Framework configuration, visit http://go.microsoft.com/fwlink/?LinkID=237468 -->
+  </configSections>
+  <connectionStrings>
+    <add name="MYPConnectionString" connectionString="Data Source=ctsazsimidgntm1.inso13dfbbbfa2150.database.windows.net;Initial Catalog=OneC_2394;Persist Security Info=False;MultipleActiveResultSets=False;Connect Timeout=30;Encrypt=True;TrustServerCertificate=False;MultiSubnetFailover=True;User ID=OneC_2394;Password=OneC_MyPerf;" />
+    <add name="MYPConnectionStringReadOnly" connectionString="Data Source=ctsazsimidgntm1.inso13dfbbbfa2150.database.windows.net;Initial Catalog=OneC_2394;ApplicationIntent=ReadOnly;Persist Security Info=False;MultipleActiveResultSets=False;Connect Timeout=30;Encrypt=True;TrustServerCertificate=False;MultiSubnetFailover=True;User ID=OneC_2394;Password=OneC_MyPerf;" />
+  </connectionStrings>
+  <appSettings>
+    <add key="AppMSIHash" value="un+relizIfozovQuZtJeqFUfxG6qfvQfbff4PI7/9RrvGMGZetz6d8J132LnHfWi0lmlo1ygLDvLscLHaAB7pA==" />
+    <add key="webpages:Version" value="2.0.0.0" />
+    <add key="webpages:Enabled" value="false" />
+    <add key="PreserveLoginUrl" value="true" />
+    <add key="ClientValidationEnabled" value="true" />
+    <add key="UnobtrusiveJavaScriptEnabled" value="true" />
+    <add key="IsUserContext" value="0" />
+    <add key="QueryPageAccess" value="222780,318152,388582,299055,445906" />
+    <add key="HomeURL" value="/Home/Index" />
+    <add key="EcmUploadLink" value="https://onececmssltest.cognizant.com/2394/FileUpload.aspx" />
+    <add key="AppUrl" value="https://onecdevintbcapps.cognizant.com/2394" />
+    <add key="ECMAppid" value="1108" />
+    <add key="EcmUploadMyPerfLink" value="http://localhost/GoPerform/Home/ECMPage" />
+    <!--<add key="EcmUploadMyPerfLink" value="http://localhost/Home/ECMPage"/>-->
+    <add key="NoOrgGoal" value="Applicable organizational metrics will be updated in the next refresh. Click &quot;Ask a Question&quot; for FAQs." />
+    <add key="NoRoleGoal" value="Role Goal metrics will be updated soon" />
+    <add key="SelectQuarter" value="Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo." />
+    <add key="InEligibleMessage" value="Your access has not been enabled for this page. Please go to &lt;a href='https://onecognizant.cognizant.com/?GlobalAppId=587' target='_blank'&gt;Navigator&lt;/a&gt; for FAQs or contact your Talent Manager for more details." />
+    <add key="RoleNotSetMessage" value="CCA role has not been set, please contact your Home manager to complete it. Post which this page will be enabled" />
+    <add key="MasterDataInavailable" value="Your details have not been updated. To get more details, please raise a &lt;a href='https://onecognizant.cognizant.com/Home?globalappid=2425' target='_blank'&gt;GSD – Live Support.&lt;/a&gt;" />
+    <add key="MarqueeText" value="Your Marquee Text Goes Here" />
+    <add key="NotificationText" value="(Notifications for the last 30 days only are available for view.There may be other pending actions for you)" />
+    <add key="MachineKeySet" value="MachineKeySet" />
+    <add key="DeliTitleCharLimit" value="70" />
+    <add key="DeliDescCharLimit" value="300" />
+    <add key="DeliTargetCharLimit" value="100" />
+    <add key="NotesCharLimit" value="500" />
+    <add key="CommentsCharLimit" value="100" />
+    <add key="RecommendationInfo" value="Home manager Recommendation" />
+    <add key="ECMEnvironment" value="SIT" />
+    <add key="IsPT" value="0" />
+    <add key="NavigatorLink" value="https://onecognizant.cognizant.com/?GlobalAppId=587" />
+    <add key="NavigatorTooltip" value="Click here to ask a question" />
+    <add key="Maintenance" value="no" />
+    <add key="MaintenanceText" value="Application is currently under maintenance. Please try again after sometime." />
+    <add key="ErrorText" value="Oops!! Something went wrong. Please try after sometime." />
+    <add key="ContractorPageText" value="Application is currently not enabled for contractor employees" />
+    <add key="autoFormsAuthentication" value="false" />
+    <add key="enableSimpleMembership" value="false" />
+    <add key="IsCircle" value="1" />
+    <add key="GenericNoteSection" value="Generic notes section contains additional efforts that you want to document as a part of your performance summary and any notes tagged to previously active KROs." />
+    <add key="RequestReceivedSection" value="Feedback requests from reportee(s) and others are displayed here" />
+    <add key="InterimCheckinSection" value="Feedback Requests Sent and Feedback Requested are shown here" />
+    <add key="SessionExpiredMessage" value="Oops your session expired, Click here to launch the application again." />
+    <add key="NoDeliverableMessage" value="No deliverables have been added." />
+    <add key="NoDeliverableCheckin" value="No deliverables have been added by the associate. You can still provide rating based on your overall observation." />
+    <add key="NoteReqPrivacyMsg" value="Note request and the reply will not be visible to your reportee" />
+    <add key="ReqFeedBackPrivacyMsg" value="(Note will be visible only to the requester)" />
+    <add key="IsPerformanceEligibleMessage" value="Performance Review process not applicable for this associate" />
+    <add key="CheckinSaveWarningMessage" value="Please provide rating or Home manager comments input to save" />
+    <add key="CheckinWarningMessage" value="You need to provide rating to all the KROs and Deliverables" />
+    <add key="CheckinSaveMessage" value="Check-in document saved successfully.Please ensure that you submit the document for the changes to be considered" />
+    <add key="CheckinSaveYEAMessage" value="Document saved successfully. Complete the check-in document and click on ‘Submit’ to view the YEA document." />
+    <add key="YEADocDueDate" value="January 20, 2017 23:59 (Pacific Time)" />
+    <add key="CheckinIndividualSaveMessage" value="Rating is saved successfully" />
+    <add key="CheckinIndividualSaveWarningMessage" value="Please provide rating" />
+    <add key="SearchErrorMessage" value="No results found" />
+    <add key="ReqNoteMessageSup" value="Request note message and the note will be visible to your reportee" />
+    <add key="ReqNoteMessageRep" value="Request note message and the note will be visible to your Home manager" />
+    <add key="SecondsToNotifyBeforeSessionExpire" value="120" />
+    <add key="IsOnboard" value="0" />
+    <add key="RaiseGrievanceLink" value="" />
+    <add key="MapPath" value="onecdevintbcapps_Sep2020.cognizant.com.pfx" />
+    <add key="OpenFile" value="cGFzcw==" />
+    <add key="NoOrgGoalYEA" value="No Applicable organizational metrics available." />
+    <add key="NoRoleGoalYEA" value="No Role Goal metrics available." />
+    <add key="NoCommYEA" value="Home manager check-in comments are not available." />
+    <add key="BMNoCommYEA" value="Business manager check-in comments are not available." />
+    <add key="AssociateNoCommYEA" value="Check-in comments is not available" />
+    <add key="NoDeliverableYEA" value="No deliverables have been added" />
+    <add key="NoDeliverableMYR" value="No deliverables have been added by the associate." />
+    <add key="NoPIP" value="No PIP have been added." />
+    <add key="YEANoKRO" value="Key role outcomes are not available." />
+    <add key="YEANoDeliverable" value="No deliverables have been added" />
+    <add key="RTBNoDeliverable" value="No deliverables have been added." />
+    <add key="JusAnswerCount" value="500" />
+    <add key="SupYEACommCount" value="2000" />
+    <add key="TMGrievanceCommCount" value="5000" />
+    <add key="TMGrievanceMinCount" value="250" />
+    <add key="OEPMGrievanceCommCount" value="5000" />
+    <add key="OEPMGrievanceMinCount" value="8" />
+    <add key="SupJustCommCount" value="1000" />
+    <add key="AssociateYEACount" value="1000" />
+    <add key="AssociateYEAPIPCount" value="2000" />
+    <add key="ProRejectCharacterCountAP" value="100" />
+    <add key="YEANoteQuarters" value="4" />
+    <add key="MYRNoteQuarters" value="2" />
+    <add key="EligiblePercentageEA" value="20" />
+    <add key="EligiblePercentageEM" value="60" />
+    <add key="EligiblePercentageMA" value="15" />
+    <add key="EligiblePercentageMS" value="5" />
+    <add key="NoList" value="No Data Available." />
+    <add key="RatingDropDown" value="EA,EM,MA,MS" />
+    <add key="TMRatingDropDown" value="5,4,3,2,1" />
+    <add key="NotifyQDDeletedMsg" value="This deliverable has been deleted. Kindly refresh the notification icon and proceed." />
+    <add key="InterimCheckinFeedback" value="500" />
+    <add key="InterimCheckinPrivateNote" value="500" />
+    <add key="InterimCheckinOverallFeedback" value="1000" />
+    <add key="IsInterimLanding" value="1" />
+    <add key="YEASubmissionMessage" value="*You can make multiple submissions of the YEA rating recommendation till the closure of the rating recommendation phase. The last submission will be considered for Normalization. You will be able to modify your comments before making the final rating post normalization visible to your reports.Document will be auto saved every 5 minutes. Please click on “Submit” button to submit your YEA feedback." />
+    <add key="MYRSubmissionMessage" value="*You can make multiple submissions of the Mid year rating recommendation till the closure of the rating recommendation phase. The last submission will be considered for Normalization. You will be able to modify your comments before making the final rating post normalization visible to your reports.Document will be auto saved every 5 minutes. Please click on “Submit” button to submit your MYR feedback." />
+    <add key="YEADumpPageSize" value="50000" />
+    <add key="YEARatingDumpPageSize" value="50000" />
+    <add key="PromotionDumpPageSize" value="50000" />
+    <add key="TMDumpPageSize" value="50000" />
+    <add key="PDFIsLocalCheck" value="1" />
+    <add key="IPKeyword" value="INT" />
+    <add key="buTMdwnldlink" value="#" />
+    <add key="TMPOCLink" value="#" />
+    <add key="hierReportRefreshTime" value="at 00:30 hours and 15:30 hours (Indian Standard Time)" />
+    <add key="AssoListRefreshTime" value="" />
+    <add key="GoPerformURL" value="/Home/Index" />
+    <add key="PromotionTMURL" value="/Promotion_TM" />
+    <add key="GlobalHierarchy" value="#" />
+    <add key="MYRGlobalHierarchy" value="#" />
+    <add key="KROPIP" value="Associate was in PIP" />
+    <add key="PlatformServiceURL" value="https://onecsitcoresrvs.cognizant.com/2142/PlatformService.svc" />
+    <!--<add key="PlatformServiceURL" value="net.tcp://onecognizantcoresrvs.cognizant.com/2142/PlatformService.svc"/>-->
+    <add key="CheckinSaveMandatoryWarningMessage" value="Please enter comments before submit" />
+    <add key="FreetextCheckinMinLength" value="100" />
+    <add key="PreDefinedCheckinMinLength" value="30" />
+    <add key="AutoCheckinSave" value="600000" />
+    <add key="MyCareerLink" value="https://onecognizantbcapps.cognizant.com/1989/Default.aspx?CarLat=0" />
+    <add key="CheckInCommentTextMaxLength" value="5000" />
+    <add key="CheckInCommentTextMinLength" value="750" />
+    <add key="CheckInPreDefinedTextMaxLength" value="500" />
+    <add key="CheckInPreDefinedTextMinLength" value="250" />
+    <add key="BMCheckInCommentTextMaxLength" value="5000" />
+    <add key="BMCheckInCommentTextMinLength" value="750" />
+    <add key="BMCheckInPreDefinedTextMaxLength" value="500" />
+    <add key="BMCheckInPreDefinedTextMinLength" value="250" />
+    <add key="BMCheckinSaveMandatoryWarningMessage" value="Please enter comments before submit" />
+    <add key="BMCheckinSaveWarningMessage" value="Please provide rating or Business manager comments input to save" />
+    <add key="BMCheckinWarningMessage" value="You need to provide rating to all the Deliverables" />
+    <add key="AutoSaveTimeLimit" value="2" />
+    <add key="YEACommentTextMinLength" value="750" />
+    <add key="YEAQuestionTextMinLength" value="250" />
+    <add key="MYRCommentTextMinLength" value="750" />
+    <add key="MYRQuestionTextMinLength" value="250" />
+    <add key="NoDeliverableBMCheckin" value="No deliverables have been added by the associate." />
+    <add key="AutoSaveBlockMessage" value="Since the check-in document for the current associate has already been submitted; any changes done in this session will not be reflected in the check-in document. If you need to edit the already submitted document, please close all the open sessions and open a single new session to edit the submitted document for this associate." />
+    <add key="FutureRole" value="Future Role Readiness (Please provide Business Manager feedback as applicable)" />
+    <add key="NominationSummary" value="Nomination Summary (for billable roles, include details on increasing associate’s bill rate through rate change or rotation)" />
+    <add key="SupProCommCount" value="3000" />
+    <add key="PromotionAck" value="I acknowledge that I have reviewed the associate's performance, feedback from relevant stakeholders (including business managers, where available) and role readiness before nominating the associate to be considered for promotion." />
+    <add key="GraphBatchApiURL" value="https://graph.microsoft.com/v1.0/$batch" />
+    <add key="GraphApiURL" value="https://graph.microsoft.com/.default" />
+    <add key="MicrosoftLoginURL" value="https://login.microsoftonline.com/de08c407-19b9-427d-9fe8-edf254300ca7/v2.0" />
+    <add key="DRMOwnerAccess" value="816625@cognizant.com" />
+    <add key="YEABMReadonlyText" value="Please note, Home manager has submitted rating recommendation for the associate hence check-in document cannot be edited." />
+    <add key="NRMLReportDisclaimer" value="Do note, attached file/report contains personal information (PII) of associates and must be used strictly for legitimate business purpose(s) only. Downloading, printing or forwarding of this file/report is prohibited except in cases where it is necessary for approved business purpose(s). Restrict circulation of this file/report only to authorized receivers on a need-to know basis and ensure that this file/report (along with its copies) has been permanently deleted at your and any receivers’ end (if forwarded) as soon as the data contained in the file/report is no longer needed for the purpose, or when you are directed to do so. Improper handling of this file/report containing personal information in violation of the applicable policies and/or any related incident leading to breach of personal information contained in this file/report may result in appropriate action against person(s) concerned in terms of the applicable policies and procedure." />
+    <add key="EligiblePercentageEP" value="10" />
+    <add key="EligiblePercentageSTP" value="20" />
+    <add key="EligiblePercentageSOP" value="50" />
+    <add key="EligiblePercentageIP" value="15" />
+    <add key="EligiblePercentageUP" value="5" />
+    <add key="IsKeyVault" value="1" />
+    <add key="IsPEAInterim" value="1" />
+    <add key="YEABMSubmissionMessage" value="*You can make multiple submissions of the YEA rating recommendation till the closure of the rating recommendation phase or until the Home Manager submits the YEA rating. Please click on “Submit” button to submit your YEA feedback." />
+    <add key="FinalRatingTooltip2020" value="Rating Descriptors (In the scale below, 5 is the highest rating)&lt;br&gt;     5- Performance exceeds established goals and role expectations in ways that lead to team excellence. Associate is an essential contributor to the success of the organization/team. Consistently operates as a global steward of our corporate values.&lt;br&gt;     4 - Performance fully meets all established goals and role expectations and consistently exceeds goals and role expectations in some areas. Associate is a significant contributor to the success of the organization/team and consistently demonstrates our corporate values at a high level.&lt;br&gt;     3 - Performance meets established goals and role expectations. Associate consistently contributes to the success of the organization/team and demonstrates our corporate values.&lt;br&gt;     2 - Performance does not consistently meet established goals and role expectations. Associate typically demonstrates our corporate values at an appropriate level.&lt;br&gt;     1 - Performance does not meet established goals and role expectations AND/OR the associate does not consistently demonstrate our corporate values at an appropriate level." />
+    <add key="MYRFinalRatingTooltip" value="Rating Descriptors (In the scale below, 5 is the highest rating)&lt;br&gt;     5 - Performance exceeds established goals and role expectations in ways that lead to team excellence. Associate is an essential contributor to the success of the organization/team. Consistently operates as a global steward of our corporate values.&lt;br&gt;     4 - Performance fully meets all established goals and role expectations and consistently exceeds goals and role expectations in some areas. Associate is a significant contributor to the success of the organization/team and consistently demonstrates our corporate values at a high level.&lt;br&gt;     3 - Performance meets established goals and role expectations. Associate consistently contributes to the success of the organization/team and demonstrates our corporate values.&lt;br&gt;     2 - Performance does not consistently meet established goals and role expectations. Associate typically demonstrates our corporate values at an appropriate level.&lt;br&gt;     1 - Performance does not meet established goals and role expectations AND/OR the associate does not consistently demonstrate our corporate values at an appropriate level." />
+    <add key="AppEnvironment" value="SIT" />
+    <add key="EnableManagedDeviceCheck" value="false" />
+    <add key="FileUploadLimit" value="30" />
+    <add key="FileUploadRestrictionMessage" value="Error! You are trying to upload file more than the limit. Try after sometime  " />
+    <add key="FileUploadRestrictionEnable" value="true" />
+    <add key="ApprovalCaution" value="Rating ‘4’ or ‘5’ should be given to associates who have consistently exceeded expectations more than their peers. Please ensure you have leadership sign-off before giving a rating of ‘4’ or ‘5’" />
+    <add key="OCMUploadLink" value="http://localhost:53831/OCMWrapper/Upload" />
+    <add key="OCMOffSwitch" value="1" />
+    <add key="OCMDownloadUrl" value="http://localhost:53831/OCMWrapper/APIFileDownload?OCMContentID=" />
+    <add key="DeliverableRestriction" value="200" />
+    <add key="OurValues" value="How we work is as important as what we deliver. Reflect how you will demonstrate &lt;a href=&quot;https://cognizantonline.sharepoint.com/sites/GlobalHR/SitePages/Our-Purpose-Vision-and-Values.aspx&quot; target=&quot;_blank&quot; &gt; our values &lt;/a&gt; in your goals. " />
+    <add key="PEASubmitPopupMsg" value="Please mark the relevant deliverables as completed, before submitting a request for PEA. Deliverables that have been tagged with PEA cannot be edited or deleted once the feedback has been received. Please click proceed to confirm." />
+    <add key="AckDisclaimerMessage" value="Disclaimer : To activate the submit button for requesting your manager's review, make sure to include at least one deliverable. Furthermore, be sure to click the submit button whenever you change existing deliverables or introduce new ones within the same cycle." />
+    <add key="AcknowledgementMessage" value="Please select the checkbox to submit the deliverables for your HM/BM review. You will have the opportunity to add, edit, or delete existing deliverables until the self-evaluation phase concludes." />
+    <add key="AddDeliverableRestriction" value="6" />
+  </appSettings>
+  <!--
+    For a description of web.config changes see http://go.microsoft.com/fwlink/?LinkId=235367.
 
-    var data = {
-        //jobId: jobId, isActive: isActive, isOneTime: isOneTime, startTime: startTime, endTime: endTime, __RequestVerificationToken: tokenval
-        jobId: jobId, isActive: isActive, isOneTime: isOneTime, startTime: startTime, endTime: endTime, jobTrack: jobTrack, __RequestVerificationToken: tokenval
-
-    }
-    $.ajax({
-        cache: false,
-        async: true,
-        type: "POST",
-        /*        contentType: 'application/json',*/
-        dataType: 'json',
-        data: data,
-        url: dataUrl,
-        responseType: "json",
-        success:
-            //function executes on success
-            function (data) {
-                if (data.StatusMsg == "1") {
-                    $('#divSuccess').text('');
-                    $('#divSuccess').text('Selected batch details updated successfully.');
-                    // $("#modal_BJChange_confirm-alert").modal('show');
-                    var BJChangeConfirmModal = new bootstrap.Modal(document.getElementById('modal_BJChange_confirm-alert'));
-                    BJChangeConfirmModal.show();
-                    $('.alertOk').attr('data-screen', 'BatchJob');
-                }
-                else {
-                    // $("#modal_txtchange_alert").modal('show');
-                    var txtChangeAlertModal = new bootstrap.Modal(document.getElementById('modal_txtchange_alert'));
-                    txtChangeAlertModal.show();
-                }
-            }
-    });
-}
-
-////BJ Cancel Button Click
-$(document).on("click", "#btn_BJCancel", function () {
-    $('#bjCancel').removeAttr('data-jobid');
-    $('#bjCancel').removeAttr('data-isactive');
-    $('#bjCancel').removeAttr('data-isonetime');
-    $('#bjCancel').removeAttr('data-starttime');
-    $('#bjCancel').removeAttr('data-endtime');
-
-    var jobid_Cancel = $(this).attr('data-jobid');
-    var isactive_Cancel = $(this).attr('data-isactive');
-    var isOneTime_Cancel = $(this).attr('data-isonetime');
-    var startTime_Cancel = $(this).attr('data-starttime');
-    var endTime_Cancel = $(this).attr('data-endtime');
-
-    $('#bjCancel').attr('data-jobid', jobid_Cancel);
-    $('#bjCancel').attr('data-isactive', isactive_Cancel);
-    $('#bjCancel').attr('data-isonetime', isOneTime_Cancel);
-    $('#bjCancel').attr('data-starttime', startTime_Cancel);
-    $('#bjCancel').attr('data-endtime', endTime_Cancel);
-
-
-    // $('#admmodal_BJ_cancel').modal(
-    //     {
-    //         backdrop: 'static', keyboard: false, show: true
-    //     }
-    // );
-    var BJCancelModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_cancel'), {
-        backdrop: 'static',
-        keyboard: false
-    });
-    BJCancelModal.show();
-});
-
-//Modal cancel confirm button Click
-$(document).on("click", "#btn_modalconfirm_cancelBJ ", function () {
-    var jobid_cancelBJ = $('#bjCancel').attr('data-jobid');
-    var isactive_cancelBJ = $('#bjCancel').attr('data-isactive');
-    var isOneTime_cancelBJ = $('#bjCancel').attr('data-isonetime');
-    var startTime_cancelBJ = $('#bjCancel').attr('data-starttime');
-    var endTime_cancelBJ = $('#bjCancel').attr('data-endtime');
-
-    $('.BJ_data_table tr').each(function () {
-        if ($(this).data('id') == jobid_cancelBJ) {
-            if (isactive_cancelBJ == 'True') {
-                $(this).find('.enableCheckBox').prop("checked", true);
-            }
-            else {
-                $(this).find('.enableCheckBox').prop("checked", false);
-            }
-
-            if (isOneTime_cancelBJ == 'True') {
-                $(this).find('.oneTimeCheckbox').prop("checked", true);
-            }
-            else {
-                $(this).find('.oneTimeCheckbox').prop("checked", false);
-            }
-            $(this).find('.startTime').val(startTime_cancelBJ);
-            $(this).find('.endTime').val(endTime_cancelBJ);
-        }
-    })
-    // $("#admmodal_BJ_cancel").modal('hide');
-    var BJCancelModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_cancel'));
-    BJCancelModal.hide();
-
-});
-
-$(document).on("click", "#btn_DownloadBatchJobs", function () {
-    var url = rootUrl + "Admin/DownloadBatchJobData";
-    window.location.replace(url);
-});
-//BJ END
-
+    The following attributes can be set on the <httpRuntime> tag.
+      <system.Web>
+        <httpRuntime targetFramework="4.6" />
+      </system.Web>
+  -->
+  <system.web>
+    <compilation targetFramework="4.7.2" debug="true">
+      <assemblies>
+        <add assembly="netstandard, Version=2.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51" />
+      </assemblies>
+    </compilation>
+    <httpRuntime targetFramework="4.7.2" />
+    <pages>
+      <namespaces>
+        <add namespace="System.Web.Helpers" />
+        <add namespace="System.Web.Mvc" />
+        <add namespace="System.Web.Mvc.Ajax" />
+        <add namespace="System.Web.Mvc.Html" />
+        <add namespace="System.Web.Optimization" />
+        <add namespace="System.Web.Routing" />
+        <add namespace="System.Web.WebPages" />
+      </namespaces>
+    </pages>
+    <sessionState timeout="20" />
+  </system.web>
+  <system.webServer>
+    <validation />
+    <httpProtocol>
+      <customHeaders>
+        <add name="Access-Control-Allow-Origin" value="https://onecdevintbcapps.cognizant.com/2394" />
+      </customHeaders>
+    </httpProtocol>
+    <httpCompression directory="%SystemDrive%\inetpub\temp\IIS Temporary Compressed Files">
+      <scheme name="gzip" dll="%Windir%\system32\inetsrv\gzip.dll" staticCompressionLevel="9" />
+      <dynamicTypes>
+        <add mimeType="text/*" enabled="true" />
+        <add mimeType="message/*" enabled="true" />
+        <add mimeType="application/x-javascript" enabled="true" />
+        <add mimeType="application/json" enabled="true" />
+        <add mimeType="*/*" enabled="false" />
+      </dynamicTypes>
+      <staticTypes>
+        <add mimeType="text/*" enabled="true" />
+        <add mimeType="message/*" enabled="true" />
+        <add mimeType="application/x-javascript" enabled="true" />
+        <add mimeType="application/atom+xml" enabled="true" />
+        <add mimeType="application/xaml+xml" enabled="true" />
+        <add mimeType="*/*" enabled="false" />
+      </staticTypes>
+    </httpCompression>
+    <urlCompression doStaticCompression="true" doDynamicCompression="true" />
+    <handlers>
+      <remove name="ExtensionlessUrlHandler-Integrated-4.0" />
+      <remove name="OPTIONSVerbHandler" />
+      <remove name="TRACEVerbHandler" />
+      <add name="ExtensionlessUrlHandler-Integrated-4.0" path="*." verb="*" type="System.Web.Handlers.TransferRequestHandler" preCondition="integratedMode,runtimeVersionv4.0" />
+    </handlers>
+  </system.webServer>
+  <runtime>
+    <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+      <dependentAssembly>
+        <assemblyIdentity name="Newtonsoft.Json" publicKeyToken="30ad4fe6b2a6aeed" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-13.0.0.0" newVersion="13.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Memory" publicKeyToken="cc7b13ffcd2ddd51" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-4.0.1.2" newVersion="4.0.1.2" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Buffers" publicKeyToken="cc7b13ffcd2ddd51" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-4.0.3.0" newVersion="4.0.3.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Numerics.Vectors" publicKeyToken="b03f5f7f11d50a3a" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-4.1.3.0" newVersion="4.1.3.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Net.Http.Formatting" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-5.2.9.0" newVersion="5.2.9.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.WebPages.Razor" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.Razor" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="WebMatrix.WebData" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.Http" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-5.2.9.0" newVersion="5.2.9.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.ValueTuple" publicKeyToken="cc7b13ffcd2ddd51" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-4.0.3.0" newVersion="4.0.3.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Runtime.CompilerServices.Unsafe" publicKeyToken="b03f5f7f11d50a3a" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-6.0.0.0" newVersion="6.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Text.Json" publicKeyToken="cc7b13ffcd2ddd51" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-8.0.0.5" newVersion="8.0.0.5" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.Bcl.AsyncInterfaces" publicKeyToken="cc7b13ffcd2ddd51" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-8.0.0.0" newVersion="8.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Diagnostics.DiagnosticSource" publicKeyToken="cc7b13ffcd2ddd51" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-6.0.0.1" newVersion="6.0.0.1" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.Kiota.Abstractions" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-1.3.1.0" newVersion="1.3.1.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.Graph.Core" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-2.0.15.0" newVersion="2.0.15.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.IdentityModel.Abstractions" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-7.2.0.0" newVersion="7.2.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Azure.Core" publicKeyToken="92742159e12e44c8" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-1.36.0.0" newVersion="1.36.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.IdentityModel.Tokens.Jwt" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-7.2.0.0" newVersion="7.2.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.IdentityModel.Protocols.OpenIdConnect" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-7.0.3.0" newVersion="7.0.3.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.IdentityModel.Tokens" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-7.2.0.0" newVersion="7.2.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.IdentityModel.Protocols" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-7.0.3.0" newVersion="7.0.3.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.Data.OData" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-5.8.4.0" newVersion="5.8.4.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.Data.Edm" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-5.8.4.0" newVersion="5.8.4.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Spatial" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-5.8.4.0" newVersion="5.8.4.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.Helpers" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="1.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.WebPages" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="1.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.Mvc" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="0.0.0.0-5.3.0.0" newVersion="5.3.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Text.Encodings.Web" publicKeyToken="cc7b13ffcd2ddd51" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-8.0.0.0" newVersion="8.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Net.Http.WinHttpHandler" publicKeyToken="b03f5f7f11d50a3a" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-7.0.0.0" newVersion="7.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.IdentityModel.Logging" publicKeyToken="31bf3856ad364e35" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-7.2.0.0" newVersion="7.2.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Microsoft.Identity.Client" publicKeyToken="0a613f4dd989e8ae" culture="neutral" />
+        <bindingRedirect oldVersion="0.0.0.0-4.64.0.0" newVersion="4.64.0.0" />
+      </dependentAssembly>
+    </assemblyBinding>
+  </runtime>
+  <system.serviceModel>
+    <bindings>
+      <basicHttpBinding>
+        <binding name="BasicHttpBinding_IUserProfile" />
+        <binding name="BasicHttpBinding_IDocumentService1" maxBufferPoolSize="524288" maxBufferSize="2147483647" maxReceivedMessageSize="2147483647">
+          <security mode="Transport">
+            <transport clientCredentialType="Windows" />
+          </security>
+        </binding>
+        <binding name="BasicHttpBinding_IKeyVaultService">
+          <security mode="Transport">
+            <transport clientCredentialType="Windows" />
+          </security>
+        </binding>
+      </basicHttpBinding>
+      <netTcpBinding>
+        <binding name="NetTcpBinding_IUserProfile">
+          <security mode="None" />
+        </binding>
+      </netTcpBinding>
+    </bindings>
+    <client>
+      <endpoint address="http://onecognizantappssrvs.cognizant.com/1/UserProfile.svc" binding="basicHttpBinding" bindingConfiguration="BasicHttpBinding_IUserProfile" contract="UserProfile.IUserProfile" name="BasicHttpBinding_IUserProfile" />
+      <endpoint address="https://onecsitcoresrvs.cognizant.com/2502/DRMService.svc" binding="basicHttpBinding" bindingConfiguration="BasicHttpBinding_IDocumentService1" contract="DRMService.IDocumentService" name="BasicHttpBinding_IDocumentService1" />
+      <endpoint address="https://onecsitcoresrvs.cognizant.com/2730/KeyVaultService.svc" binding="basicHttpBinding" bindingConfiguration="BasicHttpBinding_IKeyVaultService" contract="KeyVaultService.IKeyVaultService" name="BasicHttpBinding_IKeyVaultService" />
+    </client>
+  </system.serviceModel>
+</configuration>

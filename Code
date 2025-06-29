@@ -1,518 +1,88 @@
+USE [OneC_2394]
+GO
+/****** Object:  StoredProcedure [ADMIN].[usp_UpdateBatchJobDetails]    Script Date: 29-06-2025 18:22:05 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 
- 
- -- Check columns in MAS.JobMaster
-SELECT COLUMN_NAME
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'MAS' AND TABLE_NAME = 'JobMaster';
- 
--- Check columns in ADMIN.Log_JobMaster
-SELECT COLUMN_NAME
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'ADMIN' AND TABLE_NAME = 'Log_JobMaster';
-
-UPDATE ljm
-SET ljm.JobTrack = jm.JobTrack
-FROM ADMIN.Log_JobMaster ljm
-INNER JOIN MAS.JobMaster jm
-    ON ljm.FK_JobID = jm.PK_JobID;
- 
-
-
- ALTER TABLE ADMIN.Log_JobMaster
-ADD JobTrack int NULL; -- Matches the int data type from MAS.JobMaster
- 
- SELECT ljm.FK_JobID, ljm.JobTrack AS OldJobTrack, jm.JobTrack AS NewJobTrack
-FROM ADMIN.Log_JobMaster ljm
-INNER JOIN MAS.JobMaster jm
-    ON ljm.FK_JobID = jm.PK_JobID
-WHERE ljm.JobTrack != jm.JobTrack OR ljm.JobTrack IS NULL OR jm.JobTrack IS NULL;
-
-
-CREATE TRIGGER trg_SyncJobTrack
-ON MAS.JobMaster
-AFTER INSERT, UPDATE
+-- =============================================
+-- Author:		Arya (205604)
+-- Create date: OCT 2020
+-- Description:	To Update the details of BatchJobs
+-- =============================================
+ALTER PROCEDURE [ADMIN].[usp_UpdateBatchJobDetails]
+@JobId int, @IsActive bit, @IsOneTime bit, 
+@StartTime varchar(10), @EndTime varchar(10), @ModifiedBy int
 AS
 BEGIN
-    SET NOCOUNT ON;
- 
-    UPDATE ljm
-    SET ljm.JobTrack = i.JobTrack
-    FROM ADMIN.Log_JobMaster ljm
-    INNER JOIN inserted i
-        ON ljm.FK_JobID = i.PK_JobID;
-END;
- 
- 
 
- CREATE TRIGGER trg_SyncJobTrack_Insert
-ON MAS.JobMaster
-AFTER UPDATE
-AS
+BEGIN TRY
+BEGIN TRANSACTION    
+SET NOCOUNT ON;
 BEGIN
-    SET NOCOUNT ON;
- 
-    INSERT INTO ADMIN.Log_JobMaster (
-        FK_JobID, IsActive, IsOneTime, StartTime, EndTime, CreatedBy, CreatedDate, 
-        ModifiedBy, ModifiedDate, BackUpBy, BackUpDate, Remarks, RowStatus, JobTrack
-    )
-    SELECT 
-        i.PK_JobID, i.IsActive, i.IsOneTime, NULL, NULL, i.CreatedBy, GETDATE(), 
-        i.ModifiedBy, i.ModifiedDate, NULL, NULL, i.Remarks, 1, i.JobTrack
-    FROM inserted i
-    INNER JOIN deleted d ON i.PK_JobID = d.PK_JobID
-    WHERE i.JobTrack != d.JobTrack 
-       OR (i.JobTrack IS NOT NULL AND d.JobTrack IS NULL) 
-       OR (i.JobTrack IS NULL AND d.JobTrack IS NOT NULL);
-END;
- 
+IF EXISTS (SELECT 1 FROM [MAS].[JobMaster] WITH(NOLOCK) WHERE PK_JOBID=@JobId)
+BEGIN	
+	INSERT INTO [ADMIN].[Log_JobMaster]
+		([FK_JobID],[IsActive],[IsOneTime],[StartTime],[EndTime]
+		,CreatedBy,CreatedDate
+		,[ModifiedBy],[ModifiedDate]
+		,[BackUpBy] ,[BackUpDate] ,[Remarks] ,[RowStatus])
+	SELECT 
+		M.PK_JobID,M.IsActive,M.IsOneTime,
+		JS.StartTime,JS.EndTime,M.CreatedBy,M.CreatedDate,
+		M.[ModifiedBy],M.[ModifiedDate],
+		@ModifiedBy,GETDATE(),
+		'Updated through Admin Module',1
+	FROM [MAS].[JobMaster] M
+	INNER JOIN [MYP].[JobScheduler] JS ON M.PK_JobID=JS.FK_JobID
+	where M.PK_JobID=@JobId
 
- BEGIN TRANSACTION;
-UPDATE ljm
-SET ljm.JobTrack = jm.JobTrack
-FROM ADMIN.Log_JobMaster ljm
-INNER JOIN MAS.JobMaster jm
-    ON ljm.FK_JobID = jm.PK_JobID;
--- Check results
-SELECT ljm.FK_JobID, ljm.JobTrack, jm.JobTrack
-FROM ADMIN.Log_JobMaster ljm
-INNER JOIN MAS.JobMaster jm
-    ON ljm.FK_JobID = jm.PK_JobID;
-ROLLBACK; -- Undo changes for testing
- 
-
- UPDATE MAS.JobMaster
-SET JobTrack = JobTrack + 1
-WHERE PK_JobID = 19; -- Replace with a valid PK_JobID
- 
-
- 
- ALTER TRIGGER MAS.trg_SyncJobTrack_Insert
-ON MAS.JobMaster
-AFTER UPDATE
-AS
+	UPDATE [MAS].[JobMaster]
+	SET IsActive=@IsActive, isOnetime=@IsOneTime,
+	ModifiedBY=@ModifiedBy, ModifiedDate=GETDate()
+	WHERE PK_JOBID=@JobId
+END
+IF EXISTS (SELECT 1 FROM [MYP].[JobScheduler] WITH(NOLOCK) WHERE FK_JOBID=@JobId)
 BEGIN
-    SET NOCOUNT ON;
- 
-    INSERT INTO ADMIN.Log_JobMaster (
-        FK_JobID, IsActive, IsOneTime, StartTime, EndTime, CreatedBy, CreatedDate, 
-        ModifiedBy, ModifiedDate, BackUpBy, BackUpDate, Remarks, RowStatus, JobTrack
-    )
-    SELECT 
-        i.PK_JobID, 
-        i.IsActive, 
-        i.IsOneTime, 
-        ISNULL(FORMAT(i.LastStartTime, 'HH:mm'), '00:00'), -- Convert LastStartTime to HH:MM or use default
-        ISNULL(FORMAT(i.LastEndTime, 'HH:mm'), '00:00'),  -- Convert LastEndTime to HH:MM or use default
-        i.CreatedBy, 
-        GETDATE(), 
-        i.ModifiedBy, 
-        i.ModifiedDate, 
-        NULL, -- BackUpBy
-        NULL, -- BackUpDate
-        i.Remarks, 
-        1,    -- RowStatus (adjust as needed)
-        i.JobTrack
-    FROM inserted i
-    INNER JOIN deleted d ON i.PK_JobID = d.PK_JobID
-    WHERE i.JobTrack != d.JobTrack 
-       OR (i.JobTrack IS NOT NULL AND d.JobTrack IS NULL) 
-       OR (i.JobTrack IS NULL AND d.JobTrack IS NOT NULL);
-END;
- 
- UPDATE MAS.JobMaster
-SET JobTrack = JobTrack + 1
-WHERE PK_JobID = 1; -- Replace with a valid PK_JobID
- 
+	UPDATE [MYP].[JobScheduler]
+	SET StartTime=@StartTime, EndTime=@EndTime,
+	ModifiedBy=@ModifiedBy, ModifiedDate=GETDate()
+	WHERE FK_JOBID=@JobId
+END
 
+Select 1 as Status
+END
+COMMIT TRAN
+       
+END TRY
 
- ALTER TRIGGER MAS.trg_SyncJobTrack_Insert
-ON MAS.JobMaster
-AFTER UPDATE
-AS
+BEGIN CATCH
+
+IF XACT_STATE() <> 0
 BEGIN
-    SET NOCOUNT ON;
- 
-    INSERT INTO ADMIN.Log_JobMaster (
-        FK_JobID, IsActive, IsOneTime, StartTime, EndTime, CreatedBy, CreatedDate, 
-        ModifiedBy, ModifiedDate, BackUpBy, BackUpDate, Remarks, RowStatus, JobTrack
-    )
-    SELECT 
-        i.PK_JobID, 
-        i.IsActive, 
-        i.IsOneTime, 
-        ISNULL(FORMAT(i.LastStartTime, 'HH:mm'), '00:00'), -- Convert LastStartTime to HH:mm or use default
-        ISNULL(FORMAT(i.LastEndTime, 'HH:mm'), '00:00'),  -- Convert LastEndTime to HH:mm or use default
-        ISNULL(i.CreatedBy, 0),                           -- Default to 0 if CreatedBy is NULL
-        GETDATE(), 
-        ISNULL(i.ModifiedBy, 0),                          -- Default to 0 if ModifiedBy is NULL
-        i.ModifiedDate, 
-        ISNULL(i.ModifiedBy, 0),                          -- Use ModifiedBy or 0 for BackUpBy
-        NULL,                                             -- BackUpDate (nullable)
-        i.Remarks, 
-        ISNULL(i.RowStatus, 1),                           -- Default to 1 for RowStatus
-        i.JobTrack
-    FROM inserted i
-    INNER JOIN deleted d ON i.PK_JobID = d.PK_JobID
-    WHERE i.JobTrack != d.JobTrack 
-       OR (i.JobTrack IS NOT NULL AND d.JobTrack IS NULL) 
-       OR (i.JobTrack IS NULL AND d.JobTrack IS NOT NULL);
-END;
- 
+   SELECT 0 AS Status 
+   ROLLBACK TRANSACTION
+END
+   DECLARE @ERROR_ID  VARCHAR(8000)    
+   DECLARE @ERROR_MSG  VARCHAR(8000)
+   DECLARE @ERROR_STATE  VARCHAR(100)            
+   DECLARE @ERROR_PROCEDURE  VARCHAR(100)    
+   DECLARE @ERROR_LINE  VARCHAR(100)    
 
+   SELECT    
+    @ERROR_ID= ERROR_NUMBER(),    
+    @ERROR_MSG= ERROR_MESSAGE(),  
+          @ERROR_STATE=ERROR_STATE(),  
+    @ERROR_PROCEDURE='[ADMIN].[usp_UpdateBatchJobDetails]',    
+    @ERROR_LINE = ERROR_LINE()    
 
- ALTER TRIGGER MAS.trg_SyncJobTrack_Insert
-ON MAS.JobMaster
-AFTER UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
- 
-    INSERT INTO ADMIN.Log_JobMaster (
-        FK_JobID, IsActive, IsOneTime, StartTime, EndTime, CreatedBy, CreatedDate, 
-        ModifiedBy, ModifiedDate, BackUpBy, BackUpDate, Remarks, RowStatus, JobTrack
-    )
-    SELECT 
-        i.PK_JobID, 
-        i.IsActive, 
-        i.IsOneTime, 
-        ISNULL(FORMAT(i.LastStartTime, 'HH:mm'), '00:00'), -- Convert LastStartTime to HH:mm
-        ISNULL(FORMAT(i.LastEndTime, 'HH:mm'), '00:00'),  -- Convert LastEndTime to HH:mm
-        ISNULL(i.CreatedBy, 0),                           -- Default to 0 if CreatedBy is NULL
-        GETDATE(),                                        -- Current date/time for CreatedDate
-        ISNULL(i.ModifiedBy, 0),                          -- Default to 0 if ModifiedBy is NULL
-        ISNULL(i.ModifiedDate, GETDATE()),                -- Default to GETDATE() if ModifiedDate is NULL
-        ISNULL(i.ModifiedBy, 0),                          -- Use ModifiedBy or 0 for BackUpBy
-        ISNULL(i.ModifiedDate, GETDATE()),                -- Use ModifiedDate or GETDATE() for BackUpDate
-        i.Remarks, 
-        ISNULL(i.RowStatus, 1),                           -- Default to 1 for RowStatus
-        i.JobTrack
-    FROM inserted i
-    INNER JOIN deleted d ON i.PK_JobID = d.PK_JobID
-    WHERE i.JobTrack != d.JobTrack 
-       OR (i.JobTrack IS NOT NULL AND d.JobTrack IS NULL) 
-       OR (i.JobTrack IS NULL AND d.JobTrack IS NOT NULL);
-END;
+   INSERT INTO MYP.ExceptionLog(ErrorSource, ExceptionMessage, ExceptionStackTrace, 
+   InnerException, ExceptionDateTime,LoginId)
+   VALUES('BJ',@ERROR_ID+@ERROR_MSG,@ERROR_STATE+@ERROR_PROCEDURE,NULL,GETDATE(),'JOB')          
 
+   RAISERROR(@ERROR_ID,@ERROR_STATE,@ERROR_MSG);
 
- SELECT FK_JobID, JobTrack, StartTime, EndTime, BackUpBy, BackUpDate, CreatedDate
-FROM ADMIN.Log_JobMaster
-WHERE FK_JobID = 19; -- Replace with the same PK_JobID
- 
+END CATCH
 
- UPDATE ljm
-SET ljm.JobTrack = jm.JobTrack
-FROM ADMIN.Log_JobMaster ljm
-INNER JOIN MAS.JobMaster jm
-    ON ljm.FK_JobID = jm.PK_JobID;
-
-
-	ALTER TABLE ADMIN.Log_JobMaster
-ADD JobTrack int NULL; -- Matches int data type from MAS.JobMaster
- 
- SELECT ljm.FK_JobID, ljm.JobTrack AS OldJobTrack, jm.JobTrack AS NewJobTrack
-FROM ADMIN.Log_JobMaster ljm
-INNER JOIN MAS.JobMaster jm
-    ON ljm.FK_JobID = jm.PK_JobID
-WHERE ljm.JobTrack != jm.JobTrack OR ljm.JobTrack IS NULL OR jm.JobTrack IS NULL;
- 
- 
- SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'ADMIN' AND TABLE_NAME = 'Log_JobMaster';
- 
-
- ALTER TRIGGER MAS.trg_SyncJobTrack
-ON MAS.JobMaster
-AFTER INSERT, UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
- 
-    UPDATE ljm
-    SET ljm.JobTrack = i.JobTrack
-    FROM ADMIN.Log_JobMaster ljm
-    INNER JOIN inserted i
-        ON ljm.FK_JobID = i.PK_JobID;
-END;
- 
-
-
- ALTER TRIGGER MAS.trg_SyncJobTrack_Insert
-ON MAS.JobMaster
-AFTER UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
-    BEGIN TRY
-        INSERT INTO ADMIN.Log_JobMaster (
-            FK_JobID, IsActive, IsOneTime, StartTime, EndTime, CreatedBy, CreatedDate, 
-            ModifiedBy, ModifiedDate, BackUpBy, BackUpDate, Remarks, RowStatus, JobTrack
-        )
-        SELECT 
-            i.PK_JobID, i.IsActive, i.IsOneTime, 
-            ISNULL(FORMAT(i.LastStartTime, 'HH:mm'), '00:00'), 
-            ISNULL(FORMAT(i.LastEndTime, 'HH:mm'), '00:00'), 
-            ISNULL(i.CreatedBy, 0), GETDATE(), ISNULL(i.ModifiedBy, 0), 
-            ISNULL(i.ModifiedDate, GETDATE()), ISNULL(i.ModifiedBy, 0), 
-            ISNULL(i.ModifiedDate, GETDATE()), i.Remarks, ISNULL(i.RowStatus, 1), i.JobTrack
-        FROM inserted i
-        INNER JOIN deleted d ON i.PK_JobID = d.PK_JobID
-        WHERE i.JobTrack != d.JobTrack 
-           OR (i.JobTrack IS NOT NULL AND d.JobTrack IS NULL) 
-           OR (i.JobTrack IS NULL AND d.JobTrack IS NOT NULL);
-    END TRY
-    BEGIN CATCH
-        DECLARE @ErrorMessage NVARCHAR(4000) = ERROR_MESSAGE();
-        RAISERROR (@ErrorMessage, 16, 1);
-    END CATCH;
-END;
- 
-
-
- SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'ADMIN' AND TABLE_NAME = 'Log_JobMaster';
- 
-
- SELECT 
-    jm.PK_JobID, 
-    jm.JobTrack AS JobMaster_JobTrack, 
-    ljm.FK_JobID, 
-    ljm.JobTrack AS Log_JobMaster_JobTrack,
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
-
- SELECT 
-    jm.PK_JobID, 
-    ljm.JobTrack AS JobTrack, -- Select JobTrack from Log_JobMaster only
-    ljm.FK_JobID, 
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
- 
-
- SELECT 
-    jm.PK_JobID, 
-    ljm.FK_JobID, 
-    ljm.JobTrack AS JobTrack, -- From Log_JobMaster
-    CASE 
-        WHEN ljm.JobTrack = jm.JobTrack THEN 'Match'
-        ELSE 'Mismatch'
-    END AS JobTrack_Status,
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
- 
- SELECT 
-    jm.PK_JobID, 
-    ljm.JobTrack AS JobTrack, -- From Log_JobMaster
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
- 
- SELECT 
-    jm.PK_JobID, 
-    ljm.JobTrack AS JobTrack, -- From Log_JobMaster
-    jm.JobTrack AS JobMaster_JobTrack, -- Temporary for verification
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
- 
- SELECT 
-    jm.PK_JobID, 
-    ljm.JobTrack AS JobTrack, -- From Log_JobMaster
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
- 
- SELECT 
-    jm.PK_JobID, 
-    ljm.JobTrack AS JobTrack, -- From Log_JobMaster
-    CASE 
-        WHEN ljm.JobTrack = jm.JobTrack THEN 'Match'
-        ELSE 'Mismatch'
-    END AS Verification_Status, -- Temporary for validation
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
- 
-
- SELECT 
-    jm.PK_JobID, 
-    ljm.JobTrack AS JobTrack, -- From Log_JobMaster
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
- 
- SELECT 
-    jm.PK_JobID, 
-    ljm.JobTrack AS JobTrack, -- From Log_JobMaster
-    jm.JobTrack AS JobMaster_JobTrack, -- Temporary for verification
-    ljm.StartTime, 
-    ljm.EndTime, 
-    ljm.BackUpBy, 
-    ljm.BackUpDate, 
-    ljm.CreatedDate
-FROM MAS.JobMaster jm
-LEFT JOIN ADMIN.Log_JobMaster ljm
-    ON jm.PK_JobID = ljm.FK_JobID
-WHERE ljm.CreatedDate = (
-    SELECT MAX(CreatedDate)
-    FROM ADMIN.Log_JobMaster
-    WHERE FK_JobID = jm.PK_JobID
-);
- 
- UPDATE MAS.JobMaster
-SET JobTrack = JobTrack + 1
-WHERE PK_JobID = 1; -- Replace with a valid PK_JobID
-
-
-SELECT 
-    FK_JobID, 
-    JobTrack, 
-    StartTime, 
-    EndTime, 
-    BackUpBy, 
-    BackUpDate, 
-    CreatedDate
-FROM ADMIN.Log_JobMaster
-WHERE FK_JobID = 1 -- Replace with the same PK_JobID
-ORDER BY CreatedDate DESC;
- 
- 
- UPDATE ljm
-SET ljm.JobTrack = jm.JobTrack
-FROM ADMIN.Log_JobMaster ljm
-INNER JOIN MAS.JobMaster jm
-    ON ljm.FK_JobID = jm.PK_JobID;
- 
-
- ALTER TRIGGER MAS.trg_SyncJobTrack
-ON MAS.JobMaster
-AFTER INSERT, UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
- 
-    UPDATE ljm
-    SET ljm.JobTrack = i.JobTrack
-    FROM ADMIN.Log_JobMaster ljm
-    INNER JOIN inserted i
-        ON ljm.FK_JobID = i.PK_JobID;
-END;
- 
-
- SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE TABLE_SCHEMA = 'ADMIN' AND TABLE_NAME = 'Log_JobMaster';
- 
-
- ALTER TRIGGER MAS.trg_SyncJobTrack_Insert
-ON MAS.JobMaster
-AFTER UPDATE
-AS
-BEGIN
-    SET NOCOUNT ON;
-    INSERT INTO ADMIN.Log_JobMaster (
-        FK_JobID, IsActive, IsOneTime, StartTime, EndTime, CreatedBy, CreatedDate, 
-        ModifiedBy, ModifiedDate, BackUpBy, BackUpDate, Remarks, RowStatus, JobTrack
-    )
-    SELECT 
-        i.PK_JobID, i.IsActive, i.IsOneTime, 
-        ISNULL(REPLACE(FORMAT(i.LastStartTime, 'HH:mm'), ':', ''), '0000'), 
-        ISNULL(REPLACE(FORMAT(i.LastEndTime, 'HH:mm'), ':', ''), '0000'), 
-        ISNULL(i.CreatedBy, 0), GETDATE(), ISNULL(i.ModifiedBy, 0), 
-        ISNULL(i.ModifiedDate, GETDATE()), ISNULL(i.ModifiedBy, 0), 
-        ISNULL(i.ModifiedDate, GETDATE()), i.Remarks, ISNULL(i.RowStatus, 1), i.JobTrack
-    FROM inserted i
-    INNER JOIN deleted d ON i.PK_JobID = d.PK_JobID
-    WHERE i.JobTrack != d.JobTrack 
-       OR (i.JobTrack IS NOT NULL AND d.JobTrack IS NULL) 
-       OR (i.JobTrack IS NULL AND d.JobTrack IS NOT NULL);
-END;
- 
-
- select * from [ADMIN].[Log_JobMaster]
-
-
+END

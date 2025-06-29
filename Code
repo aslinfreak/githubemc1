@@ -1,88 +1,115 @@
-USE [OneC_2394]
-GO
-/****** Object:  StoredProcedure [ADMIN].[usp_UpdateBatchJobDetails]    Script Date: 29-06-2025 18:22:05 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+// function for UpdateBJDetails
+      //function UpdateBJDetails(jobId, isActive, isOneTime, startTime, endTime)
+    function UpdateBJDetails(jobId, isActive, isOneTime, startTime, endTime, jobTrack)
+{
+    var tokenval = $("input[name=__RequestVerificationToken]").val();
+    var dataUrl = global.webMethodList.UpdateBatchJobDetails;
+    //datastg = '{"jobId":"' + jobId + '","isActive":"' + isActive + '","isOneTime":"' + isOneTime + '","startTime":"' + startTime + '","endTime":"' + endTime + '", "__RequestVerificationToken":"' + tokenval + '"}';
+    datastg = '{"jobId":"' + jobId + '","isActive":"' + isActive + '","isOneTime":"' + isOneTime + '","startTime":"' + startTime + '","endTime":"' + endTime + '","jobTrack":"' + jobTrack + '", "__RequestVerificationToken":"' + tokenval + '"}';
 
--- =============================================
--- Author:		Arya (205604)
--- Create date: OCT 2020
--- Description:	To Update the details of BatchJobs
--- =============================================
-ALTER PROCEDURE [ADMIN].[usp_UpdateBatchJobDetails]
-@JobId int, @IsActive bit, @IsOneTime bit, 
-@StartTime varchar(10), @EndTime varchar(10), @ModifiedBy int
-AS
-BEGIN
+    var data = {
+        //jobId: jobId, isActive: isActive, isOneTime: isOneTime, startTime: startTime, endTime: endTime, __RequestVerificationToken: tokenval
+        jobId: jobId, isActive: isActive, isOneTime: isOneTime, startTime: startTime, endTime: endTime, jobTrack: jobTrack, __RequestVerificationToken: tokenval
 
-BEGIN TRY
-BEGIN TRANSACTION    
-SET NOCOUNT ON;
-BEGIN
-IF EXISTS (SELECT 1 FROM [MAS].[JobMaster] WITH(NOLOCK) WHERE PK_JOBID=@JobId)
-BEGIN	
-	INSERT INTO [ADMIN].[Log_JobMaster]
-		([FK_JobID],[IsActive],[IsOneTime],[StartTime],[EndTime]
-		,CreatedBy,CreatedDate
-		,[ModifiedBy],[ModifiedDate]
-		,[BackUpBy] ,[BackUpDate] ,[Remarks] ,[RowStatus])
-	SELECT 
-		M.PK_JobID,M.IsActive,M.IsOneTime,
-		JS.StartTime,JS.EndTime,M.CreatedBy,M.CreatedDate,
-		M.[ModifiedBy],M.[ModifiedDate],
-		@ModifiedBy,GETDATE(),
-		'Updated through Admin Module',1
-	FROM [MAS].[JobMaster] M
-	INNER JOIN [MYP].[JobScheduler] JS ON M.PK_JobID=JS.FK_JobID
-	where M.PK_JobID=@JobId
+    }
+    $.ajax({
+        cache: false,
+        async: true,
+        type: "POST",
+        /*        contentType: 'application/json',*/
+        dataType: 'json',
+        data: data,
+        url: dataUrl,
+        responseType: "json",
+        success:
+            //function executes on success
+            function (data) {
+                if (data.StatusMsg == "1") {
+                    $('#divSuccess').text('');
+                    $('#divSuccess').text('Selected batch details updated successfully.');
+                    // $("#modal_BJChange_confirm-alert").modal('show');
+                    var BJChangeConfirmModal = new bootstrap.Modal(document.getElementById('modal_BJChange_confirm-alert'));
+                    BJChangeConfirmModal.show();
+                    $('.alertOk').attr('data-screen', 'BatchJob');
+                }
+                else {
+                    // $("#modal_txtchange_alert").modal('show');
+                    var txtChangeAlertModal = new bootstrap.Modal(document.getElementById('modal_txtchange_alert'));
+                    txtChangeAlertModal.show();
+                }
+            }
+    });
+}
 
-	UPDATE [MAS].[JobMaster]
-	SET IsActive=@IsActive, isOnetime=@IsOneTime,
-	ModifiedBY=@ModifiedBy, ModifiedDate=GETDate()
-	WHERE PK_JOBID=@JobId
-END
-IF EXISTS (SELECT 1 FROM [MYP].[JobScheduler] WITH(NOLOCK) WHERE FK_JOBID=@JobId)
-BEGIN
-	UPDATE [MYP].[JobScheduler]
-	SET StartTime=@StartTime, EndTime=@EndTime,
-	ModifiedBy=@ModifiedBy, ModifiedDate=GETDate()
-	WHERE FK_JOBID=@JobId
-END
+////BJ Cancel Button Click
+$(document).on("click", "#btn_BJCancel", function () {
+    $('#bjCancel').removeAttr('data-jobid');
+    $('#bjCancel').removeAttr('data-isactive');
+    $('#bjCancel').removeAttr('data-isonetime');
+    $('#bjCancel').removeAttr('data-starttime');
+    $('#bjCancel').removeAttr('data-endtime');
 
-Select 1 as Status
-END
-COMMIT TRAN
-       
-END TRY
+    var jobid_Cancel = $(this).attr('data-jobid');
+    var isactive_Cancel = $(this).attr('data-isactive');
+    var isOneTime_Cancel = $(this).attr('data-isonetime');
+    var startTime_Cancel = $(this).attr('data-starttime');
+    var endTime_Cancel = $(this).attr('data-endtime');
 
-BEGIN CATCH
+    $('#bjCancel').attr('data-jobid', jobid_Cancel);
+    $('#bjCancel').attr('data-isactive', isactive_Cancel);
+    $('#bjCancel').attr('data-isonetime', isOneTime_Cancel);
+    $('#bjCancel').attr('data-starttime', startTime_Cancel);
+    $('#bjCancel').attr('data-endtime', endTime_Cancel);
 
-IF XACT_STATE() <> 0
-BEGIN
-   SELECT 0 AS Status 
-   ROLLBACK TRANSACTION
-END
-   DECLARE @ERROR_ID  VARCHAR(8000)    
-   DECLARE @ERROR_MSG  VARCHAR(8000)
-   DECLARE @ERROR_STATE  VARCHAR(100)            
-   DECLARE @ERROR_PROCEDURE  VARCHAR(100)    
-   DECLARE @ERROR_LINE  VARCHAR(100)    
 
-   SELECT    
-    @ERROR_ID= ERROR_NUMBER(),    
-    @ERROR_MSG= ERROR_MESSAGE(),  
-          @ERROR_STATE=ERROR_STATE(),  
-    @ERROR_PROCEDURE='[ADMIN].[usp_UpdateBatchJobDetails]',    
-    @ERROR_LINE = ERROR_LINE()    
+    // $('#admmodal_BJ_cancel').modal(
+    //     {
+    //         backdrop: 'static', keyboard: false, show: true
+    //     }
+    // );
+    var BJCancelModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_cancel'), {
+        backdrop: 'static',
+        keyboard: false
+    });
+    BJCancelModal.show();
+});
 
-   INSERT INTO MYP.ExceptionLog(ErrorSource, ExceptionMessage, ExceptionStackTrace, 
-   InnerException, ExceptionDateTime,LoginId)
-   VALUES('BJ',@ERROR_ID+@ERROR_MSG,@ERROR_STATE+@ERROR_PROCEDURE,NULL,GETDATE(),'JOB')          
+//Modal cancel confirm button Click
+$(document).on("click", "#btn_modalconfirm_cancelBJ ", function () {
+    var jobid_cancelBJ = $('#bjCancel').attr('data-jobid');
+    var isactive_cancelBJ = $('#bjCancel').attr('data-isactive');
+    var isOneTime_cancelBJ = $('#bjCancel').attr('data-isonetime');
+    var startTime_cancelBJ = $('#bjCancel').attr('data-starttime');
+    var endTime_cancelBJ = $('#bjCancel').attr('data-endtime');
 
-   RAISERROR(@ERROR_ID,@ERROR_STATE,@ERROR_MSG);
+    $('.BJ_data_table tr').each(function () {
+        if ($(this).data('id') == jobid_cancelBJ) {
+            if (isactive_cancelBJ == 'True') {
+                $(this).find('.enableCheckBox').prop("checked", true);
+            }
+            else {
+                $(this).find('.enableCheckBox').prop("checked", false);
+            }
 
-END CATCH
+            if (isOneTime_cancelBJ == 'True') {
+                $(this).find('.oneTimeCheckbox').prop("checked", true);
+            }
+            else {
+                $(this).find('.oneTimeCheckbox').prop("checked", false);
+            }
+            $(this).find('.startTime').val(startTime_cancelBJ);
+            $(this).find('.endTime').val(endTime_cancelBJ);
+        }
+    })
+    // $("#admmodal_BJ_cancel").modal('hide');
+    var BJCancelModal = new bootstrap.Modal(document.getElementById('admmodal_BJ_cancel'));
+    BJCancelModal.hide();
 
-END
+});
+
+$(document).on("click", "#btn_DownloadBatchJobs", function () {
+    var url = rootUrl + "Admin/DownloadBatchJobData";
+    window.location.replace(url);
+});
+//BJ END
+

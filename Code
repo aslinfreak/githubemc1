@@ -1,200 +1,223 @@
-// <copyright file="Global.asax.cs" company="Cognizant">
-//     Copyright (c) Cognizant. All rights reserved.
-// </copyright>
-namespace MYP.UI
-{
-    using System;
-    using System.Configuration;
-    using System.Diagnostics;
-    using System.Security;
-    using System.Security.Cryptography.X509Certificates;
-    using System.Text;
-    using System.Web;
-    using System.Web.Http;
-    using System.Web.Mvc;
-    using System.Web.Optimization;
-    using System.Web.Routing;
-    using Controllers;
-    using CTS.OneCognizant.Platform.CoreServices;
-    using MYP.BL;
-    using MYP.Core;
+@model MYP.UI.Models.BatchJobModel
 
-    /// <summary>
-    /// MVC Application Start Class
-    /// </summary>
-    public class MvcApplication : System.Web.HttpApplication
-    {
-        /// <summary>
-        /// Application Start Logic
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.ReadabilityRules", "SA1126:PrefixCallsCorrectly", Justification = "Reviewed")]
-        protected void Application_Start()
-        {
-            AreaRegistration.RegisterAllAreas();
-            WebApiConfig.Register(GlobalConfiguration.Configuration);
-            FilterConfig.RegisterGlobalFilters(GlobalFilters.Filters);
-            RouteConfig.RegisterRoutes(RouteTable.Routes);
-            BundleConfig.RegisterBundles(BundleTable.Bundles);
-            AuthConfig.RegisterAuth();
-            MvcHandler.DisableMvcResponseHeader = true;
-            AppDomain currentDomain = AppDomain.CurrentDomain;
-            currentDomain.UnhandledException += new UnhandledExceptionEventHandler(ErrorHandler);
-            try
-            {
-                RSAEncryption rsaEncrypt = new RSAEncryption();
-                ExtensionMethod.CertFile = rsaEncrypt.GetCertificateForSignature();
-                if (ConfigurationManager.AppSettings["IsKeyVault"] == "1")
-                {
-                    ErrorLogger errorLog = new ErrorLogger();
-                    errorLog.LogInformation("App Start", "Hitting Key Vault App Start WA");
-                    KeyVaultService.KeyVaultServiceClient client = new KeyVaultService.KeyVaultServiceClient("BasicHttpBinding_IKeyVaultService");
-                    var res = client.FetchEncryptionKey(2394, "GPMasterKeyNP", "GPEncryptionKey2NP");
+<div class="row notes-categories notes-categories--goals">
+    <div class="row section_keyrole section_keyrole--supervisor">
+        <div class="section_content section_content_opem">
+            <div class="tab-content tab-content-yea-bps" style="margin-top:0px; margin-bottom:-28px!important">
+                <div class="opem_buttons" style="margin-left: 75%;margin-bottom:20px;padding-bottom:15px;">
+                    <div class="row row_opem">
+                        <button id="btn_DownloadBatchJobs" class="button request download-attachment" style="width:185px !important;">
+                            <span></span>Download Active List
+                        </button>
+                    </div>
+                </div>
+                <div id="goals-supervisor" class="tab-pane fade in active kroTitle_table" style="height:372px; overflow-y:auto;">
 
-                    if (res.Result != null)
-                    {
-                        AESEncryption.ActualAESKey = res.Result;
-                    }
-                    else
-                    {
-                        throw new ArgumentNullException(res.ErrorMessage);
-                    }
+                    <table class="table" id="t1" style="margin-bottom:0px!important">
+                        <thead>
+                            <tr>
+                                <th class="table_title opem_table table_heading_BJ1" style="width: 153px !important">
+                                    Process Name
+                                </th>
+                                <th class="table_title_even opem_table table_heading_BJ2" style="width:80px !important;">Enable</th>
+                                <th class="table_title opem_table table_heading_BJ3" style="width:100px !important;">
+                                    OneTime
+                                </th>
+                                <th class="table_title_even opem_table table_heading_BJ4" style="width:100px !important;">
+                                    Start Time
+                                </th>
+                                <th class="table_title opem_table table_heading_BJ5" style="width:100px !important;">
+                                    End Time
+                                </th>
 
-                    ExtensionMethod.AITokenUserName = UnicodeEncoding.ASCII.GetString(Convert.FromBase64String(client.GetSecret(2394, "TokenUserName")));
-                    ExtensionMethod.AITokenP = UnicodeEncoding.ASCII.GetString(Convert.FromBase64String(client.GetSecret(2394, "TokenPassword")));
-                    ExtensionMethod.GraphAPIClientID = Encoding.UTF8.GetString(Convert.FromBase64String(client.GetSecret(2394, "GraphAPIClientID")));
-                    ExtensionMethod.GraphAPIClientSecret = Encoding.UTF8.GetString(Convert.FromBase64String(client.GetSecret(2394, "GraphAPIClientSecret")));
-                    ExtensionMethod.OCMEncryptionKey = client.GetSecret(2394, "OCMEncryptionKey");
-                    ExtensionMethod.YEADumpPageSize = client.GetSecret(2394, "YEADumpPageSize");
-                    ExtensionMethod.TMDumpPageSize = client.GetSecret(2394, "TMDumpPageSize");
 
-                }
-                else
-                {
-                    UntypedDataset objResult = new UntypedDataset();
-                    UntypedDataset objAIResult = new UntypedDataset();
-                    HomePageBL objBL = new HomePageBL();
-                    objResult = objBL.GetAESKeyValuePair();
-                    objAIResult = objBL.GetAITokenUsername();
+                                <th class="table_title_even opem_table table_heading_BJ6" style="width:130px !important;">
+                                    Last Start Time
+                                </th>
 
-                    if (objResult.Tables[0].Rows.Count > 0)
-                    {
-                        AESEncryption.ActualAESKey = rsaEncrypt.DecryptRsa((byte[])objResult.Tables[0].Rows[0]["AESKey"]);
-                    }
 
-                    if (objAIResult.Tables[0].Rows.Count > 0)
-                    {
-                        ExtensionMethod.AITokenUserName = ExtensionMethod.DecodeBase64(objAIResult.Tables[0].Rows[0]["TokenUserName"].ToString());
-                        ExtensionMethod.AITokenP = ExtensionMethod.DecodeBase64(objAIResult.Tables[0].Rows[0]["TokenPassword"].ToString());
-                        ExtensionMethod.GraphAPIClientID = "";
-                        ExtensionMethod.GraphAPIClientSecret = "";
-                        ExtensionMethod.OCMEncryptionKey = "";
-                        ExtensionMethod.YEADumpPageSize = "";
-                        ExtensionMethod.TMDumpPageSize = "";
+                                <th class="table_title_even opem_table table_heading_BJ7" style="width:130px !important;">
+                                    Last End Time
+                                </th>
+                                <th class="table_title_even opem_table table_heading_BJ8" style="width:100px !important;">
+                                    Job Track
+                                </th>
+                                <th class="table_title opem_table table_heading_BJ9" style="width:170px !important;">
+                                    Action
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
 
-                    }
-                }
-            }
-            catch (SystemException ex)
-            {
-                ex.LogException("App Start", "App Start");
-            }
-        }
+                            @if (Model.BatchJobList != null && Model.BatchJobList.Count > 0)
+                            {
+                                foreach (var item in Model.BatchJobList)
+                                {
+                                    <tr data-id="@item.JobId">
+                                        <td class="table_heading table_heading_opem a_TemplateSetupMaster" data-select="0" id="tdjobName" style="width: 153px !important;">
+                                            <p class="name n_span_bj" title="@item.JobName">
+                                                <span>@item.JobName</span>
+                                            </p>
+                                        </td>
+                                        <td class="table_heading_opem2 a_TemplateSetupMaster" style="width:80px !important;">
+                                            <div style="display: inline-block;">
+                                                @if (@item.IsActive == true)
+                                                {
+                                                    <input type="checkbox" id="EnableCheck+@item.JobId" class="funcCheckComments enableCheckBox" checked style="cursor:pointer" />
+                                                }
+                                                else
+                                                {
+                                                    <input type="checkbox" id="EnableCheck+@item.JobId" class="funcCheckComments enableCheckBox" style="cursor:pointer" />
+                                                }
 
-        /// <summary>
-        /// session start method
-        /// </summary>
-        protected void Session_Start()
-        {
-            if (ConfigurationManager.AppSettings["IsUserContext"].Equals("1") && !ConfigurationManager.AppSettings["IsPT"].Equals("1"))
-            {
-                UserContext objUser = UserContext.GetUserContext();
-                string associateId = objUser.CurrentUser.UserId.ToString();
-                HttpContext.Current.Session["LoginID"] = associateId;
-                HttpContext.Current.Session["ActualLoginID"] = associateId;
-            }
-            else
-            {
-                string associateId = "445920";
-                HttpContext.Current.Session["LoginID"] = associateId; ////"555506";
-                HttpContext.Current.Session["ActualLoginID"] = associateId;
-            }
+                                                <label for="EnableCheck+@item.JobId" class="pull-left isvisible" style="cursor:pointer"></label>
+                                            </div>
+                                        </td>
+                                        <td class="table_heading_opem3 a_TemplateSetupMaster" style="width:133px !important;">
+                                            <div style="display: inline-block;">
+                                                @if (@item.IsOneTime == true)
+                                                {
+                                                    <input type="checkbox" id="IsOneTimeCheck+@item.JobId" class="funcCheckComments oneTimeCheckbox" checked style="cursor:pointer" />
+                                                }
+                                                else
+                                                {
+                                                    <input type="checkbox" id="IsOneTimeCheck+@item.JobId" class="funcCheckComments oneTimeCheckbox" style="cursor:pointer" />
+                                                }
+                                                <label for="IsOneTimeCheck+@item.JobId" class="pull-left isvisible" style="cursor:pointer"></label>
+                                            </div>
+                                        </td>
+                                        <td class="table_heading_opem4 a_TemplateSetupMaster" style="width:100px !important;">
+                                            <input type="time" id="startTime+@item.JobId" class="startTime" size="10" placeholder="HH:MM" value="@item.StartTime" required style="width: 90% !important">
+                                        </td>
+                                        <td class="table_heading_opem5 a_TemplateSetupMaster" style="width:100px !important;">
+                                            <input type="time" id="endTime+@item.JobId" class="endTime" size="10" placeholder="HH:MM" value="@item.EndTime" required style="width: 90% !important">
+                                        </td>
 
-            HttpContext.Current.Session["IsProxyLogin"] = "0";
-            HttpContext.Current.Session["IsProxyUser"] = "0";
-            if (string.IsNullOrEmpty(ExtensionMethod.AITokenUserName) || string.IsNullOrEmpty(ExtensionMethod.AITokenP) ||
-                string.IsNullOrEmpty(ExtensionMethod.GraphAPIClientID) || string.IsNullOrEmpty(ExtensionMethod.GraphAPIClientSecret) ||
-                string.IsNullOrEmpty(ExtensionMethod.OCMEncryptionKey))
-            {
 
-                if (ConfigurationManager.AppSettings["IsKeyVault"] == "1")
-                {
-                    ErrorLogger errorLog = new ErrorLogger();
-                    errorLog.LogInformation("Session Start", "Hitting Key Vault Session Start WA");
-                    KeyVaultService.KeyVaultServiceClient client = new KeyVaultService.KeyVaultServiceClient("BasicHttpBinding_IKeyVaultService");
-                    var res = client.FetchEncryptionKey(2394, "GPMasterKeyNP", "GPEncryptionKey2NP");
 
-                    if (res.Result != null)
-                    {
-                        AESEncryption.ActualAESKey = res.Result;
-                    }
-                    else
-                    {
-                        throw new ArgumentNullException(res.ErrorMessage);
-                    }
 
-                    ExtensionMethod.AITokenUserName = UnicodeEncoding.ASCII.GetString(Convert.FromBase64String(client.GetSecret(2394, "TokenUserName")));
-                    ExtensionMethod.AITokenP = UnicodeEncoding.ASCII.GetString(Convert.FromBase64String(client.GetSecret(2394, "TokenPassword")));
-                    ExtensionMethod.GraphAPIClientID = Encoding.UTF8.GetString(Convert.FromBase64String(client.GetSecret(2394, "GraphAPIClientID")));
-                    ExtensionMethod.GraphAPIClientSecret = Encoding.UTF8.GetString(Convert.FromBase64String(client.GetSecret(2394, "GraphAPIClientSecret")));
-                    ExtensionMethod.OCMEncryptionKey = client.GetSecret(2394, "OCMEncryptionKey");
-                    ExtensionMethod.YEADumpPageSize = client.GetSecret(2394, "YEADumpPageSize");
-                    ExtensionMethod.TMDumpPageSize = client.GetSecret(2394, "TMDumpPageSize");
-                }
-            }
-        }
 
-        /// <summary>
-        /// Application Error
-        /// </summary>
-        /// <param name="sender">Sending the error values</param>
-        /// <param name="e">Exception message</param>
-        protected void Application_Error(object sender, EventArgs e)
-        {
-            Exception exception = Server.GetLastError();
-            if (exception != null)
-            {
-                EventLog.WriteEntry("GoPerform", "Message:" + exception.Message + " Stacktrace:" + exception.StackTrace);
-                Response.Clear();
-                Server.ClearError();
-                var routeData = new RouteData();
-                routeData.Values["controller"] = "Error";
-                routeData.Values["action"] = "Index";
-                IController controller = new ErrorController();
-                var rc = new RequestContext(new HttpContextWrapper(Context), routeData);
-                controller.Execute(rc);
-            }
-        }
+                                        <td class="table_heading_opem6 a_TemplateSetupMaster" style="width:130px !important;">@item.LastStartTime</td>
 
-        /// <summary>
-        /// Error handler
-        /// </summary>
-        /// <param name="sender">Sending the error values</param>
-        /// <param name="args">Exception message</param>
-        protected void ErrorHandler(object sender, UnhandledExceptionEventArgs args)
-        {
-            Exception exception = (Exception)args.ExceptionObject;
-            EventLog.WriteEntry("GoPerform", "Message:" + exception.Message + " Stacktrace:" + exception.StackTrace);
-        }
 
-        /// <summary>
-        /// session End method
-        /// </summary>
-        protected void Session_End()
-        {
-            if (HttpContext.Current != null)
-            {
-                HttpContext.Current.Session.Abandon();
-            }
-        }
+
+
+
+
+                                        <td class="table_heading_opem7 a_TemplateSetupMaster" style="width:130px !important;">@item.LastRunTime</td>
+
+                                        
+
+
+
+                                        <td class="table_heading_opem8 a_TemplateSetupMaster" style="width:100px !important">
+                                            <input type="number" id="jobTrack_@item.JobId" class="jobTrack" size="10" placeholder="HH:MM" value="@item.JobTrack" style="width:50px !important; padding:2px" />
+                                        </td>
+
+
+                                        <td class="table_heading_opem9 a_TemplateSetupMaster" style="width:170px !important;">
+                                            <div style="display: inline-block;">
+                                                <button class="button submit" id="btn_BJSubmit" data-bs-dismiss="modal" data-Jobid="@item.JobId"
+                                                        style="width:70px !important;margin-left:0 !important">
+                                                    Submit
+                                                </button>
+                                                <button class="button cancel" id="btn_BJCancel" data-bs-dismiss="modal" data-Jobid="@item.JobId"
+                                                        style="width:70px !important;margin-right:0 !important;margin-left:10px !important" data-isActive="@item.IsActive"
+                                                        data-IsOneTime="@item.IsOneTime" data-StartTime="@item.StartTime" data-EndTime="@item.EndTime" data-JobTrack="@item.JobTrack">
+                                                    Reset
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                            else
+                            {
+                                <tr>
+                                    <td colspan="9" class="table_heading table_heading_opem" style="text-align:center;">No data available.</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<style>
+
+    #t3 .name span {
+        display: inline-block;
+        margin-left: 0px;
+        float: none;
+        line-height: 11.6px;
     }
-}
+
+    .name.n_span_bj {
+        max-width: 137px !important;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    .a_TemplateMaster {
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .table_heading_opem5 {
+        text-align: center;
+    }
+
+    .table_heading_opem8 {
+        text-align: center;
+    }
+
+    .table_heading_opem7 {
+        white-space: nowrap;
+    }
+
+    .table_heading_opem9 {
+        white-space: nowrap;
+    }
+
+
+    th, td {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 2;
+    }
+
+    table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    th, td {
+        border-right: 1px solid #fff;
+    }
+
+        th:last-child, td:last-child {
+            border-right: none;
+        }
+
+
+    table {
+        table-layout: fixed;
+        width: 100%;
+    }
+</style>
+
+
+
+
+

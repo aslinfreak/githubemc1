@@ -1,103 +1,42 @@
-In my ASP.NET MVC Project.If I try to enter date of birt,Iam not able to enter it shows: The field DateOfBirth must be a date.
-I used both (15/06/2001 and 15-06-2001)I mean I used(/ and - symbol).How to fix it?
+This is cshtml page.In that I need that Register and Login in the last corner
 
-This is my StudentRegister.cs:
-
-namespace Learning.Models
-{
-    using System;
-    using System.Collections.Generic;
-    
-    public partial class StudentRegister
-    {
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2214:DoNotCallOverridableMethodsInConstructors")]
-        public StudentRegister()
-        {
-            this.Buys = new HashSet<Buy>();
-        }
-    
-        public int StudentId { get; set; }
-        public string StudentName { get; set; }
-        public string Email { get; set; }
-        public string Password { get; set; }
-        public string Gender { get; set; }
-        public Nullable<System.DateTime> DateOfBirth { get; set; }
-        public string PhoneNumber { get; set; }
-        public string Address { get; set; }
-    
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2227:CollectionPropertiesShouldBeReadOnly")]
-        public virtual ICollection<Buy> Buys { get; set; }
-    }
-}
-
-
-
-This is my StudentRegisters.cshtml:
-
-@model List<Learning.Models.UserRegistrationViewModel>
-@{
-    ViewBag.Title = "StudentView";
-    Layout = "~/Views/Shared/_newLayout.cshtml";
-
-}
-<h2>Students Registration Details</h2>
-<style>
-
-    /* Basic styling */
-
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f9f9f9;
-        padding: 20px;
-        background-image: url('../Image/GRADE.gif');
-        background-repeat: no-repeat;
-        background-size: 100% 300%;
-    }
-
-    .Register {
-        border: 1px solid #ddd;
-        padding: 10px;
-        margin: 10px;
-        background-color: #fff;
-        border-radius: 5px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-        .Register h3 {
-            margin: 10px 0;
-        }
-
-        .Register p {
-            color: #555;
-        }
-</style>
-
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@ViewBag.Title - My ASP.NET Application</title>
+    @Styles.Render("~/Content/css")
+    @Scripts.Render("~/bundles/modernizr")
+</head>
 <body>
+    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-dark bg-dark">
+        <div class="container">
+            @Html.ActionLink("Hospital Management System", "Welcome", "Home", new { area = "" }, new { @class = "navbar-brand" })
+            <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" title="Toggle navigation" aria-controls="navbarSupportedContent"
+                    aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse d-sm-inline-flex justify-content-between">
+                <ul class="navbar-nav flex-grow-1">
+                    <li>@Html.ActionLink("Home", "Index", "Home", new { area = "" }, new { @class = "nav-link" })</li>
+                    <li>@Html.ActionLink("About", "About", "Home", new { area = "" }, new { @class = "nav-link" })</li>
+                    <li>@Html.ActionLink("Contact", "Contact", "Home", new { area = "" }, new { @class = "nav-link" })</li>
+                    <li>@Html.ActionLink("Register", "Contact", "Home", new { area = "" }, new { @class = "nav-link" })</li>
+                    <li>@Html.ActionLink("Login", "Contact", "Home", new { area = "" }, new { @class = "nav-link" })</li>
 
-    @foreach (var StudentRegister in Model)
-    {
-      
-        <div class="Register">
-
-
-            <p>
-
-                Student Name:@StudentRegister.StudentName<br />
-                Student Email:@StudentRegister.Email<br />
-                Student Gender:@StudentRegister.Gender<br />
-
-                Student DateOfBirth:@StudentRegister.DateOfBirth<br />
-
-                Student PhoneNumber:@StudentRegister.PhoneNumber<br />
-
-                Student Address:@StudentRegister.Address<br />
-
-               
-
-            </p>
+                </ul>
+            </div>
         </div>
-            
+    </nav>
+    <div class="container body-content">
+        @RenderBody()
+        <hr />
+      
+    </div>
 
-    }
+    @Scripts.Render("~/bundles/jquery")
+    @Scripts.Render("~/bundles/bootstrap")
+    @RenderSection("scripts", required: false)
 </body>
-
+</html>

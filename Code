@@ -1,7 +1,78 @@
-The type or namespace name 'DbModelBuilder' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'Entity' does not exist in the namespace 'System.Data' (are you missing an assembly reference?)
-The type or namespace name 'Entity' does not exist in the namespace 'System.Data' (are you missing an assembly reference?)
-The type or namespace name 'DbContext' could not be found (are you missing a using directive or an assembly reference?)
-'DbContext' does not contain a constructor that takes 1 arguments
-The type or namespace name 'UnintentionalCodeFirstException' could not be found (are you missing a using directive or an assembly reference?)
-The type or namespace name 'DbSet<>' could not be found (are you missing a using directive or an assembly reference?)
+using HMS.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
+
+namespace HMS.Controllers
+{
+    public class AccountController : Controller
+    {
+        HospitalDBEntities db = new HospitalDBEntities();
+        // GET: Account
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        // GET: Register
+        public ActionResult Register()
+        {
+            return View();
+        }
+
+        //POST:Register
+        [HttpPost]
+        public ActionResult Register(UserRegisterViewModel model)
+        {
+            if (ModelState.IsValid)
+            {
+                User newUser = new User()
+                {
+                    FullName = model.FullName,
+                    Email = model.Email,
+                    Password = model.Password,
+                    Role = "Patient" //Fixed Role for public Registration
+                };
+
+                db.Users.Add(newUser);
+                db.SaveChanges();
+
+                ViewBag.Message = "Registration Successful!";
+                return RedirectToAction("Index");
+            }
+            return View();
+        }
+        
+        public ActionResult Login()
+        {
+            return View();
+        }
+        [HttpPost]
+        public ActionResult Login(string email, string password)
+        {
+            var user = db.Users.FirstOrDefault(u => u.Email == email && u.Password == password);
+            if (user != null)
+            {
+                Session["UserID"] = user.UserID;
+                Session["Role"] = user.Role;
+                Session["UserName"] = user.FullName;
+
+                if (user.Role == "Admin")
+                    return RedirectToAction("Dashboard", "Admin");
+                else if (user.Role == "Doctor")
+                    return RedirectToAction("Dashboard", "Doctor");
+                else
+                {
+                    return RedirectToAction("Dashboard", "Patient");
+                }
+
+                ViewBag.Message = "Invalid Email or Password";
+                return View();
+            }
+        }
+    }
+}
+
+    

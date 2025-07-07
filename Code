@@ -1,74 +1,86 @@
-Server Error in '/' Application.
-Violation of UNIQUE KEY constraint 'UQ__Users__A9D10534AC630C74'. Cannot insert duplicate key in object 'dbo.Users'. The duplicate key value is (Bathresh@gmail.com).
-The statement has been terminated.
-Description: An unhandled exception occurred during the execution of the current web request. Please review the stack trace for more information about the error and where it originated in the code.
+This is my account controller.I new to it so explain each line by line.
 
-Exception Details: System.Data.SqlClient.SqlException: Violation of UNIQUE KEY constraint 'UQ__Users__A9D10534AC630C74'. Cannot insert duplicate key in object 'dbo.Users'. The duplicate key value is (Bathresh@gmail.com).
-The statement has been terminated.
+using HMS.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
 
-Source Error:
+namespace HMS.Controllers
+{
+    public class AccountController : Controller
+    {
+        HospitalDBEntities db = new HospitalDBEntities();
+        // GET: Account
+        public ActionResult Index()
+        {
+            return View();
+        }
+
+        // GET: Register
+        public ActionResult Register()
+        {
+            return View();
+        }
+
+        //POST:Register
+        [HttpPost]
+        public ActionResult Register(UserRegisterViewModel model)
+        {
+            var existingUser = db.Users.FirstOrDefault(u => u.Email == model.Email);
+            if (existingUser != null)
+            {
+                ViewBag.Message = "This Email is already registered!";
+                return View();
+            }
+            if (ModelState.IsValid)
+            {
+                User newUser = new User()
+                {
+                    FullName = model.FullName,
+                    Email = model.Email,
+                    Password = model.Password,
+                    Role = "Patient" //Fixed Role for public Registration
+                };
+
+                db.Users.Add(newUser);
+                db.SaveChanges();
+
+                ViewBag.Message = "Registration Successful!";
+                return RedirectToAction("Login");
+            }
+            return View();
+        }
+        public ActionResult Login()
+        {
+            return View();
+        }
+        [HttpPost]
+        public ActionResult Login(string email, string password)
+        {
+            var user = db.Users.FirstOrDefault(u => u.Email == email && u.Password == password);
+            if (user != null)
+            {
+                Session["UserID"] = user.UserID;
+                Session["Role"] = user.Role;
+                Session["UserName"] = user.FullName;
+
+                if (user.Role == "Admin")
+                    return RedirectToAction("Dashboard", "Admin");
+                else if (user.Role == "Doctor")
+                    return RedirectToAction("Dashboard", "Doctor");
+                else
+                {
+                    return RedirectToAction("Dashboard", "Patient");
+                }
+            }
+                ViewBag.Message = "Invalid Email or Password";
+                return View();
+            }
+
+        }
+    }
 
 
-Line 38: 
-Line 39:                 db.Users.Add(newUser);
-Line 40:                 db.SaveChanges();
-Line 41: 
-Line 42:                 ViewBag.Message = "Registration Successful!";
-
-Source File: C:\Users\2318190\source\repos\HMS\HMS\Controllers\AccountController.cs    Line: 40
-
-Stack Trace:
-
-
-[SqlException (0x80131904): Violation of UNIQUE KEY constraint 'UQ__Users__A9D10534AC630C74'. Cannot insert duplicate key in object 'dbo.Users'. The duplicate key value is (Bathresh@gmail.com).
-The statement has been terminated.]
-   System.Data.SqlClient.SqlConnection.OnError(SqlException exception, Boolean breakConnection, Action`1 wrapCloseInAction) +3357524
-   System.Data.SqlClient.TdsParser.ThrowExceptionAndWarning(TdsParserStateObject stateObj, Boolean callerHasConnectionLock, Boolean asyncClose) +334
-   System.Data.SqlClient.TdsParser.TryRun(RunBehavior runBehavior, SqlCommand cmdHandler, SqlDataReader dataStream, BulkCopySimpleResultSet bulkCopyHandler, TdsParserStateObject stateObj, Boolean& dataReady) +4679
-   System.Data.SqlClient.SqlDataReader.TryConsumeMetaData() +89
-   System.Data.SqlClient.SqlDataReader.get_MetaData() +101
-   System.Data.SqlClient.SqlCommand.FinishExecuteReader(SqlDataReader ds, RunBehavior runBehavior, String resetOptionsString, Boolean isInternal, Boolean forDescribeParameterEncryption, Boolean shouldCacheForAlwaysEncrypted) +624
-   System.Data.SqlClient.SqlCommand.RunExecuteReaderTds(CommandBehavior cmdBehavior, RunBehavior runBehavior, Boolean returnStream, Boolean async, Int32 timeout, Task& task, Boolean asyncWrite, Boolean inRetry, SqlDataReader ds, Boolean describeParameterEncryptionRequest) +3355
-   System.Data.SqlClient.SqlCommand.RunExecuteReader(CommandBehavior cmdBehavior, RunBehavior runBehavior, Boolean returnStream, String method, TaskCompletionSource`1 completion, Int32 timeout, Task& task, Boolean& usedCache, Boolean asyncWrite, Boolean inRetry) +725
-   System.Data.SqlClient.SqlCommand.RunExecuteReader(CommandBehavior cmdBehavior, RunBehavior runBehavior, Boolean returnStream, String method) +84
-   System.Data.SqlClient.SqlCommand.ExecuteReader(CommandBehavior behavior, String method) +312
-   System.Data.Entity.Infrastructure.Interception.InternalDispatcher`1.Dispatch(TTarget target, Func`3 operation, TInterceptionContext interceptionContext, Action`3 executing, Action`3 executed) +98
-   System.Data.Entity.Infrastructure.Interception.DbCommandDispatcher.Reader(DbCommand command, DbCommandInterceptionContext interceptionContext) +449
-   System.Data.Entity.Core.Mapping.Update.Internal.DynamicUpdateCommand.Execute(Dictionary`2 identifierValues, List`1 generatedValues) +307
-   System.Data.Entity.Core.Mapping.Update.Internal.UpdateTranslator.Update() +228
-
-[UpdateException: An error occurred while updating the entries. See the inner exception for details.]
-   System.Data.Entity.Core.Mapping.Update.Internal.UpdateTranslator.Update() +503
-   System.Data.Entity.Core.Objects.ObjectContext.ExecuteInTransaction(Func`1 func, IDbExecutionStrategy executionStrategy, Boolean startLocalTransaction, Boolean releaseConnectionOnSuccess) +452
-   System.Data.Entity.Core.Objects.ObjectContext.SaveChangesToStore(SaveOptions options, IDbExecutionStrategy executionStrategy, Boolean startLocalTransaction) +243
-   System.Data.Entity.SqlServer.DefaultSqlExecutionStrategy.Execute(Func`1 operation) +220
-   System.Data.Entity.Core.Objects.ObjectContext.SaveChangesInternal(SaveOptions options, Boolean executeInExistingTransaction) +265
-   System.Data.Entity.Internal.InternalContext.SaveChanges() +140
-
-[DbUpdateException: An error occurred while updating the entries. See the inner exception for details.]
-   System.Data.Entity.Internal.InternalContext.SaveChanges() +265
-   HMS.Controllers.AccountController.Register(UserRegisterViewModel model) in C:\Users\2318190\source\repos\HMS\HMS\Controllers\AccountController.cs:40
-   lambda_method(Closure , ControllerBase , Object[] ) +139
-   System.Web.Mvc.ControllerActionInvoker.InvokeActionMethod(ControllerContext controllerContext, ActionDescriptor actionDescriptor, IDictionary`2 parameters) +35
-   System.Web.Mvc.Async.<>c.<BeginInvokeSynchronousActionMethod>b__9_0(IAsyncResult asyncResult, ActionInvocation innerInvokeState) +39
-   System.Web.Mvc.Async.WrappedAsyncResult`2.CallEndDelegate(IAsyncResult asyncResult) +77
-   System.Web.Mvc.Async.AsyncControllerActionInvoker.EndInvokeActionMethod(IAsyncResult asyncResult) +42
-   System.Web.Mvc.Async.<>c__DisplayClass11_0.<InvokeActionMethodFilterAsynchronouslyRecursive>b__0() +80
-   System.Web.Mvc.Async.<>c__DisplayClass11_2.<InvokeActionMethodFilterAsynchronouslyRecursive>b__2() +396
-   System.Web.Mvc.Async.AsyncControllerActionInvoker.EndInvokeActionMethodWithFilters(IAsyncResult asyncResult) +42
-   System.Web.Mvc.Async.<>c__DisplayClass3_6.<BeginInvokeAction>b__4() +50
-   System.Web.Mvc.Async.<>c__DisplayClass3_1.<BeginInvokeAction>b__1(IAsyncResult asyncResult) +188
-   System.Web.Mvc.Async.AsyncControllerActionInvoker.EndInvokeAction(IAsyncResult asyncResult) +38
-   System.Web.Mvc.<>c.<BeginExecuteCore>b__152_1(IAsyncResult asyncResult, ExecuteCoreState innerState) +29
-   System.Web.Mvc.Async.WrappedAsyncVoid`1.CallEndDelegate(IAsyncResult asyncResult) +73
-   System.Web.Mvc.Controller.EndExecuteCore(IAsyncResult asyncResult) +52
-   System.Web.Mvc.Async.WrappedAsyncVoid`1.CallEndDelegate(IAsyncResult asyncResult) +39
-   System.Web.Mvc.Controller.EndExecute(IAsyncResult asyncResult) +38
-   System.Web.Mvc.<>c.<BeginProcessRequest>b__20_1(IAsyncResult asyncResult, ProcessRequestState innerState) +43
-   System.Web.Mvc.Async.WrappedAsyncVoid`1.CallEndDelegate(IAsyncResult asyncResult) +73
-   System.Web.Mvc.MvcHandler.EndProcessRequest(IAsyncResult asyncResult) +38
-   System.Web.CallHandlerExecutionStep.System.Web.HttpApplication.IExecutionStep.Execute() +426
-   System.Web.HttpApplication.ExecuteStepImpl(IExecutionStep step) +172
-   System.Web.HttpApplication.ExecuteStep(IExecutionStep step, Boolean& completedSynchronously) +158
-
-Version Information: Microsoft .NET Framework Version:4.0.30319; ASP.NET Version:4.8.9282.0
+    

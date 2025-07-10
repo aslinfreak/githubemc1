@@ -1,47 +1,48 @@
+Hi Aslin 
+ 
+Vairavel, Karthikeyan (Cognizant) /  Parveen H, Thaslima (Cognizant) for your review  
+ 
+App ID	727
+App Name	SpecialPay
+Collection Name	
+HR-IT
 
-@model HMS.Models.UserRegisterViewModel
-
-@{
-    ViewBag.Title = "Patient Register";
-
-}
-
-<h2>Patient Registration</h2>
-<br />
-
-@using (Html.BeginForm())
-{
-    @Html.LabelFor(m => m.FullName)
-    @Html.TextBoxFor(m => m.FullName)
-    <br />
-    <br />
-    @Html.LabelFor(m => m.Email)
-    @Html.TextBoxFor(m => m.Email)
-    <br />
-    <br />
-    @Html.LabelFor(m => m.Password)
-    @Html.TextBoxFor(m => m.Password)
-    <br />
-    <br />
-    @Html.LabelFor(m => m.Gender)
-    @Html.TextBoxFor(m => m.Gender)
-    <br />
-    <br />
-    @Html.LabelFor(m => m.DateOfBirth)
-    @Html.TextBoxFor(m => m.DateOfBirth)
-    <br />
-    <br />
-    @Html.LabelFor(m => m.PhoneNumber)
-    @Html.TextBoxFor(m => m.PhoneNumber)
-    <br />
-    <br />
-    @Html.LabelFor(m => m.Address)
-    @Html.TextBoxFor(m => m.Address)
-    <br />
-    <br />
-   
-
-    <input color="red" type="submit" value="Register" />
-}
-
-<p style="color:green;">@ViewBag.Message</p>
+Repo link	https://github.cognizant.com/HR-Services-IT-Systems/OneC_727_OCI
+Framework Type [asp.net/.netcore]	.netcore
+TrackName	SIT-WA-CL-SpayOCI
+Criticality	Mission Critical
+TrackType(eg:BJ,WA,WS,DB)	WA
+Environment	DEV,SIT,UAT,PROD
+Solution path	 
+IsKTLO	 
+Portfolio [Cloud/CloudBC]	CloudBC
+config file path	\\CTSINAZCHNW002\E$\OneCognizantSource\OneCApps\727OCI\appsettings.json
+appoolname	727OCI
+deploypath	\\CTSINAZCHNW001\E$\OneCognizantSource\OneCApps\727OCI
+ 	 
+ 	 
+ 	 
+Share me the version of the software used in this track
+Node :	NA
+angular :	NA
+typescript :	NA
+.NET Core sdk	net8.0
+Nuget	6.14.0
+ 
+ 
+JafenaPearlin.L@cognizant.com
+ 
+ INC006659632
+ 
+Pls follow up with the above poc for OCI ADO Track creation 
+ 
+Today I am on planned leave 
+ 
+If you need any clarification please reach me 
+ 
+On mobile 
+ 
+9080295779
+ 
+Before sharing above information with poc, pls review once with Karthik or Thaslima 
+ 

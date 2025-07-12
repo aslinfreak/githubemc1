@@ -1,9 +1,173 @@
-I use this 
-insert into Users (FullName,Email,Password,Role,Gender,DateOfBirth,PhoneNumber,Address)
-	values('Dr.Kiran','kiran@gmail.com','pass123','Doctor','Female','18-09-1979','9765432346','Chennai');
+using HMS.Models;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Web;
+using System.Web.Mvc;
 
-I got this error.How to fix it
-Msg 241, Level 16, State 1, Line 25
-Conversion failed when converting date and/or time from character string.
+namespace HMS.Controllers
+{
+    public class AppointmentsController : Controller
+    {
+        HospitalDBEntities1 db = new HospitalDBEntities1();
+        
+        // GET: Appointments
+        [HttpGet]
+        public ActionResult Book()
+        {
+            var model = new AppointmentViewModel();
+            model.Doctors = db.Users.Where(u => u.Role == "Doctor").Select(d => new SelectListItem
+            {
+                Value = d.UserID.ToString(),
+                Text = d.FullName
+            }).ToList();
+            return View(model);
+        }
 
-Completion time: 2025-07-12T19:59:15.0758004+05:30
+
+
+
+        [HttpPost]
+        public ActionResult Book(AppointmentViewModel model)
+        {
+            // Load doctor list again (for redisplay on errors)
+            model.Doctors = db.Users
+                .Where(u => u.Role == "Doctor")
+                .Select(d => new SelectListItem
+                {
+                    Value = d.UserID.ToString(),
+                    Text = d.FullName
+                }).ToList();
+
+            // ✳️ Parse selected date and time slot
+            if (string.IsNullOrEmpty(model.SelectedTimeSlot))
+            {
+                ViewBag.Message = "Please select a time slot.";
+                return View(model);
+            }
+
+            DateTime selectedDate = model.AppointmentDate.Date;
+            DateTime selectedTime;
+
+            try
+            {
+                selectedTime = DateTime.ParseExact(model.SelectedTimeSlot, "hh:mm tt", null);
+            }
+            catch
+            {
+                ViewBag.Message = "Invalid time slot selected.";
+                return View(model);
+            }
+
+            DateTime appointmentDateTime = new DateTime(selectedDate.Year, selectedDate.Month, selectedDate.Day,
+                                                        selectedTime.Hour, selectedTime.Minute, 0);
+
+            // ✳️ Validation 1: Past date check
+            if (appointmentDateTime < DateTime.Now)
+            {
+                ViewBag.Message = "You cannot book appointments in the past.";
+                return View(model);
+            }
+
+            // ✳️ Validation 2: Sunday check
+            if (appointmentDateTime.DayOfWeek == DayOfWeek.Sunday)
+            {
+                ViewBag.Message = "Appointments are not available on Sundays.";
+                return View(model);
+            }
+
+            // ✳️ Validation 3: Allowed time window (8 AM to 8 PM)
+            int hours = appointmentDateTime.Hour;
+            if (hours < 8 || hours > 20)
+            {
+                ViewBag.Message = "Appointments can be booked only between 8 AM to 8 PM.";
+                return View(model);
+            }
+
+            // ✳️ Validation 4: Check slot conflict (within 50 mins)
+            DateTime startWindow = appointmentDateTime.AddMinutes(-50);
+            DateTime endWindow = appointmentDateTime.AddMinutes(50);
+
+            var conflict = db.Appointments.FirstOrDefault(a =>
+                a.DoctorID == model.DoctorId &&
+                a.AppointmentDateTime >= startWindow &&
+                a.AppointmentDateTime <= endWindow);
+
+            if (conflict != null)
+            {
+                ViewBag.Message = "Slot not available, please pick another time.";
+                return View(model);
+            }
+
+            // ✳️ Create new appointment
+            var appointment = new Appointment
+            {
+                PatientID = Convert.ToInt32(Session["UserID"]),
+                DoctorID = model.DoctorId,
+                AppointmentDateTime = appointmentDateTime,
+                Reason = model.Reason,
+                Status = "Pending"
+            };
+
+            db.Appointments.Add(appointment);
+            db.SaveChanges();
+
+            TempData["Success"] = "Appointment booked successfully!";
+            return RedirectToAction("MyAppointments");
+        }
+
+
+
+
+
+
+
+
+        public ActionResult MyAppointments()
+        {
+            int patientId = Convert.ToInt32(Session["UserID"]);
+            var appointments = db.Appointments.Where(a => a.PatientID == patientId)
+                .ToList();
+            return View(appointments);
+        }
+
+
+
+
+        public JsonResult GetAvailableTimeSlots(int doctorId, string date)
+        {
+            DateTime appointmentDate = DateTime.Parse(date);
+
+            // Validate: no Sundays
+            if (appointmentDate.DayOfWeek == DayOfWeek.Sunday)
+            {
+                return Json(new List<string>(), JsonRequestBehavior.AllowGet);
+            }
+
+            // All possible time slots from 8 AM to 8 PM, every 50 mins
+            List<string> allSlots = new List<string>();
+            DateTime startTime = appointmentDate.Date.AddHours(8);
+            DateTime endTime = appointmentDate.Date.AddHours(20);
+
+            while (startTime < endTime)
+            {
+                allSlots.Add(startTime.ToString("hh:mm tt"));
+                startTime = startTime.AddMinutes(50);
+            }
+
+            // Get already booked slots
+            var bookedSlots = db.Appointments
+                .Where(a => a.DoctorID == doctorId && a.AppointmentDateTime.Date == appointmentDate.Date)
+                .Select(a => a.AppointmentDateTime.ToString("hh:mm tt"))
+                .ToList();
+
+            // Filter available slots
+            var availableSlots = allSlots.Except(bookedSlots).ToList();
+
+            return Json(availableSlots, JsonRequestBehavior.AllowGet);
+        }
+
+
+
+    }
+}

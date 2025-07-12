@@ -1,44 +1,9 @@
-        [HttpPost]
-        public ActionResult Book(AppointmentViewModel model)
-        {
-            DateTime selectedTime = model.AppointmentDateTime;
-            DateTime startWindow = selectedTime.AddMinutes(-50);
-            DateTime endWindow = selectedTime.AddMinutes(50);
+I use this 
+insert into Users (FullName,Email,Password,Role,Gender,DateOfBirth,PhoneNumber,Address)
+	values('Dr.Kiran','kiran@gmail.com','pass123','Doctor','Female','18-09-1979','9765432346','Chennai');
 
-            var conflict = db.Appointments.FirstOrDefault(a => a.DoctorID == model.DoctorId && 
-            a.AppointmentDateTime >= startWindow && a.AppointmentDateTime <= endWindow);
-            if (conflict != null)
-            {
-                ViewBag.Message = "Slot not available, please pick another time.";
-                model.Doctors = db.Users.Where(u => u.Role == "Doctor").Select(d => new SelectListItem
-                {
-                    Value = d.UserID.ToString(),
-                    Text = d.FullName
-                }).ToList();
-                return View(model);
-            }
-            var appointment = new Appointment
-            {
-                PatientID = Convert.ToInt32(Session["UserID"]),
-                DoctorID = model.DoctorId,
-                AppointmentDateTime = model.AppointmentDateTime,
-                Reason = model.Reason,
-                Status = "Pending"
-            };
+I got this error.How to fix it
+Msg 241, Level 16, State 1, Line 25
+Conversion failed when converting date and/or time from character string.
 
-            db.Appointments.Add(appointment);
-            db.SaveChanges();
-
-            ViewBag.Message = "Appointment Booked Successfully!";
-            return RedirectToAction("MyAppointments");
-        }
-
-        public ActionResult MyAppointments()
-        {
-            int patientId = Convert.ToInt32(Session["UserID"]);
-            var appointments = db.Appointments.Where(a => a.PatientID == patientId)
-                .ToList();
-            return View(appointments);
-        }
-    }
-}
+Completion time: 2025-07-12T19:59:15.0758004+05:30

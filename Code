@@ -1,48 +1,44 @@
-Hi Aslin 
- 
-Vairavel, Karthikeyan (Cognizant) /  Parveen H, Thaslima (Cognizant) for your review  
- 
-App ID	727
-App Name	SpecialPay
-Collection Name	
-HR-IT
+        [HttpPost]
+        public ActionResult Book(AppointmentViewModel model)
+        {
+            DateTime selectedTime = model.AppointmentDateTime;
+            DateTime startWindow = selectedTime.AddMinutes(-50);
+            DateTime endWindow = selectedTime.AddMinutes(50);
 
-Repo link	https://github.cognizant.com/HR-Services-IT-Systems/OneC_727_OCI
-Framework Type [asp.net/.netcore]	.netcore
-TrackName	SIT-WA-CL-SpayOCI
-Criticality	Mission Critical
-TrackType(eg:BJ,WA,WS,DB)	WA
-Environment	DEV,SIT,UAT,PROD
-Solution path	 
-IsKTLO	 
-Portfolio [Cloud/CloudBC]	CloudBC
-config file path	\\CTSINAZCHNW002\E$\OneCognizantSource\OneCApps\727OCI\appsettings.json
-appoolname	727OCI
-deploypath	\\CTSINAZCHNW001\E$\OneCognizantSource\OneCApps\727OCI
- 	 
- 	 
- 	 
-Share me the version of the software used in this track
-Node :	NA
-angular :	NA
-typescript :	NA
-.NET Core sdk	net8.0
-Nuget	6.14.0
- 
- 
-JafenaPearlin.L@cognizant.com
- 
- INC006659632
- 
-Pls follow up with the above poc for OCI ADO Track creation 
- 
-Today I am on planned leave 
- 
-If you need any clarification please reach me 
- 
-On mobile 
- 
-9080295779
- 
-Before sharing above information with poc, pls review once with Karthik or Thaslima 
- 
+            var conflict = db.Appointments.FirstOrDefault(a => a.DoctorID == model.DoctorId && 
+            a.AppointmentDateTime >= startWindow && a.AppointmentDateTime <= endWindow);
+            if (conflict != null)
+            {
+                ViewBag.Message = "Slot not available, please pick another time.";
+                model.Doctors = db.Users.Where(u => u.Role == "Doctor").Select(d => new SelectListItem
+                {
+                    Value = d.UserID.ToString(),
+                    Text = d.FullName
+                }).ToList();
+                return View(model);
+            }
+            var appointment = new Appointment
+            {
+                PatientID = Convert.ToInt32(Session["UserID"]),
+                DoctorID = model.DoctorId,
+                AppointmentDateTime = model.AppointmentDateTime,
+                Reason = model.Reason,
+                Status = "Pending"
+            };
+
+            db.Appointments.Add(appointment);
+            db.SaveChanges();
+
+            ViewBag.Message = "Appointment Booked Successfully!";
+            return RedirectToAction("MyAppointments");
+        }
+
+        public ActionResult MyAppointments()
+        {
+            int patientId = Convert.ToInt32(Session["UserID"]);
+            var appointments = db.Appointments.Where(a => a.PatientID == patientId)
+                .ToList();
+            return View(appointments);
+        }
+    }
+}

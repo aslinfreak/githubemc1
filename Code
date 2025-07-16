@@ -1,21 +1,17 @@
-This is my Spay.BAL(APACUtilityBAL.cs)
-
-public static DataSet GetEmptyTemplateURL(FileUploadDetails objdetails)
-{ 
-    return APACUtilityDAL.GetEmptyTemplateURL(objdetails);
-}
-
-/// <summary>Method to save the file upload details to database</summary>
-/// <param name="objFileUploadDetails"> passing object </param> 
-/// <returns>file upload details</returns>
-public static object SaveSGPFileUploadDetailstoDB(FileUploadDetails objFileUploadDetails)
-{
-    return APACUtilityDAL.SaveSGPFileUploadDetailstoDB(objFileUploadDetails);
-}
-/// <summary>Method to save the file upload details to database</summary>
-/// <param name="objFileUploadDetails"> passing object </param> 
-/// <returns>file upload details</returns>
-public static object SaveCEFileUploadDetailstoDB(FileUploadDetails objFileUploadDetails)
-{
-    return APACUtilityDAL.SaveCEFileUploadDetailstoDB(objFileUploadDetails);
-}
+This is my Spay.DAL(APACUtilityDAL.cs)
+/// <summary>
+ /// 260947: Gets Empty template url.
+ /// </summary>
+ /// <param name="objdetails">File Upload details.</param> 
+ /// <returns>url to fetch corresponding excel.</returns>
+ public static DataSet GetEmptyTemplateURL(FileUploadDetails objdetails)
+ {
+     try
+     {
+         return DBHelper.ExecuteDataset("usp_RetrieveSPayKeys", objdetails);
+     }
+     catch (SystemException ex)
+     {
+         throw ex;
+     }
+ }

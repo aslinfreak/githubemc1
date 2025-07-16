@@ -1,708 +1,171 @@
 This is FileUpload.aspx.cs
-namespace SPayWebApp
-{
-    #region Namespace
-
-    using System;
-    using System.Collections.Generic;
-    using System.Configuration;
-    using System.Data;
-    using System.IO;
-    using System.Linq;
-    using System.Text.RegularExpressions;
-    using System.Web;
-    using System.Web.UI;
-    using System.Xml.Linq;
-    using CAS.Security.Application;
-    using DocumentFormat.OpenXml.Spreadsheet;
-    using ECMCommon;
-    using ECMSharedServices;
-    using SPay.BAL.UtilityBAL;
-    using SPay.DC.UtilityDC;
-
-    #endregion Namespace
+    #region Upload Button Click
 
     /// <summary>
-    /// FileUpload class
-    /// </summary>
-    public partial class FileUpload : System.Web.UI.Page
+    /// 290050: Uploading the file to SAN and add an entry in DB with isProcessed=0
+    /// </summary> 
+    /// <param name="sender">sender object</param>
+    /// <param name="e">EventArgs e</param>
+    protected void BtnUpload_Click(object sender, EventArgs e)
     {
-        #region Declarations
+        ErrorLogger loggerECM = new ErrorLogger();
+        loggerECM.LogErrorECM("Upload - FileUpload - BtnUpload_Click", "Country " + 1 + "Role " + this.RoleID + "ComponentGroupID "
+                   + 0 + "ComponentID " + this.componentId + "ProjectID " + 0, this.userId, "ECM Upload Triggered");
 
-        /// <summary>
-        /// User ID, Role ID and Component ID
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.MaintainabilityRules",
-            "SA1401:FieldsMustBePrivate", Justification = "Reviewed.")]
-        protected string userId, RoleID, componentId;
-
-        /// <summary>
-        /// IsReversal value
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.MaintainabilityRules",
-            "SA1401:FieldsMustBePrivate", Justification = "Reviewed.")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.StyleCop.CSharp.NamingRules",
-           "SA1305:FieldNamesMustNotUseHungarianNotation", Justification = "Reviewed.")]
-        protected bool isReversal = false;
-
-        /// <summary>
-        /// IsReversal value
-        /// </summary>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.MaintainabilityRules",
-            "SA1401:FieldsMustBePrivate", Justification = "Reviewed.")]
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.StyleCop.CSharp.NamingRules",
-           "SA1305:FieldNamesMustNotUseHungarianNotation", Justification = "Reviewed.")]
-        protected bool isVerify = false;
-
-        /// <summary>
-        /// Wrapper CheckIn
-        /// </summary>
-        private WrapperCheckIn objCheckInServices;
-
-        /// <summary>
-        /// Used to assign result from Wrapper
-        /// </summary>
-        private string uploadContext = string.Empty;
-
-        /// <summary>
-        /// Used to final query string
-        /// </summary>
-        private string finalQueryString = string.Empty;
-
-        /// <summary>
-        /// app Id
-        /// </summary>
-        private int appId = Convert.ToInt32(ConfigurationManager.AppSettings.Get("ECMAppID"));
-
-
-        /// <summary>
-        /// upload URL
-        /// </summary>
-        private string uploadURL = ConfigurationManager.AppSettings.Get("ECMUploadURL").ToString();
-
-        /// <summary>
-        ///  one cognizant QueryURL
-        /// </summary>
-        //private string clientURL = ConfigurationManager.AppSettings.Get("ECMOnecQueryURL").ToString();
-
-        /// <summary>
-        /// fileConfig
-        /// </summary>
-
-        private int fileConfig = Convert.ToInt32(ConfigurationManager.AppSettings.Get("FileSize"));
-
-        /// <summary>
-        /// full path value
-        /// </summary>
-        private string fullpath = string.Empty;
-
-        #endregion Declarations
-
-        #region Page Load
-
-        /// <summary>
-        /// 290050: Page Load
-        /// </summary> 
-        /// <param name="sender">sender object</param>
-        /// <param name="e">EventArgs e</param>
-        protected void Page_Load(object sender, EventArgs e)
+        try
         {
-            string versionkey = ConfigurationManager.AppSettings["Version"].ToString();
-            if (HttpContext.Current.Session["UserId"] != null)
+            if (this.filUploadIcon.HasFile)
             {
-                this.userId = HttpContext.Current.Session["UserId"].ToString();
-            }
-            else
-            {
-                ////divSession.Style.Add("display", "block");
-                ////divPopUp.Style.Add("display", "none");
-            }
-
-            if (HttpContext.Current.Session["UserRoles"] != null)
-            {
-                if (HttpContext.Current.Session["RoleId"] != null)
+                string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(this.filUploadIcon.FileName));
+                string strFileName = fileName.Replace("'", string.Empty).Replace(@"\", string.Empty);
+                string strFileType = System.IO.Path.GetExtension(strFileName).ToString().ToLower();
+               
+                if ((strFileType.ToUpper() == ".MSG" || strFileType.ToUpper() == ".ZIP")
+                    && string.IsNullOrEmpty(this.componentId))
                 {
-                    this.RoleID = HttpContext.Current.Session["RoleId"].ToString();
-                }
-                else
-                {
-                    ////divSession.Style.Add("display", "block");
-                    ////divPopUp.Style.Add("display", "none");
-                }
+                    string[] strfileTypes = new string[] { ".msg", ".zip" };
+                    string[] result = checkFileUpload(strfileTypes, 0);
 
-                string[] roles = HttpContext.Current.Session["UserRoles"].ToString().Split(',');
-                if (!roles.Contains(this.RoleID))
-                {
-                    Response.Redirect("HTML/AccessDenied.htm");
-                }
-            }
-            else
-            {
-                ////divSession.Style.Add("display", "block");
-                ////divPopUp.Style.Add("display", "none");
-            }
+                    this.fullpath = result[0].ToString();
 
-            if (Request.QueryString["componentId"] != null)
-            {
-                this.componentId = Request.QueryString["componentId"].ToString();
-            }
-
-            if (Request.QueryString["isReversal"] != null)
-            {
-                this.isReversal = true;
-            }
-
-            if (Request.QueryString["isVerify"] != null)
-            {
-                this.isVerify = true;
-            }
-
-            if (Request.QueryString["Label"] != null)
-            {
-                var regexItem = new Regex(@"^[a-zA-Z0-9_.\s]*$");
-                if (regexItem.IsMatch(this.hdnlbl.Value))
-                {
-                    this.hdnlbl.Value = HttpUtility.HtmlEncode(Convert.ToString(Request.QueryString["Label"]));
-                }
-            }
-
-            //ErrorLogger loggerECM = new ErrorLogger();
-            //loggerECM.LogErrorECM("Upload - FileUpload - Page_Load", "Country " + 1 + "Role " + this.RoleID + "ComponentGroupID "
-            //                        + 0 + "ComponentID " + this.componentId + "ProjectID " + 0, this.userId, "ECM Upload Triggered");
-        }
-
-        #endregion Page Load
-
-        #region Upload Button Click
-
-        /// <summary>
-        /// 290050: Uploading the file to SAN and add an entry in DB with isProcessed=0
-        /// </summary> 
-        /// <param name="sender">sender object</param>
-        /// <param name="e">EventArgs e</param>
-        protected void BtnUpload_Click(object sender, EventArgs e)
-        {
-            ErrorLogger loggerECM = new ErrorLogger();
-            loggerECM.LogErrorECM("Upload - FileUpload - BtnUpload_Click", "Country " + 1 + "Role " + this.RoleID + "ComponentGroupID "
-                       + 0 + "ComponentID " + this.componentId + "ProjectID " + 0, this.userId, "ECM Upload Triggered");
-
-            try
-            {
-                if (this.filUploadIcon.HasFile)
-                {
-                    string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(this.filUploadIcon.FileName));
-                    string strFileName = fileName.Replace("'", string.Empty).Replace(@"\", string.Empty);
-                    string strFileType = System.IO.Path.GetExtension(strFileName).ToString().ToLower();
-                   
-                    if ((strFileType.ToUpper() == ".MSG" || strFileType.ToUpper() == ".ZIP")
-                        && string.IsNullOrEmpty(this.componentId))
+                    if (result[1] == "")
                     {
-                        string[] strfileTypes = new string[] { ".msg", ".zip" };
-                        string[] result = checkFileUpload(strfileTypes, 0);
-
-                        this.fullpath = result[0].ToString();
-
-                        if (result[1] == "")
-                        {
-                            this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
-                            ////string fileUploadId = this.UploadFiletoSAN(this.fullpath, strFileType, strFileName);
-                            string fileUploadId = this.UploadFiletoECM(this.fullpath, strFileType, strFileName);
-                            this.textFileName.Value = fileUploadId;
-                        }
-                        else
-                        {
-                            throw new SystemException(result[1]);
-                        }
-                        
-                        if (this.hdnframeID.Value.ToString() == "frame")
-                        {
-                            string script =
-         "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frameforhide")
-                        {
-                            string script =
-         "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandlerhide');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frame2")
-                        {
-                            string script =
-           "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler2');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frame3")
-                        {
-                            string script =
-            "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler3');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }            
-                        else if (this.hdnframeID.Value.ToString() == "frame1")
-                        {
-                            string script =
-          "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler1');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frame4")
-                        {
-                            string script =
-    "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler4');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frame5")
-                        {
-                            string script =
-       "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler5');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frame6")
-                        {
-                            string script =
-             "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler6');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frame7")
-                        {
-                            string script =
-             "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler7');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frame8")
-                        {
-                            string script =
-             "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler8');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-                        else if (this.hdnframeID.Value.ToString() == "frame9")
-                        {
-                            string script =
-             "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandlerTRT');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
-
-
-                        this.hdnframeID.Value = string.Empty;
-                    }
-                    else if ((strFileType.ToUpper() == ".MSG" || strFileType.ToUpper() == ".DOC"
-                         || strFileType.ToUpper() == ".DOCX" || strFileType.ToUpper() == ".XLS"
-                         || strFileType.ToUpper() == ".XLSX" || strFileType.ToUpper() == ".ZIP"
-                         || strFileType.ToUpper() == ".NSF" || strFileType.ToUpper() == ".GIF"
-                         || strFileType.ToUpper() == ".PNG" || strFileType.ToUpper() == ".PDF"
-                         || strFileType.ToUpper() == ".JPG" || strFileType.ToUpper() == ".JPEG")
-                     && (!string.IsNullOrEmpty(this.componentId)))
-                    {
-                        string[] strfileTypes = new string[] { ".msg", ".zip" };
-                        string[] result = checkFileUpload(strfileTypes, 0);
-
-                        this.fullpath = result[0].ToString();
-
-                        if (result[1] == "")
-                        {
-                            this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
-                            ////string fileUploadId = this.UploadFiletoSAN(this.fullpath, strFileType, strFileName);
-                            string fileUploadId = this.UploadFiletoECM(this.fullpath, strFileType, strFileName);
-                            this.textFileName.Value = fileUploadId;
-                        }
-                        else
-                        {
-                            throw new SystemException(result[1]);
-                        }
-
-                        if (this.hdnframeID.Value.ToString() == "frameMBInvoice")
-                        {
-                            string script =
-             "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandlerMBInvoice');</script>";
-                            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-                        }
+                        this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
+                        ////string fileUploadId = this.UploadFiletoSAN(this.fullpath, strFileType, strFileName);
+                        string fileUploadId = this.UploadFiletoECM(this.fullpath, strFileType, strFileName);
+                        this.textFileName.Value = fileUploadId;
                     }
                     else
                     {
+                        throw new SystemException(result[1]);
+                    }
+                    
+                    if (this.hdnframeID.Value.ToString() == "frame")
+                    {
                         string script =
-     "<script type='text/javascript'>parent.$(parent.document).trigger('popupprogresseventshow');</script>";
+     "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler');</script>";
                         Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-
-                        this.hdnframeID.Value = string.Empty;
                     }
-                }
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-                if (!(ex.Message.Equals("Uploaded file is empty") ||
-              ex.Message.Equals("Number of columns in uploaded file does not match") ||
-             ex.Message.Equals("Please fill the mandatory columns")))
-                {
-                    SendMailer.SendErrorMaileronFailure("Upload data", ex);
-                }
-
-                string script = string.Concat("<script type='text/javascript'>Message('", ex.Message, "');", "</script>");
-                Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-            }
-        }
-
-        #endregion Upload Button Click
-
-        #region UploadFiletoSAN
-
-        /// <summary>
-        /// 290050: Upload Validated file to SAN for further processing
-        /// </summary>
-        /// <param name="fullpath">Server path of file where it is saved locally</param>
-        /// <param name="strFileType">File Extension</param>
-        /// <param name="fileName">File Name</param>
-        /// <returns>Response value</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability",
-            "CA1500:VariableNamesShouldNotMatchFieldNames", MessageId = "fullpath", Justification = "Reviewed")]
-        private string UploadFiletoSAN(string fullpath, string strFileType, string fileName)
-        {
-            try
-            {
-                string response;
-                DataSet dsappTemplateId = UtilityBAL.FetchAppTemplateIdforSAN();
-                string appTemplateId = dsappTemplateId.Tables[0].Rows[0]["KeyValue"].ToString();
-                int appId = Convert.ToInt32(dsappTemplateId.Tables[0].Rows[0]["AppID"]);
-                string candidateId = this.userId;
-                ////SAST fix Improper Resource Shutdown or Release
-                using (System.IO.FileStream objFileStream =
-                     new System.IO.FileStream(fullpath, System.IO.FileMode.Open, System.IO.FileAccess.Read))
-                {
-                    ////SAST fix Improper Resource Shutdown or Release
-                    using (System.IO.BinaryReader objBinaryReader = new System.IO.BinaryReader(objFileStream))
+                    else if (this.hdnframeID.Value.ToString() == "frameforhide")
                     {
-                        long totalBytes = new System.IO.FileInfo(fullpath).Length;
-                        byte[] buffer = objBinaryReader.ReadBytes((int)totalBytes);
-
-                        FileUploadService.FileUploadDetailsRequest objFileUploadDetailsRequest =
-                            new FileUploadService.FileUploadDetailsRequest();
-                        FileUploadService.MFileuploadResponse objMFileuploadResponse =
-                            new FileUploadService.MFileuploadResponse();
-
-                        FileUploadService.DocumentUploadServiceClient objDocumentUploadServiceClient =
-                            new FileUploadService.DocumentUploadServiceClient();
-                        objFileUploadDetailsRequest.AppId = appId;
-                        objFileUploadDetailsRequest.AppTemplateId = appTemplateId;
-                        objFileUploadDetailsRequest.FileName = fileName + strFileType;
-                        objFileUploadDetailsRequest.IncomingFile = buffer;
-                        objFileUploadDetailsRequest.AssociateId = Convert.ToInt32(candidateId.ToString());
-                        objFileUploadDetailsRequest.CreatedBy = candidateId.ToString();
-                        objFileUploadDetailsRequest.CreatedDate = DateTime.UtcNow;
-
-                        objMFileuploadResponse =
-                            objDocumentUploadServiceClient.UploadFile_WithResponse(objFileUploadDetailsRequest);
-                        if (objMFileuploadResponse.Filestatus.ToUpper() == "SUCCESS")
-                        {
-                            response = objMFileuploadResponse.FileUploadId.ToString();
-                        }
-                        else
-                        {
-                            response = "0";
-                        }
-                        ////SaveFileUploadDetailstoDB(objMFileuploadResponse, strFileType);    
-                        //// objFileStream.Close();
-                        objFileStream.Dispose();
-                        objBinaryReader.Close();
-                        buffer = null;
-
-                        if (File.Exists(fullpath))
-                        {
-                            File.Delete(fullpath);
-                        }
+                        string script =
+     "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandlerhide');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
                     }
-                }
-
-                return response;
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-                throw ex;
-            }
-        }
-
-        #endregion UploadFiletoSAN
-
-        #region UploadFiletoECM
-
-        /// <summary>
-        /// 290050: Upload Validated file to SAN for further processing
-        /// </summary>
-        /// <param name="fullpath">Server path of file where it is saved locally</param>
-        /// <param name="strFileType">File Extension</param>
-        /// <param name="fileName">File Name</param>
-        /// <returns>Response value</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability",
-            "CA1500:VariableNamesShouldNotMatchFieldNames", MessageId = "fullpath", Justification = "Reviewed")]
-        private string UploadFiletoECM(string fullpath, string strFileType, string fileName)
-        {
-            try
-            {
-                string response;
-                DataSet dsappTemplateId = UtilityBAL.FetchAppTemplateIdforSAN();
-                string appTemplateId = dsappTemplateId.Tables[0].Rows[0]["KeyValue"].ToString();
-                int appId = Convert.ToInt32(dsappTemplateId.Tables[0].Rows[0]["AppID"]);
-                string candidateId = this.userId;
-
-                ECMIntegration objUtilityECM = new ECMIntegration();
-                objUtilityECM = this.UploadtoECM(fullpath);
-                response = objUtilityECM.EcmContentId;
-
-                if (File.Exists(fullpath))
-                {
-                    File.Delete(fullpath);
-                }
-
-                return response;
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-                throw ex;
-            }
-        }
-
-        #endregion UploadFiletoECM
-
-        /// <summary>
-        /// Upload file to ECM
-        /// </summary>
-        /// <param name="fullpath">path details</param>
-        /// <returns>ECM object content</returns>
-        private ECMIntegration UploadtoECM(string fullpath)
-        {
-            string fileName = Path.GetFileName(fullpath);
-            ECMIntegration objUtilityECM = new ECMIntegration();
-            try
-            {
-                XDocument xmetadataDoc = XDocument.Load(Server.MapPath(".") + @"\ECMMetaData.xml");
-                int fileSize = File.ReadAllBytes(fullpath).Length;
-                //fileConfig is in MB and converting into Byte 
-                int limitsize = this.fileConfig * 1024 * 1024;
-                if (fileSize > limitsize)
-                {
-                    throw new SystemException("Files size exceeded");
-
-                }
-                if (xmetadataDoc != null)
-                {
-                    if (this.IsContentValid(fullpath, fileName))
+                    else if (this.hdnframeID.Value.ToString() == "frame2")
                     {
-                        IdcFile primaryFile = new IdcFile();
-                        WrapperUICheckIn uicheckIn = new WrapperUICheckIn(this.appId);
-                        primaryFile.Filename = EncodeHelper.HtmlEncode(fileName);
-                        primaryFile.Filecontent = File.ReadAllBytes(fullpath);
-                        XDocument ecmResult = uicheckIn.UploadFile_RevisionLabel(primaryFile, xmetadataDoc);
-
-                        XElement returnElement = ecmResult != null ? ecmResult.Root.Element("ECMStatus") : null;
-                        if (returnElement != null)
-                        {
-                            var responseData = from datas in ecmResult.Descendants("ECMStatus")
-                                               select new
-                                               {
-                                                   dContentId = datas.Element("ECMContentId").Value,
-                                                   dAppDocId = datas.Element("AppDocId").Value,
-                                                   dID = datas.Element("ECMdID").Value
-                                               };
-                            objUtilityECM.EcmContentId = Convert.ToString(responseData.FirstOrDefault().dContentId);
-                            objUtilityECM.EcmAppDocId = Convert.ToString(responseData.FirstOrDefault().dAppDocId);
-                        }
+                        string script =
+       "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler2');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
                     }
+                    else if (this.hdnframeID.Value.ToString() == "frame3")
+                    {
+                        string script =
+        "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler3');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }            
+                    else if (this.hdnframeID.Value.ToString() == "frame1")
+                    {
+                        string script =
+      "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler1');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }
+                    else if (this.hdnframeID.Value.ToString() == "frame4")
+                    {
+                        string script =
+"<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler4');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }
+                    else if (this.hdnframeID.Value.ToString() == "frame5")
+                    {
+                        string script =
+   "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler5');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }
+                    else if (this.hdnframeID.Value.ToString() == "frame6")
+                    {
+                        string script =
+         "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler6');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }
+                    else if (this.hdnframeID.Value.ToString() == "frame7")
+                    {
+                        string script =
+         "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler7');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }
+                    else if (this.hdnframeID.Value.ToString() == "frame8")
+                    {
+                        string script =
+         "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandler8');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }
+                    else if (this.hdnframeID.Value.ToString() == "frame9")
+                    {
+                        string script =
+         "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandlerTRT');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }
+
+
+                    this.hdnframeID.Value = string.Empty;
                 }
-            }
-            catch (SystemException ex)
-            {
-                string script = String.Empty;
-                if (ex.Message == "Files size exceeded")
+                else if ((strFileType.ToUpper() == ".MSG" || strFileType.ToUpper() == ".DOC"
+                     || strFileType.ToUpper() == ".DOCX" || strFileType.ToUpper() == ".XLS"
+                     || strFileType.ToUpper() == ".XLSX" || strFileType.ToUpper() == ".ZIP"
+                     || strFileType.ToUpper() == ".NSF" || strFileType.ToUpper() == ".GIF"
+                     || strFileType.ToUpper() == ".PNG" || strFileType.ToUpper() == ".PDF"
+                     || strFileType.ToUpper() == ".JPG" || strFileType.ToUpper() == ".JPEG")
+                 && (!string.IsNullOrEmpty(this.componentId)))
                 {
+                    string[] strfileTypes = new string[] { ".msg", ".zip" };
+                    string[] result = checkFileUpload(strfileTypes, 0);
 
-                    script = "<script type='text/javascript'>parent.$(parent.document).trigger('popupprogresseventshowfilesize',[{size:" + this.fileConfig + "}]);</script>";
+                    this.fullpath = result[0].ToString();
 
+                    if (result[1] == "")
+                    {
+                        this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
+                        ////string fileUploadId = this.UploadFiletoSAN(this.fullpath, strFileType, strFileName);
+                        string fileUploadId = this.UploadFiletoECM(this.fullpath, strFileType, strFileName);
+                        this.textFileName.Value = fileUploadId;
+                    }
+                    else
+                    {
+                        throw new SystemException(result[1]);
+                    }
 
-                }
-                Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-
-            }
-
-            return objUtilityECM;
-        }
-
-        /// <summary>
-        /// Content valid
-        /// </summary>
-        /// <param name="fullpath">full path detail</param>
-        /// <param name="fileName">file name detail</param>
-        /// <returns>return valid</returns>
-        private bool IsContentValid(string fullpath, string fileName)
-        {
-            string suppFormat = string.Empty;
-            string unsuppFormat = string.Empty;
-            string formatErrMsg = string.Empty;
-            string sizeErrMsg = string.Empty;
-            int size = 0;
-            string[] supportedextns = null;
-            string[] unsupportedextns = null;
-            int fileSize = 0;
-            int limit;
-            string extension = null;
-            var regexItem = new Regex(@"^[a-zA-Z0-9_.()@#$%^&!+,;:\-\\\s]*$");
-            ECMApplicationSpecification objECMAppSpecification;
-            Dictionary<string, ECMApplicationSpecification> appSpec =
-                new Dictionary<string, ECMApplicationSpecification>();
-
-            try
-            {
-                if (Request.QueryString["UploadContext"] != null)
-                {
-                    this.uploadContext = Convert.ToString(Request.QueryString["UploadContext"]);
+                    if (this.hdnframeID.Value.ToString() == "frameMBInvoice")
+                    {
+                        string script =
+         "<script type='text/javascript'>parent.$(parent.document).trigger('eventhandlerMBInvoice');</script>";
+                        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+                    }
                 }
                 else
                 {
-                    this.uploadContext = "Common";
-                }
+                    string script =
+ "<script type='text/javascript'>parent.$(parent.document).trigger('popupprogresseventshow');</script>";
+                    Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
 
-                DataSet dsappSpec = new DataSet();
-                this.objCheckInServices = new WrapperCheckIn(this.appId);
-                dsappSpec = this.objCheckInServices.GetAppSpecificValue(this.appId);
-
-                if (dsappSpec != null && dsappSpec.Tables.Count > 0)
-                {
-                    foreach (DataRow dr in dsappSpec.Tables["ECMAppSpecfn"].Rows)
-                    {
-                        objECMAppSpecification = new ECMApplicationSpecification();
-                        objECMAppSpecification.FormatErrorMessage =
-                            CAS.Security.Application.EncodeHelper.HtmlEncode(Convert.ToString(dr["FormatErrorMessage"]));
-                        objECMAppSpecification.FormatsSupported =
-                            CAS.Security.Application.EncodeHelper.HtmlEncode(Convert.ToString(dr["FormatsSupported"]));
-                        objECMAppSpecification.FormatsUnsupported =
-                            CAS.Security.Application.EncodeHelper.HtmlEncode(Convert.ToString(dr["FormatsNotSupported"]));
-                        objECMAppSpecification.Size =
-                            CAS.Security.Application.EncodeHelper.HtmlEncode(Convert.ToString(dr["SupportedSizeInKb"]));
-                        objECMAppSpecification.SizeErrorMessage =
-                            CAS.Security.Application.EncodeHelper.HtmlEncode(Convert.ToString(dr["SizeErrorMessage"]));
-                        appSpec.Add(Convert.ToString(dr["UploadContext"]), objECMAppSpecification);
-                    }
+                    this.hdnframeID.Value = string.Empty;
                 }
-
-                size = int.Parse(objECMAppSpecification.Size);
-                if (regexItem.IsMatch(objECMAppSpecification.FormatsSupported))
-                {
-                    suppFormat = objECMAppSpecification.FormatsSupported;
-                }
-                if (regexItem.IsMatch(objECMAppSpecification.FormatsUnsupported))
-                {
-                    unsuppFormat = objECMAppSpecification.FormatsUnsupported;
-                }
-                if (regexItem.IsMatch(objECMAppSpecification.FormatErrorMessage))
-                {
-                    formatErrMsg = objECMAppSpecification.FormatErrorMessage;
-                }
-                if (regexItem.IsMatch(objECMAppSpecification.SizeErrorMessage))
-                {
-                    sizeErrMsg = objECMAppSpecification.SizeErrorMessage;
-                }
-
-                supportedextns = suppFormat.Split(',');
-                unsupportedextns = unsuppFormat.Split(',');
-
-                fileSize = File.ReadAllBytes(fullpath).Length; // System.IO.FileInfo(filename).Length;
-                extension = System.IO.Path.GetExtension(fullpath).ToLower();
-
-                limit = size * 1024;
-
-                if (fileSize > limit)
-                {
-                    Response.Write(string.Concat(sizeErrMsg, " ", size, " KB"));
-                    return false;
-                }
-                else if (extension == ".exe" || extension == ".dll")
-                {
-                    Response.Write("Executable files(.exe/.dll) are not supported for upload");
-                    return false;
-                }
-                else if ((suppFormat == "*") && (unsuppFormat == ".exe"))
-                {
-                    return true;
-                }
-                else if ((suppFormat == "*") && (unsuppFormat != ".exe") && unsupportedextns.Contains(extension))
-                {
-                    Response.Write(string.Concat(formatErrMsg, " ", unsuppFormat));
-                    return false;
-                }
-                else if ((suppFormat != "*") && (unsuppFormat == ".exe") && (!supportedextns.Contains(extension)))
-                {
-                    Response.Write(string.Concat(formatErrMsg, " ", suppFormat));
-                    return false;
-                }
-                else if ((suppFormat != "*") && (unsuppFormat != ".exe") && unsupportedextns.Contains(extension))
-                {
-                    Response.Write(string.Concat(formatErrMsg, " ", suppFormat));
-                    return false;
-                }
-                else
-                {
-                    return true;
-                }
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-                return false;
             }
         }
-
-        /// <summary>
-        /// 923568 - To validate bulk upload file
-        /// </summary>
-        /// <param name="filetypes"> file types </param>
-        /// <param name="file"> file to upload </param>
-        /// <returns>string filename and exception</returns>
-        private string[] checkFileUpload(string[] filetypes, int file)
+        catch (SystemException ex)
         {
-
-            string exception = string.Empty;
-
-            HttpPostedFile selectFile = Request.Files[file];
-
-            //check fileName is encrypt
-            string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(selectFile.FileName));
-            string extension = Path.GetExtension(fileName.Replace("'", string.Empty).
-                                    Replace(@"\", string.Empty)).ToString().ToLower();
-            var rootPath = Server.MapPath("~/ExcelFile/");
-            string strFileName = DateTime.Now.ToString("ddMMyyyy_HHmmss");
-
-            var nameExt = string.Concat(fileName, extension);
-            string fullpath = Path.Combine(rootPath, nameExt);
-
-            //1.check file type
-            if (!filetypes.Contains(extension))
+            ErrorLogger logger = new ErrorLogger();
+            logger.LogError(ex);
+            if (!(ex.Message.Equals("Uploaded file is empty") ||
+          ex.Message.Equals("Number of columns in uploaded file does not match") ||
+         ex.Message.Equals("Please fill the mandatory columns")))
             {
-                exception += "Upload a file in " + string.Join(",", filetypes) + " format/";
+                SendMailer.SendErrorMaileronFailure("Upload data", ex);
             }
-            //2.double extension
 
-            else if (fileName.Count(t => t == '.') >= 2)
-            {
-                exception += "upload a file in single extension/";
-            }
-            //3.check file size
-            else if (selectFile.ContentLength > 5242880)
-            {
-                exception += "uploaded file should be less than 5MB/";
-            }
-            exception = exception != "" ? exception.Remove(exception.Length - 1, 1) : exception;
-            string[] retval = new string[3] { fullpath, exception, fileName };
-
-            return retval;
+            string script = string.Concat("<script type='text/javascript'>Message('", ex.Message, "');", "</script>");
+            Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
         }
     }
-}
-      
-                    
-          
+
+    #endregion Upload Button Click

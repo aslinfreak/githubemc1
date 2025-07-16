@@ -1,56 +1,99 @@
+This is my Spay.DAL(APACUtilityDAL.cs)
 
-
-This is my Spay.BAL(APACUtilityBAL.cs)
-
-//-----------------------------------------------------------------------
-// <copyright file="APACUtilityBAL.cs" company="Special pay">
-//     Copyright (c) Special pay Enterprises. All rights reserved.
+// <copyright file="APACUtilityDAL.cs" company="CTS">
+//     Company copyright tag.
 // </copyright>
-//-----------------------------------------------------------------------
 
-namespace SPay.BAL.APAC_UtilityBAL
+namespace SPay.DAL.APAC_UtilityDAL
 {
     using System;
     using System.Collections.Generic;
+    using System.Configuration;
     using System.Data;
+    using System.Data.SqlClient;
     using System.Linq;
     using System.Text;
+    using Microsoft.ApplicationBlocks.Data;
     using OneC.Spay.DC.UtilityDC;
-    using SPay.DAL.APAC_UtilityDAL;
     using SPay.DC.UtilityDC;
+    using AzureSQLHelper;
+    using SPay.DAL.UtilityDAL;
+    using System.Runtime.Remoting.Metadata.W3cXsd2001;
 
     /// <summary>
-    /// Utility Business Layer for APAC region
+    /// Utility Data Layer for APAC region
     /// </summary>
-    public sealed class APACUtilityBAL : IDisposable
+    public class APACUtilityDAL : IDisposable
     {
         /// <summary>
-        /// Method to get the Policy Page details
+        /// 311556: Connection string from Config.
         /// </summary>
-        /// <param name="objcompDet"> passing object </param> 
-        /// <returns>status on getting the Policy Page details</returns>
-        public static DataSet GetPolicyPageDetails(ComponentDetails objcompDet)
+        private static byte[] sqlManagedAzureAD1 = Convert.FromBase64String(ConfigurationManager.ConnectionStrings
+        ["SQLManagedAzureAD"].ConnectionString);
+
+        /// <summary>
+        /// Decrypted Connection String
+        /// </summary>
+        private static string conString = Encoding.UTF8.GetString(sqlManagedAzureAD1);
+
+        /// <summary>
+        /// 311556: Disposes unused memory.
+        /// </summary>        
+        public void Dispose()
         {
-            return APACUtilityDAL.GetPolicyPageDetails(objcompDet);
+            ////this.Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         /// <summary>
-        /// Method to get the SetID details
+        /// 311556: Gets Policy page details for components.
         /// </summary>
-        /// <param name="objCompDet"> passing object </param> 
-        /// <returns>SetID details</returns>
+        /// <param name="objcompDet">Component details.</param> 
+        /// <returns>Policy Page details.</returns>
+        public static DataSet GetPolicyPageDetails(ComponentDetails objcompDet)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[AccessPolicyPage]", objcompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Set ID details for referral Bonus.
+        /// </summary>
+        /// <param name="objCompDet">Component details.</param> 
+        /// <returns>Set ID details.</returns>
         public static DataSet GetSetIdDetails(ComponentDetails objCompDet)
         {
-            return APACUtilityDAL.GetSetIdDetails(objCompDet);
+            try
+            {
+                return DBHelper.ExecuteDataset("Policy.usp_GetSetId", objCompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
+
         /// <summary>
-        /// Method to get the RTT details
+        /// 930165: Gets RTT details for referral Bonus.
         /// </summary>
-        /// <param name="objCompDet"> passing object </param> 
-        /// <returns>RTT details</returns>
+        /// <param name="objCompDet">Component details.</param> 
+        /// <returns>RTT details.</returns>
         public static DataSet GetRTTDetails(ComponentDetails objCompDet)
         {
-            return APACUtilityDAL.GetRTTDetails(objCompDet);
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetCE_RTTDays", objCompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
         /// <summary>
@@ -60,1859 +103,2353 @@ namespace SPay.BAL.APAC_UtilityBAL
         /// <returns>Return the value</returns>
         public static DataSet GetShiftDetails(ComponentDetails objCompDet)
         {
-            return APACUtilityDAL.GetShiftDetails(objCompDet);
-        }
-
-        /// <summary>
-        /// Method to get the Grade details
-        /// </summary>
-        /// <param name="objcompDet"> passing object </param> 
-        /// <returns>Grade Details</returns>
-        public static DataSet GetGradeDetails(ComponentDetails objcompDet)
-        {
-            return APACUtilityDAL.GetGradeDetails(objcompDet);
-        }
-
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
-        public static DataSet GetUploaderValidDataSGP(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderValidDataSGP(objCompDetails);
-        }
-
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
-        public static DataSet GetUploaderValidDataAPAC(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderValidDataAPAC(objCompDetails);
-        }
-
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
-        public static DataSet GetUploaderValidDataCE(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderValidDataCE(objCompDetails);
-        }
-
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
-        public static DataSet GetUploaderValidDataNLD(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderValidDataNLD(objCompDetails);
-        }
-
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
-        public static DataSet GetOCAPolicyData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetOCAPolicyData(objCompDetails);
-        }
-
-        /// <summary>Method to get the empty template url</summary>
-        /// <param name="objdetails"> passing object </param> 
-        /// <returns>empty template url</returns>
-        public static DataSet GetEmptyTemplateURL(FileUploadDetails objdetails)
-        {
-            return APACUtilityDAL.GetEmptyTemplateURL(objdetails);
-        }
-
-        /// <summary>Method to insert the uploader new data into the table </summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveUploaderNewData(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.SaveUploaderNewData(objUploadData);
-        }
-
-        /// <summary>Method to insert the uploader new data into the table </summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveUploaderNewDataNLD(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.SaveUploaderNewDataNLD(objUploadData);
-        }
-
-        /// <summary>Method to insert the uploader new data into the table </summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveUploaderDataCE(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.SaveUploaderDataCE(objUploadData);
-        }
-
-        /// <summary>Method to insert the uploader new data into the table </summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveUploaderNewDataCE(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.SaveUploaderNewDataCE(objUploadData);
-        }
-
-
-        /// <summary>
-        /// Method to update the shift allowance grid data
-        /// </summary>
-        /// <param name="objShiftDetails"> passing object</param>
-        /// <param name="franceSFUpdate"> List of Shift Data </param>
-        /// <returns>all data with updated one</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists",
-            Justification = "Reviewed")]
-        public static List<string> StopPaymentUploaderValidData(UploaderData objShiftDetails, List<string> franceSFUpdate)
-        {
-            return APACUtilityDAL.StopPaymentUploaderValidData(objShiftDetails, franceSFUpdate);
-        }
-
-
-        /// <summary>Method to update the referral bonus valid data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the referral bonus valid data</returns>
-        public static DataSet UpdateValidDataNLD(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.UpdateValidDataNLD(objUploadData);
-        }
-
-        /// <summary>Method to update the referral bonus valid data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the referral bonus valid data</returns>
-        public static DataSet UpdateValidDataCE(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.UpdateValidDataCE(objUploadData);
-        }
-
-       
-        /// <summary>Method to update the joining bonus exception data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the joining bonus exception data </returns>
-        public static DataSet UpdateExceptionDataNLD(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.UpdateExceptionDataNLD(objUploadData);
-        }
-
-        /// <summary>Method to update the joining bonus exception data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the joining bonus exception data </returns>
-        public static DataSet UpdateExceptionDataCE(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.UpdateExceptionDataCE(objUploadData);
-        }
-
-        /// <summary>
-        /// 298312: Method to get My pay TRT Payment Mailer Details
-        /// </summary>
-        /// <param name="flag">Flag number</param>
-        /// <param name="componentId">component Id</param>
-        /// <param name="compName">component Name</param>
-        /// <param name="countryID">country ID</param>
-        /// <returns>My pay status Mailer</returns>
-        public static DataSet GetFreezePayrollMailerDetails(int flag, string componentId, string compName, int countryID)
-        {
-            return APACUtilityDAL.GetFreezePayrollMailerDetails(flag, componentId, compName, countryID);
-        }
-
-        /// <summary>Method to get the report with valid data in push to my pay page</summary>
-        /// <param name="objreport"> passing object </param> 
-        /// <returns>Valid data report</returns>
-        public static DataSet GenerateReportDataAPAC(ReportDetails objreport)
-        {
-            return APACUtilityDAL.GenerateReportDataAPAC(objreport);
-        }
-
-        /// <summary>Method to get the report with valid data in push to my pay page</summary>
-        /// <param name="objreport"> passing object </param> 
-        /// <returns>Valid data report</returns>
-        public static DataSet GenerateReportDataNLD(ReportDetails objreport)
-        {
-            return APACUtilityDAL.GenerateReportDataNLD(objreport);
-        }
-
-        /// <summary>Method to get the report with valid data in push to my pay page</summary>
-        /// <param name="objreport"> passing object </param> 
-        /// <returns>Valid data report</returns>
-        public static DataSet GenerateReportData(ReportDetails objreport)
-        {
-            return APACUtilityDAL.GenerateReportData(objreport);
-        }
-
-        /// <summary>Method to get the report with valid data in push to my pay page</summary>
-        /// <param name="objreport"> passing object </param> 
-        /// <returns>Valid data report</returns>
-        public static DataSet GenerateReportDataCE(ReportDetails objreport)
-        {
-            return APACUtilityDAL.GenerateReportDataCE(objreport);
-        }
-
-        /// <summary>
-        /// to Get consolidated Approved Data Report for country wise
-        /// </summary>
-        /// <param name="objreport"></param>
-        /// <returns></returns>
-        public static DataSet GenerateConsolidatedApprovedDataReportDataCE(ReportDetails objreport)
-        {
-            return APACUtilityDAL.GenerateConsolidatedApprovedDataReportDataCE(objreport);
-        }
-
-        /// <summary>Method to update the referral bonus valid data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the referral bonus valid data</returns>
-        public static DataSet UpdateValidData(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.UpdateValidData(objUploadData);
-        }
-
-        /// <summary>Method to get the Tech team recipients</summary>
-        /// <param name="objContAccess">passing object </param>
-        /// <returns>Tech team recipients</returns>
-        public static DataSet GetTechTeamRecipients(ControlAccess objContAccess)
-        {
-            return APACUtilityDAL.GetTechTeamRecipients(objContAccess);
-        }
-
-        /// <summary>Method to get the rejected data in valid tab for the uploader</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Rejected data</returns>
-        public static string RejectUploaderValidData(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.RejectUploaderValidData(objUploadData);
-        }
-
-        /// <summary>Method to get the rejected data in valid tab for the uploader</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Rejected data</returns>
-        public static string RejectUploaderValidDataNLD(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.RejectUploaderValidDataNLD(objUploadData);
-        }
-
-        /// <summary>Method to get the reject mailer recipients</summary>
-        /// <param name="objContAccess">passing object </param>
-        /// <returns>Tech team recipients</returns>
-        public static DataSet GetRejectMailerDetails(ControlAccess objContAccess)
-        {
-            return APACUtilityDAL.GetRejectMailerDetails(objContAccess);
-        }
-
-        /// <summary>Method to view the valid data for an uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the valid data for uploader</returns>
-        public static DataSet ApproveUploaderValidData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.ApproveUploaderValidData(objCompDetails);
-        }
-
-        /// <summary>Method to view the valid data for an uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the valid data for uploader</returns>
-        public static DataSet ApproveUploaderValidDataNLD(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.ApproveUploaderValidDataNLD(objCompDetails);
-        }
-
-        /// <summary>Method to get the Approve mailer recipients</summary>
-        /// <param name="objContAccess">passing object </param>
-        /// <returns>Tech team recipients</returns>
-        public static DataSet GetApproveMailerDetails(ControlAccess objContAccess)
-        {
-            return APACUtilityDAL.GetApproveMailerDetails(objContAccess);
-        }
-
-        /// <summary>
-        /// Method to get mailers that is active
-        /// </summary>
-        /// <param name="objMail">passing object</param>
-        /// <returns>active mailer status</returns>
-        public static int GetMailerActiveDetails(MailerLog objMail)
-        {
-            return APACUtilityDAL.GetMailerActiveDetails(objMail);
-        }
-
-        /// <summary>
-        /// Method to log mailer details
-        /// </summary>
-        /// <param name="objMailerLog"> passing object</param>
-        public static void LogMailerDetails(MailerLog objMailerLog)
-        {
-            APACUtilityDAL.LogMailerDetails(objMailerLog);
-        }
-
-        /// <summary>Method to update the joining bonus exception data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the joining bonus exception data </returns>
-        public static DataSet UpdateExceptionData(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.UpdateExceptionData(objUploadData);
-        }
-
-        /// <summary>Method to get the recruitment type for referral bonus</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Recruitment type for referral bonus</returns>
-        public static DataSet GetRecruitmentType(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetRecruitmentType(objCompDetails);
-        }
-
-        /// <summary>Method to get the recruitment type for referral bonus</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Recruitment type for referral bonus</returns>
-        public static DataSet GetDeductionType(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetDeductionType(objCompDetails);
-        }
-
-        /// <summary>Method to get the recruitment type for referral bonus</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Recruitment type for referral bonus</returns>
-        public static DataSet GetInstallmentType(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetInstallmentType(objCompDetails);
-        }
-
-        /// <summary>Method to get the valid data in push to my pay page</summary>
-        /// <param name="componentid">component id </param>
-        /// <param name="countryID">country ID </param>
-        /// <returns>valid data pushed</returns>
-        public static DataSet SGPGetValidData(int componentid, int countryID)
-        {
-            return APACUtilityDAL.SGPGetValidData(componentid, countryID);
-        }
-
-        /// <summary>Method to get the valid data in push to my pay page</summary>
-        /// <param name="componentid">component id </param> 
-        /// <param name="countryID">CountryID ID </param> 
-        /// <returns>valid data pushed</returns>
-        public static DataSet NLDGetValidData(int componentid, int countryID)
-        {
-            return APACUtilityDAL.NLDGetValidData(componentid, countryID);
-        }
-
-        /// <summary>Method to get the valid data in push to my pay page</summary>
-        /// <param name="componentid">component id </param> 
-        /// <param name="countryID">Country Id </param> 
-        /// <param name="componentName">Component Name</param> 
-        /// <returns>valid data pushed</returns>
-        public static DataSet APACGetValidData(int componentid, int countryID, string componentName)
-        {
-            return APACUtilityDAL.APACGetValidData(componentid, countryID, componentName);
-        }
-
-        /// <summary>Method to get the valid data in push to my pay page</summary>
-        /// <param name="componentid">component id </param> 
-        /// <param name="countryID">Country Id </param> 
-        /// <param name="componentName">Component Name</param> 
-        /// <returns>valid data pushed</returns>
-        public static DataSet CEGetValidData(int componentid, int countryID, string componentName)
-        {
-            return APACUtilityDAL.CEGetValidData(componentid, countryID, componentName);
-        }
-
-        /// <summary>Method to get the valid data in push to my pay page</summary>
-        /// <param name="componentid">component id </param> 
-        /// <param name="countryID">Country Id </param> 
-        /// <param name="componentName">Component Name</param> 
-        /// <returns>valid data pushed</returns>
-        public static DataSet UKIGetValidData(int componentid, int countryID, string componentName)
-        {
-            return APACUtilityDAL.UKIGetValidData(componentid, countryID, componentName);
-        }
-
-        /// <summary>Method to get the valid data in push to my pay page</summary>
-        /// <param name="componentid">component id </param> 
-        /// <param name="countryID">Country Id </param> 
-        /// <param name="componentName">Component Name</param> 
-        /// <returns>valid data pushed</returns>
-        public static DataSet PHLGetValidData(int componentid, int countryID, string componentName)
-        {
-            return APACUtilityDAL.PHLGetValidData(componentid, countryID, componentName);
-        }
-
-        /// <summary>Method to get the recruitment type for referral bonus</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Recruitment type for referral bonus</returns>
-        public static DataSet GetCurrencyCode(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetCurrencyCode(objCompDetails);
-        }
-
-        /// <summary>Method to view the exception data for an uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the exception data for uploader</returns>
-        public static DataSet GetUploaderExceptionViewData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderExceptionViewData(objCompDetails);
-        }
-
-        /// <summary>Method to view the exception data for an uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the exception data for uploader</returns>
-        public static DataSet GetUploaderExceptionViewDataNLD(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderExceptionViewDataNLD(objCompDetails);
-        }
-
-        /// <summary>Method to view the exception data for an uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the exception data for uploader</returns>
-        public static DataSet GetAPACUploaderExceptionViewData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetAPACUploaderExceptionViewData(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to get the Special case reason
-        /// </summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Special Case Reason</returns>
-        public static DataSet GetSpecialCaseReasons(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetSpecialCaseReasons(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to get the Special case reason
-        /// </summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Special Case Reason</returns>
-        public static DataSet GetNLDSSpecialCaseReason(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetNLDSSpecialCaseReason(objCompDetails);
-        }
-
-        /// <summary>Method to get the BG Status</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>BG status</returns>
-        public static DataSet GetBGstatus(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetBGstatus(objCompDetails);
-        }
-
-        /// <summary>Method to get the BG Status</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>BG status</returns>
-        public static DataSet GetSignonBonusDropdownDetails(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetSignonBonusDropdownDetails(objCompDetails);
-        }
-
-        /// <summary>Method to get the BG Status</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>BG status</returns>
-        public static DataSet GetPayoutTypeonchangeofsubcomponent(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetPayoutTypeonchangeofsubcomponent(objCompDetails);
-        }
-
-        /// <summary>Method to get the BG Status</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>BG status</returns>
-        public static DataSet GetDropdownDetailsAPAC(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetDropdownDetailsAPAC(objCompDetails);
-        }
-
-        /// <summary>Method to get the BG Status</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>BG status</returns>
-        public static DataSet GetDropdownDetailsCE(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetDropdownDetailsCE(objCompDetails);
-        }
-
-        /// <summary>Method to call popup details</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Returns Reversal POPUP details</returns>
-        public static DataSet GetReversalDropdownDetailsNLD(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetReversalDropdownDetailsNLD(objCompDetails);
-        }
-
-        /// <summary>Method to get the BG Status</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>BG status</returns>
-        public static DataSet GetRelocationDropdownDetails(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetRelocationDropdownDetails(objCompDetails);
-        }
-
-        /// <summary>Method to view the valid data for an uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the valid data for uploader</returns>
-        public static DataSet GetUploaderValidViewData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderValidViewData(objCompDetails);
-        }
-
-        /// <summary>Method to view the valid data for an uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the valid data for uploader</returns>
-        public static DataSet GetAPACUploaderValidViewData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetAPACUploaderValidViewData(objCompDetails);
-        }
-
-        /// <summary>Method to view the valid data for an uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the valid data for uploader</returns>
-        public static DataSet GetUploaderValidViewDataNLD(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderValidViewDataNLD(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to get data for other geography tab
-        /// </summary>
-        /// <param name="objCompDetails">passing object</param>
-        /// <returns>data in other geography</returns>
-        public static DataSet GetOtherGeographyUploaderData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetOtherGeographyUploaderData(objCompDetails);
-        }
-
-        /// <summary>Method to get the template for  currency template</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Template for the Component</returns>
-        public static DataSet GetCurrencyDataTemplateSGP(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetCurrencyDataTemplateSGP(objuploaderData);
-        }
-
-        /// <summary>
-        /// Method to Cut off date details
-        /// </summary>
-        /// <param name="objinputs"> passing object</param>
-        public static void SaveCuttOffDateDetails(SaveCuttOffDateDetails objinputs)
-        {
-            APACUtilityDAL.SaveCuttOffDateDetails(objinputs);
-        }
-
-        /// <summary>
-        /// Method to get the other details
-        /// </summary>
-        /// <param name="objcompDet"> passing object </param> 
-        /// <returns>status on getting the other details</returns>
-        public static DataSet GetOtherDetails(ComponentDetails objcompDet)
-        {
-            return APACUtilityDAL.GetOtherDetails(objcompDet);
-        }
-
-        /// <summary>
-        /// Method to get the other details
-        /// </summary>
-        /// <param name="objcompDet"> passing object </param> 
-        /// <returns>status on getting the other details</returns>
-        public static DataSet GetNLDPolicyDetails(ComponentDetails objcompDet)
-        {
-            return APACUtilityDAL.GetNLDPolicyDetails(objcompDet);
-        }
-
-        /// <summary>Method to get the template for every component</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Template for the Component</returns>
-        public static DataSet GetDataTemplateSGP(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetDataTemplateSGP(objuploaderData);
-        }
-
-        /// <summary>Method to get the template for every component</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Template for the Component</returns>
-        public static DataSet GetDataTemplateGradeAmount(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetDataTemplateGradeAmount(objuploaderData);
-        }
-
-        /// <summary>
-        /// Method to get the grade amount details
-        /// </summary>
-        /// <param name="objcompDet"> passing object </param> 
-        /// <returns>grade amount details</returns>
-        public static DataSet GetGradeAmountDetails(ComponentDetails objcompDet)
-        {
-            return APACUtilityDAL.GetGradeAmountDetails(objcompDet);
-        }
-
-        /// <summary>
-        /// 311556: Method to move Singapore special pay out
-        /// </summary>
-        /// <param name="objpolicyDetails">policy object</param>
-        /// <returns>string status</returns>
-        public static string UpdateSGPPolicyDetails(SPay.DC.UtilityDC.PolicyDetails objpolicyDetails)
-        {
-            return APACUtilityDAL.UpdateSGPPolicyDetails(objpolicyDetails);
-        }
-
-        /// <summary>
-        /// Method to get the SetID details
-        /// </summary>
-        /// <param name="objCompDet"> passing object </param> 
-        /// <returns>SetID details</returns>
-        public static DataSet GetSDADetails(ComponentDetails objCompDet)
-        {
-            using (APACUtilityDAL objDAL = new APACUtilityDAL())
+            try
             {
-                return APACUtilityDAL.GetSDADetails(objCompDet);
+                return DBHelper.ExecuteDataset("[Policy].[usp_GetShift]", objCompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
             }
         }
 
         /// <summary>
-        /// Method to get the Statutory holiday details
+        /// To save the cut off date details
         /// </summary>
-        /// <param name="objCompDet"> passing object </param> 
-        /// <returns>Statutory holiday details</returns>
-        public static DataSet GetStatutoryhoildayDetails(ComponentDetails objCompDet)
+        /// <param name="objinputs">Cut off date details</param>
+        public static void SaveCuttOffDateDetails(SaveCuttOffDateDetails objinputs)
         {
-            return APACUtilityDAL.GetStatutoryhoildayDetails(objCompDet);
+            try
+            {
+                DBHelper.ExecuteNonQuery("usp_APACSaveCuttOffDateDetails", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
         /// <summary>
-        /// Method to get the Statutory holiday details
+        /// 311556: Gets Uploader data for valid grid.
         /// </summary>
-        /// <param name="objCompDet"> passing object </param> 
-        /// <returns>Statutory holiday details</returns>
-        public static DataSet GetStatutoryAmountDetails(ComponentDetails objCompDet)
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet GetUploaderValidDataSGP(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetStatutoryAmountDetails(objCompDet);
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetUploaderValidRecordSGP", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
+        /// <summary>
+        /// 311556: Gets Uploader data for valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet GetUploaderValidDataAPAC(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetUploaderValidRecordAPAC", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 445918: Gets Uploader data for valid grid for CE region
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet GetUploaderValidDataCE(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetUploaderValidRecord_CE", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Uploader data for valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet GetUploaderValidDataNLD(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetUploaderValidRecord_NLD", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets OCA policy details
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet GetOCAPolicyData(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[usp_GetOCAPolicyData]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Rejects Uploader valid data.
+        /// </summary>
+        /// <param name="objUploadData">Upload Details.</param> 
+        /// <returns>Success message</returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design",
+            "CA1062:Validate arguments of public methods", MessageId = "0", Justification = "Reviewed")]
+        public static string RejectUploaderValidData(UploaderData objUploadData)
+        {
+            try
+            {
+                string[] pkey = objUploadData.SelectedValues.Split(',');
+                string[] reason = objUploadData.RejectionReasonText.Split(',');
+                for (int i = 0; i < pkey.Length; i++)
+                {
+                    objUploadData.SelectedData = pkey[i];
+                    objUploadData.RejectionReason = reason[i].ToString();
+                    DBHelper.ExecuteNonQuery("usp_RejectData", objUploadData);
+                }
+
+                return "success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Rejects Uploader valid data.
+        /// </summary>
+        /// <param name="objUploadData">Upload Details.</param> 
+        /// <returns>Success message</returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design",
+            "CA1062:Validate arguments of public methods", MessageId = "0", Justification = "Reviewed")]
+        public static string RejectUploaderValidDataNLD(UploaderData objUploadData)
+        {
+            try
+            {
+                string[] pkey = objUploadData.SelectedValues.Split(',');
+                string[] reason = objUploadData.RejectionReasonText.Split(',');
+                for (int i = 0; i < pkey.Length; i++)
+                {
+                    objUploadData.SelectedData = pkey[i];
+                    objUploadData.RejectionReason = reason[i].ToString();
+                    DBHelper.ExecuteNonQuery("usp_RejectDataNLD", objUploadData);
+                }
+
+                return "success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Rejects Uploader valid data.
+        /// </summary>
+        /// <param name="objUploadData">Upload Details.</param> 
+        /// <returns>Success message</returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design",
+            "CA1062:Validate arguments of public methods", MessageId = "0", Justification = "Reviewed")]
+        public static string RejectUploaderValidDataAPAC(UploaderData objUploadData)
+        {
+            try
+            {
+                string[] pkey = objUploadData.SelectedValues.Split(',');
+                string[] reason = objUploadData.RejectionReasonText.Split(',');
+                for (int i = 0; i < pkey.Length; i++)
+                {
+                    objUploadData.SelectedData = pkey[i];
+                    objUploadData.RejectionReason = reason[i].ToString();
+                    DBHelper.ExecuteNonQuery("usp_RejectDataAPAC", objUploadData);
+                }
+
+                return "success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Method to get the Tech team recipients
+        /// </summary>
+        /// <param name="objContAccess">object Access Details</param> 
+        /// <returns>Technical team Ids.</returns>
+        public static DataSet GetRejectMailerDetails(ControlAccess objContAccess)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetSGPRejectMailerDetails", objContAccess);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Uploader data for view click in valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet ApproveUploaderValidData(ComponentDetails objCompDetails)
+        {
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_ApproveData", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@componentGroupId", objCompDetails.COMPONENTGROUPID);
+                    processCmd.Parameters.AddWithValue("@selectedData", objCompDetails.SelectedData);
+                    processCmd.Parameters.AddWithValue("@LoginId", objCompDetails.LoginId);
+                    processCmd.Parameters.AddWithValue("@RoleID", objCompDetails.RoleID);
+                    processCmd.Parameters.AddWithValue("@CountryId", objCompDetails.CountryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+
+        /// <summary>
+        /// 311556: Gets Uploader data for view click in valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet ApproveUploaderValidDataNLD(ComponentDetails objCompDetails)
+        {
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_ApproveDataNLD", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@componentGroupId", objCompDetails.COMPONENTGROUPID);
+                    processCmd.Parameters.AddWithValue("@selectedData", objCompDetails.SelectedData);
+                    processCmd.Parameters.AddWithValue("@LoginId", objCompDetails.LoginId);
+                    processCmd.Parameters.AddWithValue("@RoleID", objCompDetails.RoleID);
+                    processCmd.Parameters.AddWithValue("@CountryId", objCompDetails.CountryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Uploader data for view click in valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet ApproveUploaderValidDataAPAC(ComponentDetails objCompDetails)
+        {
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_ApproveDataAPAC", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@componentGroupId", objCompDetails.COMPONENTGROUPID);
+                    processCmd.Parameters.AddWithValue("@selectedData", objCompDetails.SelectedData);
+                    processCmd.Parameters.AddWithValue("@LoginId", objCompDetails.LoginId);
+                    processCmd.Parameters.AddWithValue("@RoleID", objCompDetails.RoleID);
+                    processCmd.Parameters.AddWithValue("@CountryId", objCompDetails.CountryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Method to get the Tech team recipients
+        /// </summary>
+        /// <param name="objContAccess">object Access Details</param> 
+        /// <returns>Technical team Ids.</returns>
+        public static DataSet GetApproveMailerDetails(ControlAccess objContAccess)
+        {
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_ApproveMailerDetails", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@ApprovedBy", objContAccess.ApprovedBy);
+                    processCmd.Parameters.AddWithValue("@selectedData", objContAccess.SelectedDataValue);
+                    processCmd.Parameters.AddWithValue("@componentgroupid", objContAccess.Componentgroupid);
+                    processCmd.Parameters.AddWithValue("@ApprovedRoleID", objContAccess.ApprovedRoleid);
+                    processCmd.Parameters.AddWithValue("@CountryID", objContAccess.CountryId);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 298312: Method to get data for sending MY PAY payment mailer
+        /// </summary>
+        /// <param name="flag">Flag number</param>
+        /// <param name="componentId">component Id</param>
+        /// <param name="compName">component Name </param>
+        /// <param name="countryID">country ID</param>
+        /// <returns>Mailer Details</returns>
+        public static DataSet GetFreezePayrollMailerDetails(int flag, string componentId, string compName, int countryID)
+        {
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_GetFreezePayrollStatusMailerDetails", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@flag", flag);
+                    processCmd.Parameters.AddWithValue("@componentId", componentId);
+                    processCmd.Parameters.AddWithValue("@SelectedData", compName);
+                    processCmd.Parameters.AddWithValue("@CountryId", countryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Update Referral Bonus Valid data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdateValidData(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_SGP_UpdateValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Update NLD Valid data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdateValidDataNLD(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_NLD_UpdateValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 445918: Update NLD Valid data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdateValidDataCE(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_CE_UpdateValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+       
+
+        /// <summary>
+        /// 311556: Update NLD Exception data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdateExceptionDataNLD(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_NLD_MoveExpToValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Update NLD Exception data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdateExceptionDataCE(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_CE_MoveExpToValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Update Referral Bonus Valid data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdateSARValidData(UploaderData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_SGP_SAR_InsertValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Update Referral Bonus Valid data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdateSARExceptionData(UploaderData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_SGP_SAR_MoveExpToValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Update Referral Bonus Valid data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet NewSARValidData(UploaderData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_SGP_SAR_InsertValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Update Joining Bonus Exception data.
+        /// </summary>
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdateExceptionData(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_SGP_MoveExpToValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Technical team recipients for mail.
+        /// </summary>
+        /// <param name="objContAccess">object Access Details</param> 
+        /// <returns>Technical team Ids.</returns>
+        public static DataSet GetTechTeamRecipients(ControlAccess objContAccess)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetTechTeamRecipientsAndMailerURL", objContAccess);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Get Mailer Active Details
+        /// </summary>
+        /// <param name="objMail">object mail</param>      
+        /// <returns>Mailer status</returns>
+        public static int GetMailerActiveDetails(MailerLog objMail)
+        {
+            try
+            {
+                return Convert.ToInt32(DBHelper.ExecuteScalar("USP_GETMAILERSENDSTATUS", objMail));
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Logs mailer details.
+        /// </summary>
+        /// <param name="objMailerLog">object mailer log details</param>       
+        public static void LogMailerDetails(MailerLog objMailerLog)
+        {
+            try
+            {
+                DBHelper.ExecuteNonQuery("usp_InsertMailerDetails", objMailerLog);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Valid data for component id.
+        /// </summary>
+        /// <param name="componentid">component id</param> 
+        /// <param name="countryID">country ID</param> 
+        /// <returns>Valid grid details.</returns>
+        public static DataSet SGPGetValidData(int componentid, int countryID)
+        {
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_SGPGetValidData", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@ComponentID", componentid);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Saves New Uploader Data.
+        /// </summary>;
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet SaveUploaderNewData(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("dbo.usp_SGP_InsertValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Saves New Uploader Data.
+        /// </summary>;
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet SaveUploaderNewDataNLD(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("dbo.usp_NLD_InsertValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Saves New Uploader Data.
+        /// </summary>;
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet SaveUploaderDataCE(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("dbo.usp_CE_ValidateUploadData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Saves New Uploader Data.
+        /// </summary>;
+        /// <param name="objUploadData">Uploader details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet SaveUploaderNewDataCE(SGPUploadData objUploadData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("dbo.usp_CE_InsertValidUploaderData", objUploadData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// TO update grid data
+        /// </summary>
+        /// <param name="objinputs">passing object</param>
+        /// <param name="franceUpdateRemarks">shift Data</param>
+        /// <returns>save data</returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists",
+            Justification = "Reviewed")]
+        public static List<string> StopPaymentUploaderValidData(UploaderData objinputs, List<string> franceUpdateRemarks)
+        {
+            try
+            {
+                List<string> objStatus = new List<string>();
+                UploaderData objUpdate = new UploaderData();
+                for (int i = 0; i < franceUpdateRemarks.Count; i++)
+                {
+                    string[] gradeAmt = franceUpdateRemarks[i].Split(',');
+                    objUpdate.ComponentGroupId = Convert.ToInt32(gradeAmt[0]);
+                    objUpdate.SelectedData = gradeAmt[1];
+                    objUpdate.SelectedEndDate = gradeAmt[2].ToString();
+                    objUpdate.LoginId = objinputs.LoginId;
+                    objUpdate.CountryId= objinputs.CountryId;
+                    DataSet dstemp = DBHelper.ExecuteDataset("usp_NLDPFSSStopPayment", objUpdate);
+                }
+                objStatus.Add("success");
+                return objStatus;
+
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+
+        /// <summary>
+        /// 311556: updates New policy Data.
+        /// </summary>;
+        /// <param name="objpolicyData">policy details.</param> 
+        /// <returns>Valid details.</returns>
+        public static DataSet UpdatePolicyData(SGPUploadData objpolicyData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("dbo.usp_SGP_InsertValidUploaderData", objpolicyData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets recruitment type.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Recruitment Type details.</returns>
+        public static DataSet GetRecruitmentType(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetRecruitmentType", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets recruitment type.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Recruitment Type details.</returns>
+        public static DataSet GetDeductionType(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetDeductionType", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets recruitment type.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Recruitment Type details.</returns>
+        public static DataSet GetInstallmentType(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetInstallmentType", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets recruitment type.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Recruitment Type details.</returns>
+        public static DataSet GetCurrencyCode(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetCurrencyCode", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Uploader data for view click in Exception grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Exception details.</returns>
+        public static DataSet GetUploaderExceptionViewData(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetViewExceptionRecordForUploader", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Uploader data for view click in Exception grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Exception details.</returns>
+        public static DataSet GetUploaderExceptionViewDataNLD(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetViewExceptionRecordForUploader_NLD", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Uploader data for view click in Exception grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Exception details.</returns>
+        public static DataSet GetAPACUploaderExceptionViewData(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetAPACViewExceptionRecordForUploader", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Special Case reasons.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Special Cases.</returns>
+        public static DataSet GetSpecialCaseReasons(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetSpecialCaseReason", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Special Case reasons.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Special Cases.</returns>
+        public static DataSet GetNLDSSpecialCaseReason(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetNLDSpecialCaseReason", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Background Status.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Background Status details.</returns>
+        public static DataSet GetBGstatus(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetBGStatus", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Sign on bonus drop down details
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Drop Down details.</returns>
+        public static DataSet GetSignonBonusDropdownDetails(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetDropDownData_NLD", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Sign on bonus drop down details
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Drop Down details.</returns>
+        public static DataSet GetPayoutTypeonchangeofsubcomponent(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("Sp_SubcomponentChangeType", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Dropdown Details APAC
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Drop Down details.</returns>
+        public static DataSet GetDropdownDetailsAPAC(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetDropDownData_APAC", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Dropdown Details APAC
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Drop Down details.</returns>
+        public static DataSet GetDropdownDetailsCE(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetDropDownData_CE", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Dropdown Details NLD- Reversal
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Drop Down details.</returns>
+        public static DataSet GetReversalDropdownDetailsNLD(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetDropDownData_Reversal_NLD", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Sign on bonus drop down details
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>Drop Down details.</returns>
+        public static DataSet GetRelocationDropdownDetails(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetDropDownData_NLD", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Uploader data for view click in valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet GetUploaderValidViewData(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetViewValidRecordForUploader", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Uploader data for view click in valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet GetAPACUploaderValidViewData(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetAPACViewValidRecordForUploader", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Uploader data for view click in valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
+        public static DataSet GetUploaderValidViewDataNLD(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetViewValidRecordForUploader_NLD", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets other Geography grid details for referral bonus.
+        /// </summary>
+        /// <param name="objCompDetails">object Component Details</param> 
+        /// <returns>Other Geography grid details to bind.</returns>
+        public static DataSet GetOtherGeographyUploaderData(ComponentDetails objCompDetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_GetOtherGeographyUploaderDataSGP", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 316271: Gets Currency template report.
+        /// </summary>
+        /// <param name="objuploaderData">Upload Details.</param> 
+        /// <returns>Report details.</returns>
+        public static DataSet GetCurrencyDataTemplateSGP(UploaderData objuploaderData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_DataCurrencyTemplateReport", objuploaderData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets data template report.
+        /// </summary>
+        /// <param name="objuploaderData">Upload Details.</param> 
+        /// <returns>Report details.</returns>
+        public static DataSet GetDataTemplateSGP(UploaderData objuploaderData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_DataTemplateUploaderReportSGP", objuploaderData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 877840: Gets data template report.
+        /// </summary>
+        /// <param name="objuploaderData">Upload Details.</param> 
+        /// <returns>Report details.</returns>
+        public static DataSet GetDataTemplateGradeAmount(UploaderData objuploaderData)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_DataTemplateUploaderReportGradeAmount", objuploaderData);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>        
+        /// 311556: Gets grade details for policy.
+        /// </summary>
+        /// <param name="objcompDet">Component details.</param> 
+        /// <returns>Grade details.</returns>
+        public static DataSet GetGradeDetails(ComponentDetails objcompDet)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("[Policy].[usp_GetGradeDetails]", objcompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Other tab details for components.
+        /// </summary>
+        /// <param name="objcompDet">Component details.</param> 
+        /// <returns>Other details.</returns>
+        public static DataSet GetOtherDetails(ComponentDetails objcompDet)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("[Policy].[usp_GetOtherDetails]", objcompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Netherland Policy details for components.
+        /// </summary>
+        /// <param name="objcompDet">Component details.</param> 
+        /// <returns>Netherland Policy details.</returns>
+        public static DataSet GetNLDPolicyDetails(ComponentDetails objcompDet)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("[Policy].[usp_GetNLDPolicyDetails]", objcompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>        
+        /// 311556: Gets grade details for policy.
+        /// </summary>
+        /// <param name="objcompDet">Component details.</param> 
+        /// <returns>Grade details.</returns>
+        public static DataSet GetGradeAmountDetails(ComponentDetails objcompDet)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("[Policy].[usp_GetGradeAmount]", objcompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Gets Empty template url.
+        /// </summary>
+        /// <param name="objdetails">File Upload details.</param> 
+        /// <returns>url to fetch corresponding excel.</returns>
+        public static DataSet GetEmptyTemplateURL(FileUploadDetails objdetails)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_RetrieveSPayKeys", objdetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets APAC project details
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
         public static DataSet GetAPACProjectDetails(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetAPACProjectDetails(objCompDetails);
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[usp_GetAPACProjectDetails]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
+        /// <summary>
+        /// 311556: Gets APAC project details
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
         public static DataSet GetServiceApartmentRecoveryPolicyDetails(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetServiceApartmentRecoveryPolicyDetails(objCompDetails);
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[usp_GetServiceApartmentRecoveryPolicyDetails]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
-
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
+        
+        /// <summary>
+        /// 311556: Gets School fees policy details
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
         public static DataSet GetSchoolFeesPolicyDetails(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetSchoolFeesPolicyDetails(objCompDetails);
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[usp_GetSchoolFeesPolicyDetails]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
+        /// <summary>
+        /// 311556: Gets component details
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
         public static DataSet GetPolicyComponentDetails(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetPolicyComponentDetails(objCompDetails);
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[usp_GetPolicyComponentDetails]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>Method to get the valid data for Exception Associates</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
+        /// <summary>
+        /// 311556: Gets Exception Associate details
+        /// </summary>
+        /// <param name="objCompDetails">Exception Associate details.</param> 
+        /// <returns>valid details.</returns>
         public static DataSet GetExceptionAssociateDetails(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetExceptionAssociateDetails(objCompDetails);
+            try
+            {
+                return DBHelper.ExecuteDataset("[Policy].[usp_APAC_GetExceptionAssociateDetails]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
 
+        /// <summary>
+        /// 311556: Gets Set ID details for referral Bonus.
+        /// </summary>
+        /// <param name="objCompDet">Component details.</param> 
+        /// <returns>Set ID details.</returns>
+        public static DataSet GetSDADetails(ComponentDetails objCompDet)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("Policy.usp_SGP_GetSDADetails", objCompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
 
-        /// <summary>Method to update the policy details for referral bonus</summary>
-        /// <param name="objpolicyDetails"> passing object </param> 
-        /// <returns>status on updating the referral bonus policy details </returns>
+        /// <summary>
+        /// 311556: Gets Statutory holiday details for referral Bonus.
+        /// </summary>
+        /// <param name="objCompDet">Component details.</param> 
+        /// <returns>Statutory holiday details.</returns>
+        public static DataSet GetStatutoryhoildayDetails(ComponentDetails objCompDet)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("Policy.usp_SGP_GetStatutoryHoildayDetails", objCompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Statutory holiday details for referral Bonus.
+        /// </summary>
+        /// <param name="objCompDet">Component details.</param> 
+        /// <returns>Statutory holiday details.</returns>
+        public static DataSet GetStatutoryAmountDetails(ComponentDetails objCompDet)
+        {
+            try
+            {
+                return DBHelper.ExecuteDataset("Policy.usp_SGP_GetStatutoryPayoutAmountDetails", objCompDet);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Changes project Status.
+        /// </summary>
+        /// <param name="objpolicyDetails">Policy details.</param> 
+        /// <returns>Success or Failure message.</returns>
+        public static string UpdateSGPPolicyDetails(SPay.DC.UtilityDC.PolicyDetails objpolicyDetails)
+        {
+            try
+            {
+                DBHelper.ExecuteNonQuery("[dbo].[Usp_SGP_UpdateMangePolicies]", objpolicyDetails);
+                DBHelper.ExecuteNonQuery("[Policy].[usp_SGP_SavePolicyGradeAmount]", objpolicyDetails);
+                DBHelper.ExecuteNonQuery("[Policy].[usp_SGP_SavePolicyDetails]", objpolicyDetails);
+                return "success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Updates policy details for referral bonus.
+        /// </summary>
+        /// <param name="objpolicyDetails">Policy details.</param> 
+        /// <returns>Success or Failure message.</returns>
         public static string UpdateRBPolicyDetails(PolicyDetails objpolicyDetails)
         {
-            return APACUtilityDAL.UpdateRBPolicyDetails(objpolicyDetails);
+            try
+            {
+                DBHelper.ExecuteNonQuery("[Policy].[usp_SGP_SavePolicyDetails]", objpolicyDetails);
+                for (int i = 0; i < objpolicyDetails.GradeAmtDetails.Count; i++)
+                {
+                    string[] gradeAmt = objpolicyDetails.GradeAmtDetails[i].Split(',');
+                    objpolicyDetails.GradeforAmt = Convert.ToInt32(gradeAmt[0].ToString());
+                    objpolicyDetails.FIXEDAMOUNT = Convert.ToInt32(gradeAmt[1].ToString());
+                    DBHelper.ExecuteNonQuery("[Policy].[usp_SGP_SavePolicyGradeAmount]", objpolicyDetails);
+                }
+
+                for (int j = 0; j < objpolicyDetails.SetIdProjectIdDetails.Count; j++)
+                {
+                    string[] setIdPjtId = objpolicyDetails.SetIdProjectIdDetails[j].Split(',');
+                    objpolicyDetails.SetId = null;
+                    objpolicyDetails.GradeId = null;
+                    objpolicyDetails.DepartmentId = null;
+                    objpolicyDetails.InactiveDepartmentId = null;
+                    objpolicyDetails.RBSetId = setIdPjtId[0].ToString();
+                    ////objpolicyDetails.RBProjectId = setIdPjtId[1].ToString();
+                    DBHelper.ExecuteNonQuery("[Policy].[usp_SGP_SavePolicyDetails]", objpolicyDetails);
+                }
+
+                return "success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
+        /// <summary>
+        /// 260947: Updates policy details for joining bonus.
+        /// </summary>
+        /// <param name="objpolicyDetails">Policy details.</param> 
+        /// <returns>Success or Failure message.</returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals",
+            MessageId = "status2", Justification = "Reviewed"),
+         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals",
+            MessageId = "status1", Justification = "Reviewed")]
+        public static string UpdatePolicyDetails(PolicyDetails objpolicyDetails)
+        {
+            try
+            {
+                DataSet status = new DataSet();
+                DataTable status1 = new DataTable();
+                DataTable status2 = new DataTable();
+                string policyStatus;
+
+                policyStatus = DBHelper.ExecuteDataset("[Policy].[usp_APAC_SavePolicyDetails]",
+                               objpolicyDetails).Tables[0].Rows[0].ItemArray[0].ToString();
+                if (policyStatus.Equals("Success"))
+                {                    
+                    if (objpolicyDetails.ComponentId == 3)
+                    {
+                        for (int i = 0; i < objpolicyDetails.GradeAmtDetails.Count; i++)
+                        {
+                            string[] gradeAmt = objpolicyDetails.GradeAmtDetails[i].Split(',');
+                            objpolicyDetails.GradeforAmt = Convert.ToInt64(gradeAmt[0].ToString());
+                            objpolicyDetails.CampusMinAmount = Convert.ToInt64(!string.IsNullOrEmpty(gradeAmt[1])
+                                                               ? gradeAmt[1] : "0");
+                            objpolicyDetails.CampusMaxAmount = Convert.ToInt64(!string.IsNullOrEmpty(gradeAmt[2]) 
+                                                               ? gradeAmt[2] : "0");
+                            objpolicyDetails.LateralMinAmount = Convert.ToInt64(!string.IsNullOrEmpty(gradeAmt[3]) 
+                                                               ? gradeAmt[3] : "0");
+                            objpolicyDetails.LateralMaxAmount = Convert.ToInt64(!string.IsNullOrEmpty(gradeAmt[4]) 
+                                                               ? gradeAmt[4] : "0");
+                            status = DBHelper.ExecuteDataset("[Policy].[usp_APAC_SavePolicyAmountDetails]", 
+                                     objpolicyDetails);
+                            policyStatus = status.Tables[0].Rows[0].ItemArray[0].ToString();
+
+                            if (!status.Tables[0].Rows[0].ItemArray[0].Equals("Success"))
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    else if (objpolicyDetails.ComponentId == 2 || objpolicyDetails.ComponentId == 90)
+                    {
+                        for (int i = 0; i < objpolicyDetails.RBGradeAmtDetails.Count; i++)
+                        {
+                            string[] gradeAmt = objpolicyDetails.RBGradeAmtDetails[i].Split(',');
+                            objpolicyDetails.GradeforAmt = Convert.ToInt32(!string.IsNullOrEmpty(gradeAmt[0]) 
+                                                           ? gradeAmt[0] : "0");
+                            objpolicyDetails.FIXEDAMOUNT = Convert.ToDecimal(!string.IsNullOrEmpty(gradeAmt[1])
+                                                           ? gradeAmt[1] : "0");
+                            status = DBHelper.ExecuteDataset("[Policy].[usp_APAC_SavePolicyAmountDetails]",
+                                     objpolicyDetails);
+                            policyStatus = status.Tables[0].Rows[0].ItemArray[0].ToString();
+
+                            if (!status.Tables[0].Rows[0].ItemArray[0].Equals("Success"))
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    else if (objpolicyDetails.ComponentId == 55)
+                    {
+                        for (int i = 0; i < objpolicyDetails.SDAGradeAmtDetails.Count; i++)
+                        {
+                            string[] gradeAmt = objpolicyDetails.SDAGradeAmtDetails[i].Split(',');
+                            objpolicyDetails.UptoShiftHour = Convert.ToInt32(!string.IsNullOrEmpty(gradeAmt[0]) 
+                                                            ? gradeAmt[0] : "0");
+                            objpolicyDetails.GradeforAmt = Convert.ToInt64(!string.IsNullOrEmpty(gradeAmt[1])
+                                                            ? gradeAmt[1] : "0");
+                            objpolicyDetails.FIXEDAMOUNT = Convert.ToInt64(!string.IsNullOrEmpty(gradeAmt[2])
+                                                            ? gradeAmt[2] : "0");
+                            status = DBHelper.ExecuteDataset("[Policy].[usp_APAC_SavePolicyAmountDetails]",
+                                     objpolicyDetails);
+                            policyStatus = status.Tables[0].Rows[0].ItemArray[0].ToString();
+
+                            if (!status.Tables[0].Rows[0].ItemArray[0].Equals("Success"))
+                            {
+                                break;
+                            }
+                        }
+                    }
+                    else if (objpolicyDetails.ComponentId == 88)
+                    {
+                        for (int i = 0; i < objpolicyDetails.StatutoryHoli.Count; i++)
+                        {
+                            if (objpolicyDetails.StatutoryHoli[i] != null)
+                            {
+                                string[] statPayout = objpolicyDetails.StatutoryHoli[i].Split(',');
+                                objpolicyDetails.PkeyId = !string.IsNullOrEmpty(statPayout[0]) ? statPayout[0] : "0";
+                                objpolicyDetails.Statutorydays = !string.IsNullOrEmpty(statPayout[1]) 
+                                                                ? statPayout[1] : "0";
+                                objpolicyDetails.IsActive = Convert.ToInt32(!string.IsNullOrEmpty(statPayout[2]) 
+                                                            ? statPayout[2] : "0");
+                                status = DBHelper.ExecuteDataset("[Policy].[usp_APAC_SavePolicyAmountDetails]", 
+                                    objpolicyDetails);
+                                policyStatus = status.Tables[0].Rows[0].ItemArray[0].ToString();
+                                if (!status.Tables[0].Rows[0].ItemArray[0].Equals("Success"))
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    return policyStatus;
+                }
+                else
+                {
+                    return policyStatus;
+                }
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Updates policy details for joining bonus.
+        /// </summary>
+        /// <param name="objpolicyDetails">Policy details.</param> 
+        /// <returns>Success or Failure message.</returns>
+        public static string UpdateJBPolicyDetails(PolicyDetails objpolicyDetails)
+        {
+            try
+            {
+                DBHelper.ExecuteNonQuery("[Policy].[usp_SGP_SavePolicyDetails]", objpolicyDetails);
+                for (int i = 0; i < objpolicyDetails.GradeAmtDetails.Count; i++)
+                {
+                    string[] gradeAmt = objpolicyDetails.GradeAmtDetails[i].Split(',');
+                    objpolicyDetails.GradeforAmt = Convert.ToInt64(gradeAmt[0].ToString());
+                    objpolicyDetails.CampusMinAmount = Convert.ToInt64(gradeAmt[1].ToString());
+                    objpolicyDetails.CampusMaxAmount = Convert.ToInt64(gradeAmt[2].ToString());
+                    objpolicyDetails.LateralMinAmount = Convert.ToInt64(gradeAmt[3].ToString());
+                    objpolicyDetails.LateralMaxAmount = Convert.ToInt64(gradeAmt[4].ToString());
+                    DBHelper.ExecuteNonQuery("[Policy].[usp_SGP_SavePolicyGradeAmount]", objpolicyDetails);
+                }
+
+                return "success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Updates policy details for joining bonus.
+        /// </summary>
+        /// <param name="objpolicyDetails">Policy details.</param> 
+        /// <returns>Success or Failure message.</returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals",
+            MessageId = "status2", Justification = "Reviewed"),
+         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals",
+            MessageId = "status1", Justification = "Reviewed")]
+        public static string UpdatePolicyGridDetails(SGPUploadData objpolicyDetails)
+        {
+            try
+            {
+                DataTable status1 = new DataTable();
+                DataTable status2 = new DataTable();
+                string policyStatus;
+                policyStatus = DBHelper.ExecuteDataset("[dbo].[usp_UpdatePolicyData]",
+                               objpolicyDetails).Tables[0].Rows[0].ItemArray[0].ToString();
+                return policyStatus;
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 260947: Updates policy details for Statutory Holiday.
+        /// </summary>
+        /// <param name="objpolicyDetails">Policy details.</param> 
+        /// <returns>Success or Failure message.</returns>
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals",
+            MessageId = "status2", Justification = "Reviewed"),
+         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals",
+            MessageId = "status1", Justification = "Reviewed")]
+        public static string UpdateStatutoryHolidayPolicyDetails(PolicyDetails objpolicyDetails)
+        {
+            try
+            {
+                DataTable status1 = new DataTable();
+                DataTable status2 = new DataTable();
+                string policyStatus;
+                policyStatus = DBHelper.ExecuteDataset("[Policy].[usp_APAC_SavePolicyAmountDetails]",
+                               objpolicyDetails).Tables[0].Rows[0].ItemArray[0].ToString();
+                return policyStatus;
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// 311556: Gets Uploader data for valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
         public static DataSet GetAPACProjectDetailssearch(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetAPACProjectDetailssearch(objCompDetails);
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[usp_GetAPACProjectDetailsSearchByProjectId]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
+        /// <summary>
+        /// 311556: Gets Uploader data for valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
         public static DataSet GetAPACSchoolFeeAssociateSearch(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetAPACSchoolFeeAssociateSearch(objCompDetails);
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[usp_GetAPACAssociateIDSearch]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>Method to get the valid data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>valid data for uploader</returns>
+        /// <summary>
+        /// 311556: Gets Uploader data for valid grid.
+        /// </summary>
+        /// <param name="objCompDetails">Component details.</param> 
+        /// <returns>valid details.</returns>
         public static DataSet GetSARGuestHouseSearch(ComponentDetails objCompDetails)
         {
-            return APACUtilityDAL.GetSARGuestHouseSearch(objCompDetails);
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[usp_GetSARGuestHouseSearch]", objCompDetails);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
-
+        
         /// <summary>
-        /// Method to change the status of user
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static DataSet ActivateProjectDetails(ChangeUserStatus objinputs)
         {
-            return APACUtilityDAL.ActivateProjectDetails(objinputs);
-        }
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_ChangeProjectStatus", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+     }
 
         /// <summary>
-        /// Method to change the status of user
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static DataSet InsertSchoolFeesPolicyDetails(ChangeUserStatus objinputs)
         {
-            return APACUtilityDAL.InsertSchoolFeesPolicyDetails(objinputs);
+            try
+            {
+                return DBHelper.ExecuteDataset("Usp_InsertSchoolFeesPolicyDetails", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
         /// <summary>
-        /// Method to change the status of user
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static DataSet InsertAPACSchoolFeesPolicyDetails(ChangeUserStatus objinputs)
         {
-            return APACUtilityDAL.InsertAPACSchoolFeesPolicyDetails(objinputs);
+            try
+            {
+                return DBHelper.ExecuteDataset("Usp_InsertAPACSchoolFeesPolicyDetails", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
         /// <summary>
-        /// Method to change the status of user
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static DataSet InsertServiceApartmentRecoveryPolicyDetails(ChangeUserStatus objinputs)
         {
-            return APACUtilityDAL.InsertServiceApartmentRecoveryPolicyDetails(objinputs);
+            try
+            {
+                return DBHelper.ExecuteDataset("Usp_InsertServiceApartmentRecoveryPolicyDetails", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>
-        /// Method to change the status of user
+         /// <summary>
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static DataSet InsertTransportAllowancePolicyDetails(ChangeUserStatus objinputs)
         {
-            return APACUtilityDAL.InsertTransportAllowancePolicyDetails(objinputs);
+            try
+            {
+                return DBHelper.ExecuteDataset("Usp_InsertTransportAllowancePolicyDetails", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
         /// <summary>
-        /// Method to change the status of user
+        /// 930165: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> RTT Details </returns>
         public static DataSet InsertLunchVoucherAllownceDetails(ChangeUserStatus objinputs)
         {
-            return APACUtilityDAL.InsertLunchVoucherAllownceDetails(objinputs);
+            try
+            {
+                return DBHelper.ExecuteDataset("usp_InsertCE_RTTDays", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
         /// <summary>
-        /// Component Details
+        /// 311556: Inserts new component into system
         /// </summary>
-        /// <param name="objinputs">object details</param>
-        /// <returns>component name details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Component Details </returns>
         public static DataSet InsertComponentDetails(ChangeUserStatus objinputs)
         {
-            return APACUtilityDAL.InsertComponentDetails(objinputs);
+            try
+            {
+                return DBHelper.ExecuteDataset("[dbo].[Usp_InsertSubComponentDetails] ", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-
         /// <summary>
-        /// Exception Associate Details
+        /// 311556: Inserts Exception Associates into system
         /// </summary>
-        /// <param name="objinputs">object details</param>
-        /// <returns>Exception Associate ID details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Exception Associate Details </returns>
         public static DataSet InsertExpAssociateDetails(ChangeUserStatus objinputs)
         {
-            return APACUtilityDAL.InsertExpAssociateDetails(objinputs);
+            try
+            {
+                return DBHelper.ExecuteDataset("[Policy].[usp_APAC_InCityExceptionAssociates]", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
 
         /// <summary>
-        /// Method to change the status of user
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static string UpdateAPACSchoolFeesPolicyDetails(PolicyDetails objinputs)
         {
-            return APACUtilityDAL.UpdateAPACSchoolFeesPolicyDetails(objinputs);
+            try
+            {
+                for (int i = 0; i < objinputs.AmountDetails.Count; i++)
+                {
+                    string[] gradeAmt = objinputs.AmountDetails[i].Split(',');
+                    objinputs.PkeyId = gradeAmt[0].ToString();
+                    objinputs.AssociateID = gradeAmt[1].ToString();
+                    objinputs.SFAmount = gradeAmt[2].ToString();
+                    objinputs.Amount1 = gradeAmt[3].ToString();
+                    objinputs.Amount2 = gradeAmt[4].ToString();
+
+                    DBHelper.ExecuteNonQuery("Usp_InsertAPACSchoolFeesPolicyDetails", objinputs);
+                }
+
+                return "Success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
         /// <summary>
-        /// Method to update the shift allowance grid data
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objShiftDetails"> passing object</param>
-        /// <param name="franceSFUpdate"> List of Shift Data </param>
-        /// <returns>all data with updated one</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
+        public static string UpdateCESchoolFeesPolicyDetails(PolicyDetails objinputs)
+        {
+            try
+            {
+                for (int i = 0; i < objinputs.AmountDetails.Count; i++)
+                {
+                    string[] gradeAmt = objinputs.AmountDetails[i].Split(',');
+                    objinputs.PkeyId = gradeAmt[0].ToString();
+                    objinputs.AssociateID = gradeAmt[1].ToString();
+                    objinputs.SFAmount = gradeAmt[2].ToString();
+                    objinputs.Amount1 = gradeAmt[3].ToString();
+                    objinputs.Amount2 = gradeAmt[4].ToString();
+                    objinputs.MaxPercentage = gradeAmt[5].ToString();
+                    objinputs.PayoutType = gradeAmt[6].ToString();
+
+                    DBHelper.ExecuteNonQuery("Usp_InsertAPACSchoolFeesPolicyDetails", objinputs);
+                }
+
+                return "Success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+
+        /// <summary>
+        /// TO update grid data
+        /// </summary>
+        /// <param name="objinputs">passing object</param>
+        /// <param name="franceUpdateRemarks">shift Data</param>
+        /// <returns>save data</returns>
         [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists",
             Justification = "Reviewed")]
         public static List<string> UpdateFranceSchoolFeesPolicyDetails
-        (PolicyDetails objShiftDetails, List<string> franceSFUpdate)
+        (PolicyDetails objinputs, List<string> franceUpdateRemarks)
         {
-            return APACUtilityDAL.UpdateFranceSchoolFeesPolicyDetails(objShiftDetails, franceSFUpdate);
+            try
+            {
+                List<string> objStatus = new List<string>();
+                PolicyDetails objUpdate = new PolicyDetails();
+                for (int i = 0; i < franceUpdateRemarks.Count; i++)
+                {
+                    string[] gradeAmt = franceUpdateRemarks[i].Split(',');
+                    objUpdate.ComponentId = Convert.ToInt32(gradeAmt[0]);
+                  
+                    objUpdate.AssociateID = gradeAmt[1].ToString();
+                    objUpdate.SFAmount = gradeAmt[2].ToString();
+                    objUpdate.Amount1 = gradeAmt[3].ToString();
+                    objUpdate.Amount2 = gradeAmt[4].ToString();
+                    objUpdate.MaxPercentage = gradeAmt[5].ToString();
+                    objUpdate.PayoutType = gradeAmt[6].ToString();
+                    objUpdate.PkeyId = gradeAmt[7].ToString();
+                    objUpdate.STATUS = Convert.ToInt32(gradeAmt[8]);
+                    objUpdate.LoginId = objinputs.LoginId;
+                    objUpdate.CountryID = objinputs.CountryID;
+                    DataSet dstemp = DBHelper.ExecuteDataset("Usp_InsertAPACSchoolFeesPolicyDetails", objUpdate);
+                    objStatus.Add(dstemp.Tables[0].Rows[0][0].ToString());
+                }
+
+                return objStatus;
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
         /// <summary>
-        /// Method to change the status of user
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
-        public static string UpdateCESchoolFeesPolicyDetails(PolicyDetails objinputs)
-        {
-            return APACUtilityDAL.UpdateCESchoolFeesPolicyDetails(objinputs);
-        }
-
-        /// <summary>
-        /// Method to change the status of user
-        /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static string UpdateSchoolFeesPolicyDetails(PolicyDetails objinputs)
         {
-            return APACUtilityDAL.UpdateSchoolFeesPolicyDetails(objinputs);
+            try
+            {
+                for (int i = 0; i < objinputs.AmountDetails.Count; i++)
+                {
+                    string[] gradeAmt = objinputs.AmountDetails[i].Split(',');
+                    objinputs.PkeyId = gradeAmt[0].ToString();
+                    objinputs.AssociateID = gradeAmt[1].ToString();
+                    objinputs.SFAmount = gradeAmt[2].ToString();
+                    DBHelper.ExecuteNonQuery("Usp_InsertSchoolFeesPolicyDetails", objinputs);
+                }
+
+                return "Success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
         /// <summary>
-        /// Method to change the status of user
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static string UpdateServiceApartmentRecoveryPolicyDetails(PolicyDetails objinputs)
         {
-            return APACUtilityDAL.UpdateServiceApartmentRecoveryPolicyDetails(objinputs);
+            try
+            {
+                for (int i = 0; i < objinputs.AmountDetails.Count; i++)
+                {
+                    string[] gradeAmt = objinputs.AmountDetails[i].Split(',');
+                    objinputs.PkeyId = gradeAmt[0].ToString();
+                    objinputs.GuestHouse = gradeAmt[1].ToString();
+                    objinputs.AUSSharingCost = gradeAmt[2].ToString();
+                    objinputs.AUSNonSharingCost = gradeAmt[3].ToString();
+
+                    DBHelper.ExecuteNonQuery("Usp_InsertServiceApartmentRecoveryPolicyDetails", objinputs);
+                }
+
+                return "Success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
-        /// <summary>
-        /// Method to change the status of user
+          /// <summary>
+        /// 311556: Changes project Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        /// <returns>Project Details</returns>
+        /// <param name="objinputs">input details.</param>         
+        /// <returns> Project Details </returns>
         public static string UpdateFranceTransportPolicyDetails(PolicyDetails objinputs)
         {
-            return APACUtilityDAL.UpdateFranceTransportPolicyDetails(objinputs);
-        }
+            try
+            {
+                for (int i = 0; i < objinputs.AmountDetails.Count; i++)
+                {
+                    string[] gradeAmt = objinputs.AmountDetails[i].Split(',');
+                    objinputs.PkeyId = gradeAmt[0].ToString();
+                    objinputs.GuestHouse = gradeAmt[1].ToString();
+                    objinputs.AUSSharingCost = gradeAmt[2].ToString();
+                    objinputs.EligAmt = gradeAmt[3].ToString();
 
+                    DBHelper.ExecuteNonQuery("Usp_InsertTransportAllowancePolicyDetails", objinputs);
+                }
+
+                return "Success";
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
+        }
+        
         /// <summary>
-        /// Method to change the status of user
+        /// 260947: Changes User Status.
         /// </summary>
-        /// <param name="objinputs"> passing object </param> 
+        /// <param name="objinputs">input details.</param>         
         public static void ChangeUserStatus(ChangeUserStatus objinputs)
         {
-            APACUtilityDAL.ChangeUserStatus(objinputs);
+            try
+            {
+                DBHelper.ExecuteNonQuery("usp_SGPChangeUserStatus", objinputs);
+            }
+            catch (SystemException ex)
+            {
+                throw ex;
+            }
         }
 
         /// <summary>
-        /// Method to update the policy details for Joining Bonus
+        /// 547813: Get Freeze grid details -NLD.
         /// </summary>
-        /// <param name="objpolicyDetails"> passing object </param> 
-        /// <returns>status on updating the Joining Bonus Policy details  </returns>
-        public static string UpdatePolicyDetails(PolicyDetails objpolicyDetails)
-        {
-            return APACUtilityDAL.UpdatePolicyDetails(objpolicyDetails);
-        }
-
-        /// <summary>
-        /// Method to update the Statutory Holiday for policy details 
-        /// </summary>
-        /// <param name="objpolicyDetails"> passing object </param> 
-        /// <returns>status on updating the Statutory Holiday Policy details  </returns>
-        public static string UpdateStatutoryHolidayPolicyDetails(PolicyDetails objpolicyDetails)
-        {
-            return APACUtilityDAL.UpdateStatutoryHolidayPolicyDetails(objpolicyDetails);
-        }
-
-        /// <summary>
-        /// Method to update the policy details for Joining Bonus
-        /// </summary>
-        /// <param name="objpolicyDetails"> passing object </param> 
-        /// <returns>status on updating the Joining Bonus Policy details  </returns>
-        public static string UpdateJBPolicyDetails(PolicyDetails objpolicyDetails)
-        {
-            return APACUtilityDAL.UpdateJBPolicyDetails(objpolicyDetails);
-        }
-
-        /// <summary>
-        /// Method to update the policy details for Joining Bonus
-        /// </summary>
-        /// <param name="objpolicyDetails"> passing object </param> 
-        /// <returns>status on updating the Joining Bonus Policy details  </returns>
-        public static string UpdatePolicyGridDetails(SGPUploadData objpolicyDetails)
-        {
-            return APACUtilityDAL.UpdatePolicyGridDetails(objpolicyDetails);
-        }
-
-        /// <summary>
-        /// 311556: Method to move Singapore special pay out
-        /// </summary>
-        /// <param name="dtexcel">Excel records to be processed</param>
-        /// <param name="componentID">Component Group details</param>
-        /// <param name="loginId">User details</param>
-        /// <param name="criteriaType">Criteria Type</param>
-        /// <param name="countryID">country ID </param>
-        public static void MoveAPACDatatabletoDB(
-            DataTable dtexcel,
-            string componentID,
-            string loginId,
-            string criteriaType,
-            int countryID,
-            int GradeAmount)
-        {
-            APACUtilityDAL.MoveAPACDatatabletoDB(dtexcel, componentID, loginId, criteriaType, countryID, GradeAmount);
-        }
-
-        /// <summary>
-        /// 311556: Method to move Singapore special pay out
-        /// </summary>
-        /// <param name="dtexcel">Excel records to be processed</param>
-        /// <param name="componentID">Component Group details</param>
-        /// <param name="loginId">User details</param>
-        /// <param name="criteriaType">Criteria Type</param>
-        /// <param name="countryID">country ID </param>
-        public static void MoveAPACSFDatatabletoDB(
-            DataTable dtexcel,
-            string componentID,
-            string loginId,
-            string criteriaType,
-            int countryID)
-        {
-            APACUtilityDAL.MoveAPACSFDatatabletoDB(dtexcel, componentID, loginId, criteriaType, countryID);
-        }
-
-        /// <summary>
-        /// Method to update the policy details for Sixth day allowance
-        /// </summary>
-        /// <param name="objpolicyDetails"> passing object </param> 
-        /// <returns>status on updating the policy details on Sixth Day Allowance</returns>
-        public static string UpdateSixthDayPolicyDetails(PolicyDetails objpolicyDetails)
-        {
-            return APACUtilityDAL.UpdateSixthDayPolicyDetails(objpolicyDetails);
-        }
-
-        /// <summary>
-        /// Method to Create the User Role
-        /// </summary>
-        /// <param name="objinputs"> passing object </param> 
-        public static void CreateUserRole(CreateUserRole objinputs)
-        {
-            APACUtilityDAL.CreateUserRole(objinputs);
-        }
-
-        /// <summary>
-        /// Method to get the mailer details
-        /// </summary>
-        /// <param name="objinputs">passing object </param>
-        /// <returns>valid data for Total rewards team</returns>
-        public static DataSet FetchRoleGridDetails(CreateUserRole objinputs)
-        {
-            return APACUtilityDAL.FetchRoleGridDetails(objinputs);
-        }
-
-
-        /// <summary>
-        /// Method to get the valid data for Total rewards team
-        /// </summary>
-        /// <param name="objCompDetails">passing object </param>
-        /// <returns>valid data for Total rewards team</returns>
-        public static DataSet GetTotalRewardsTeamValidData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetTotalRewardsTeamValidData(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to get the HCM cut off end date
-        /// </summary>
-        /// <param name="objRoles"> passing object</param>
-        /// <returns>HCM cut off end date</returns>
-        public static DataSet GetComponentGroupNames(CreateUserRole objRoles)
-        {
-            return APACUtilityDAL.GetComponentGroupNames(objRoles);
-        }
-
-        /// <summary>Method to get dynamic data</summary>
-        /// <param name="objUser">passing object </param>
-        /// <returns>Dynamic data</returns>
-        public static DataSet Getdatadynamic(CreateUserRole objUser)
-        {
-            return APACUtilityDAL.Getdatadynamic(objUser);
-        }
-
-        /// <summary>
-        /// Method to get the duplicate data for Total rewards team
-        /// </summary>
-        /// <param name="objCompDetails">passing object </param>
-        /// <returns>duplicate data for Total rewards team</returns>
-        public static DataSet GetTotalRewardsTeamDuplicatesData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetTotalRewardsTeamDuplicatesData(objCompDetails);
-        }
-
-        /// <summary>Method to Get Currency Drop Down Details</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Currency details</returns>
-        public static DataSet GetCurrencyDropDownDetails(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetCurrencyDropDownDetails(objCompDetails);
-        }
-
-        /// <summary>Method to insert the currency new data into the table </summary>
-        /// <param name="objCurrencyData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveCurrencyNewData(CurrencyData objCurrencyData)
-        {
-            return APACUtilityDAL.SaveCurrencyNewData(objCurrencyData);
-        }
-
-        /// <summary>Method to update the currency new data into the table </summary>
-        /// <param name="objCurrencyData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet ValidateExceptionCurrencyUpdateData(CurrencyData objCurrencyData)
-        {
-            return APACUtilityDAL.ValidateExceptionCurrencyUpdateData(objCurrencyData);
-        }
-
-        /// <summary>Method to delete the exception data by uploader</summary>
-        /// <param name="objUploadData"> passing object </param>  
-        /// <returns>data that is present in valid data by uploader</returns>
-        public static DataSet DeleteUploaderValidData(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.DeleteUploaderValidData(objUploadData);
-        }
-
-        /// <summary>Method to delete the exception data by uploader</summary>
-        /// <param name="objUploadData"> passing object </param>  
-        /// <returns>data that is present in valid data by uploader</returns>
-        public static DataSet DeleteUploaderValidDataNLD(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.DeleteUploaderValidDataNLD(objUploadData);
-        }
-
-        /// <summary>Method to delete the exception data by uploader</summary>
-        /// <param name="objUploadData"> passing object </param>  
-        /// <returns>data that is present in valid data by uploader</returns>
-        public static DataSet DeleteUploaderValidDataAPAC(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.DeleteUploaderValidDataAPAC(objUploadData);
-        }
-
-        /// <summary>Method to delete the exception data by uploader</summary>
-        /// <param name="objUploadData"> passing object </param>  
-        /// <returns>data that is present in valid data by uploader</returns>
-        public static DataSet DeletePolicyData(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.DeletePolicyData(objUploadData);
-        }
-
-        /// <summary>Method to Delete the exception data by Uploader</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>data that is present in exception for uploader</returns>
-        public static DataSet DeleteUploaderExceptionData(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.DeleteUploaderExceptionData(objUploadData);
-        }
-
-        /// <summary>Method to Delete the exception data by Uploader</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>data that is present in exception for uploader</returns>
-        public static DataSet DeleteUploaderExceptionDataNLD(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.DeleteUploaderExceptionDataNLD(objUploadData);
-        }
-
-        /// <summary>Method to Delete the exception data by Uploader</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>data that is present in exception for uploader</returns>
-        public static DataSet DeleteUploaderExceptionDataAPAC(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.DeleteUploaderExceptionDataAPAC(objUploadData);
-        }
-
-        /// <summary>Method to Get customize grid Details</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Customize grid details</returns>
-        public static DataSet GetComponentTypeandName(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetComponentTypeandName(objCompDetails);
-        }
-
-        /// <summary>Method to Get customize grid Details</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>Customize grid details</returns>
-        public static DataSet GetAPACComponentTypeandName(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetAPACComponentTypeandName(objCompDetails);
-        }
-
-        /// <summary>Method to view the valid data for an currency</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the valid data</returns>
-        public static DataSet GetValidViewDataCurrency(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetValidViewDataCurrency(objCompDetails);
-        }
-
-        /// <summary>Method to get the data for my pay grid</summary>
-        /// <param name="userID"> integer data type </param> 
-        /// <param name="roleID"> roleID integer data type </param>  
-        /// <param name="countryID"> countryID integer data type </param>  
-        /// <returns>data for push to my pay page grid</returns>
+        /// <param name="userID">User ID.</param> 
+        /// <param name="roleID">Role ID.</param> 
+        /// <param name="countryID">Country ID.</param> 
+        /// <returns>Freeze grid details.</returns>
         public static DataSet FreezePayrollGrid(int userID, int roleID, int countryID)
         {
-            return APACUtilityDAL.FreezePayrollGrid(userID, roleID, countryID);
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_GetFreezePayrollGrid", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@AssociateID", userID);
+                    processCmd.Parameters.AddWithValue("@ROLEID", roleID);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
         }
 
-        /// <summary>Method to get the data for my pay grid</summary>
-        /// <param name="userID"> integer data type </param> 
-        /// <param name="roleID"> roleID integer data type </param>  
-        /// <param name="countryID"> countryID integer data type </param>  
-        /// <returns>data for push to my pay page grid</returns>
+        /// <summary>
+        /// 547813: Gets Valid data for component id.
+        /// </summary>
+        /// <param name="componentid">component id</param> 
+        /// <param name="countryID">Country Id</param> 
+        /// <returns>Valid grid details.</returns>
+        public static DataSet NLDGetValidData(int componentid, int countryID)
+        {
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_NLDGetValidData", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@ComponentID", componentid);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 547813: Gets Valid data for component id.
+        /// </summary>
+        /// <param name="componentid">component id</param> 
+        /// <param name="countryID">Country Id</param>
+        /// <param name="componentName">Component Name</param> 
+        /// <returns>Valid grid details.</returns>
+        public static DataSet APACGetValidData(int componentid, int countryID, string componentName)
+        {
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_APACGetValidData", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@ComponentID", componentid);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    processCmd.Parameters.AddWithValue("@CompName", componentName);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 547813: Gets Valid data for component id.
+        /// </summary>
+        /// <param name="componentid">component id</param> 
+        /// <param name="countryID">Country Id</param>
+        /// <param name="componentName">Component Name</param> 
+        /// <returns>Valid grid details.</returns>
+        public static DataSet CEGetValidData(int componentid, int countryID, string componentName)
+        {
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_CEGetValidData", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@ComponentID", componentid);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    processCmd.Parameters.AddWithValue("@CompName", componentName);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 547813: Gets Valid data for component id.
+        /// </summary>
+        /// <param name="componentid">component id</param> 
+        /// <param name="countryID">Country Id</param>
+        /// <param name="componentName">Component Name</param> 
+        /// <returns>Valid grid details.</returns>
+        public static DataSet UKIGetValidData(int componentid, int countryID, string componentName)
+        {
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_UKIGetValidData", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@ComponentID", componentid);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    processCmd.Parameters.AddWithValue("@CompName", componentName);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 393656: Gets Valid data for component id.
+        /// </summary>
+        /// <param name="componentid">component id</param> 
+        /// <param name="countryID">Country Id</param>
+        /// <param name="componentName">Component Name</param> 
+        /// <returns>Valid grid details.</returns>
+        public static DataSet PHLGetValidData(int componentid, int countryID, string componentName)
+        {
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_PHLGetValidData", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@ComponentID", componentid);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    processCmd.Parameters.AddWithValue("@CompName", componentName);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+        /// <summary>
+        /// 547813: Get Freeze grid details -NLD.
+        /// </summary>
+        /// <param name="userID">User ID.</param> 
+        /// <param name="roleID">Role ID.</param> 
+        /// <param name="countryID">Country ID.</param> 
+        /// <returns>Freeze grid details.</returns>
         public static DataSet FreezePayrollGridNLD(int userID, int roleID, int countryID)
         {
-            return APACUtilityDAL.FreezePayrollGridNLD(userID, roleID, countryID);
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_GetFreezePayrollGridNLD", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@AssociateID", userID);
+                    processCmd.Parameters.AddWithValue("@ROLEID", roleID);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
         }
 
-        /// <summary>Method to get the data for my pay grid</summary>
-        /// <param name="userID"> integer data type </param> 
-        /// <param name="roleID"> roleID integer data type </param>  
-        /// <param name="countryID"> countryID integer data type </param>  
-        /// <returns>data for push to my pay page grid</returns>
+        /// <summary>
+        /// 547813: Get Freeze grid details -NLD.
+        /// </summary>
+        /// <param name="userID">User ID.</param> 
+        /// <param name="roleID">Role ID.</param> 
+        /// <param name="countryID">Country ID.</param> 
+        /// <returns>Freeze grid details.</returns>
         public static DataSet FreezePayrollGridAPAC(int userID, int roleID, int countryID)
         {
-            return APACUtilityDAL.FreezePayrollGridAPAC(userID, roleID, countryID);
+
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_GetFreezePayrollGridAPAC", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@AssociateID", userID);
+                    processCmd.Parameters.AddWithValue("@ROLEID", roleID);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
         }
 
-        /// <summary>Method to get the data for my pay grid</summary>
-        /// <param name="userID"> integer data type </param> 
-        /// <param name="roleID"> roleID integer data type </param>  
-        /// <param name="countryID"> countryID integer data type </param>  
-        /// <returns>data for push to my pay page grid</returns>
+        /// <summary>
+        /// 547813: Get Freeze grid details -NLD.
+        /// </summary>
+        /// <param name="userID">User ID.</param> 
+        /// <param name="roleID">Role ID.</param> 
+        /// <param name="countryID">Country ID.</param> 
+        /// <returns>Freeze grid details.</returns>
         public static DataSet FreezePayrollGridCE(int userID, int roleID, int countryID)
         {
-            return APACUtilityDAL.FreezePayrollGridCE(userID, roleID, countryID);
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_GetFreezePayrollGridCE", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@AssociateID", userID);
+                    processCmd.Parameters.AddWithValue("@ROLEID", roleID);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
         }
 
-        /// <summary>Method to get the data for my pay grid</summary>
-        /// <param name="userID"> integer data type </param> 
-        /// <param name="roleID"> roleID integer data type </param>  
-        /// <param name="countryID"> countryID integer data type </param>  
-        /// <returns>data for push to my pay page grid</returns>
+        /// <summary>
+        /// 547813: Get Freeze grid details -NLD.
+        /// </summary>
+        /// <param name="userID">User ID.</param> 
+        /// <param name="roleID">Role ID.</param> 
+        /// <param name="countryID">Country ID.</param> 
+        /// <returns>Freeze grid details.</returns>
         public static DataSet FreezePayrollGridUKI(int userID, int roleID, int countryID)
         {
-            return APACUtilityDAL.FreezePayrollGridUKI(userID, roleID, countryID);
-        }
-
-        /// <summary>Method to get the data for my pay grid</summary>
-        /// <param name="userID"> integer data type </param> 
-        /// <param name="roleID"> roleID integer data type </param>  
-        /// <param name="countryID"> countryID integer data type </param>  
-        /// <returns>data for push to my pay page grid</returns>
-        public static DataSet FreezePayrollGridPHL(int userID, int roleID, int countryID)
-        {
-            return APACUtilityDAL.FreezePayrollGridPHL(userID, roleID, countryID);
-        }
-
-        /// <summary>Method to push data to my pay</summary>
-        /// <param name="compId"> string data type </param>
-        /// <param name="userid"> integer data type </param> 
-        /// <param name="countryID"> Country ID </param> 
-        public static void FreezePayrollData(string compId, int userid, int countryID)
-        {
-            APACUtilityDAL.FreezePayrollData(compId, userid, countryID);
-        }
-
-        /// <summary>Method to push data to my pay</summary>
-        /// <param name="compId"> string data type </param>
-        /// <param name="userid"> integer data type </param> 
-        /// <param name="countryID"> Country ID </param> 
-        /// <param name="compName"> Component Name </param> 
-        public static void FreezePayrollDataAPAC(string compId, int userid, int countryID, string compName)
-        {
-            APACUtilityDAL.FreezePayrollDataAPAC(compId, userid, countryID, compName);
-        }
-
-        /// <summary>Method to push data to my pay</summary>
-        /// <param name="compId"> string data type </param>
-        /// <param name="userid"> integer data type </param> 
-        /// <param name="countryID"> Country ID </param> 
-        /// <param name="compName"> Component Name </param> 
-        public static void FreezePayrollDataCE(string compId, int userid, int countryID, string compName)
-        {
-            APACUtilityDAL.FreezePayrollDataCE(compId, userid, countryID, compName);
-        }
-
-        /// <summary>
-        /// Freeze data for UK & I
-        /// </summary>
-        /// <param name="userid">User ID.</param>
-        /// <param name="countryID">Country ID</param>
-        /// <returns>Freeze Data</returns>
-        public static DataSet FreezePayrollDataUKI(int userid, int countryID)
-        {
-            return APACUtilityDAL.FreezePayrollDataUKI(userid, countryID);
-        }
-
-        /// <summary>
-        /// Freeze data for PHL
-        /// </summary>
-        /// <param name="userid">User ID.</param>
-        /// <param name="countryID">Country ID</param>
-        /// <returns>Freeze Data</returns>
-        public static DataSet FreezePayrollDataPHL(int userid, int countryID)
-        {
-            return APACUtilityDAL.FreezePayrollDataPHL(userid, countryID);
-        }
-
-        /// <summary>
-        /// Freeze data pushed update
-        /// </summary>
-        /// <param name="userid">User ID.</param>
-        /// <param name="countryID">Country ID</param>
-        /// <param name="status">push status</param>
-        public static void FreezePayrollDataPushUpdate(int userid, int countryID, int status)
-        {
-            APACUtilityDAL.FreezePayrollDataPushUpdate(userid, countryID, status);
-        }
-
-        /// <summary>Method to push data to my pay</summary>
-        /// <param name="compId"> string data type </param>
-        /// <param name="userid"> integer data type </param> 
-        /// <param name="countryID"> Country ID </param> 
-        public static void FreezePayrollDataNLD(string compId, int userid, int countryID)
-        {
-            APACUtilityDAL.FreezePayrollDataNLD(compId, userid, countryID);
-        }
-
-        /// <summary>
-        /// Method to get allowance and the corresponding shift type
-        /// </summary> 
-        /// <param name="objUploadData">passing object</param> 
-        /// <returns>allowance and the corresponding shift type</returns>
-        public static DataSet GetAllowanceandShiftType(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.GetAllowanceandShiftType(objUploadData);
-        }
-
-        /// <summary>
-        /// Method to get days type
-        /// </summary> 
-        /// <param name="objUploadData">passing object</param> 
-        /// <returns>allowance and the corresponding shift type</returns>
-        public static DataSet GetDaysType(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.GetDaysType(objUploadData);
-        }
-
-        /// <summary>Method to update the currency new data into the table </summary>
-        /// <param name="objCurrencyData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateCurrencyData(CurrencyData objCurrencyData)
-        {
-            return APACUtilityDAL.UpdateCurrencyData(objCurrencyData);
-        }
-
-        /// <summary>
-        /// Method to valid data for shift allowance to Uploader
-        /// </summary>
-        /// <param name="objCompDetails"> passing object</param>
-        /// <returns>Shift allowance valid data</returns>
-        public static DataSet GetUploaderShiftAllowanceValidData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderShiftAllowanceValidData(objCompDetails);
-        }
-
-        /// <summary>Method to get the exception data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>exception data for uploader</returns>
-        public static DataSet GetUploaderExceptionData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderExceptionData(objCompDetails);
-        }
-
-        /// <summary>Method to get the exception data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>exception data for uploader</returns>
-        public static DataSet GetUploaderExceptionDataSGP(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderExceptionDataSGP(objCompDetails);
-        }
-
-        /// <summary>Method to get the exception data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>exception data for uploader</returns>
-        public static DataSet GetUploaderExceptionDataAPAC(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderExceptionDataAPAC(objCompDetails);
-        }
-
-        /// <summary>Method to get the exception data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>exception data for uploader</returns>
-        public static DataSet GetUploaderExceptionDataCE(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderExceptionDataCE(objCompDetails);
-        }
-
-        /// <summary>Method to get the exception data for uploader</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>exception data for uploader</returns>
-        public static DataSet GetUploaderExceptionDataNLD(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetUploaderExceptionDataNLD(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to get the cut off date details
-        /// </summary>
-        /// <param name="objCompDetails">passing object</param>
-        /// <returns>cut off date details</returns>
-        public static DataSet GetCuttOffDateDetails(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetCuttOffDateDetails(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to Check Project Mapping
-        /// </summary>
-        /// <param name="objCompDetails">passing object</param>
-        /// <returns>project details</returns>
-        public static DataSet CheckProjectMapping(PolicyDetails objCompDetails)
-        {
-            return APACUtilityDAL.CheckProjectMapping(objCompDetails);
-        }
-
-        /// <summary>Method to get the template for every component</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Template for the Component</returns>
-        public static DataSet GetDataTemplate(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetDataTemplate(objuploaderData);
-        }
-
-        /// <summary>Method to get the template for every component</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Template for the Component</returns>
-        public static DataSet GetNLDDataTemplate(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetNLDDataTemplate(objuploaderData);
-        }
-
-        /// <summary>Method to get the template for every component</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Template for the Component</returns>
-        public static DataSet GetAPACDataTemplate(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetAPACDataTemplate(objuploaderData);
-        }
-
-        /// <summary>Method to get the template for every component</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Template for the Component</returns>
-        public static DataSet GetCEDataTemplate(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetCEDataTemplate(objuploaderData);
-        }
-
-        /// <summary>Method to get the Processed Report</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Processed Report</returns>
-        public static DataSet GetProcessedReport(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetProcessedReport(objuploaderData);
-        }
-
-        /// <summary>Method to get the Processed Report</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Processed Report</returns>
-        public static DataSet GetNLDProcessedReport(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetNLDProcessedReport(objuploaderData);
-        }
-
-        /// <summary>Method to get the Processed Report</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Processed Report</returns>
-        public static DataSet GetAPACProcessedReport(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetAPACProcessedReport(objuploaderData);
-        }
-
-        /// <summary>Method to get the Processed Report</summary>
-        /// <param name="objuploaderData"> passing object </param> 
-        /// <returns>Processed Report</returns>
-        public static DataSet GetCEProcessedReport(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetCEProcessedReport(objuploaderData);
-        }
-
-        /// <summary>
-        /// Method to get allowance type and approval type with expiry date
-        /// </summary>
-        /// <param name="objUploadData"> passing object</param>
-        /// <returns>gets approval expiry date with approval type</returns>
-        public static DataSet GetEditData(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.GetEditData(objUploadData);
-        }
-
-        /// <summary> Method to get the project ID for the Associate</summary>
-        /// <param name="objcompDetails"> passing object </param> 
-        /// <returns>Project id for the associate</returns>
-        public static DataSet GetAssociateProjectIdAndNameForUploader(ComponentDetails objcompDetails)
-        {
-            return APACUtilityDAL.GetAssociateProjectIdAndNameForUploader(objcompDetails);
-        }
-
-        /// <summary> Method to get the project ID for the Associate</summary>
-        /// <param name="objcompDetails"> passing object </param> 
-        /// <returns>Project id for the associate</returns>
-        public static DataSet GetCustomerName(ComponentDetails objcompDetails)
-        {
-            return APACUtilityDAL.GetCustomerName(objcompDetails);
-        }
-
-        /// <summary>Method to get the associate details for joining bonus</summary>
-        /// <param name="objcompDetails"> passing object </param> 
-        /// <returns>associate details for joining bonus</returns>
-        public static DataSet GetAssociateDetailsforJB(ComponentDetails objcompDetails)
-        {
-            return APACUtilityDAL.GetAssociateDetailsforJB(objcompDetails);
-        }
-
-        /// <summary>Method to get the associate details for joining bonus</summary>
-        /// <param name="objcompDetails"> passing object </param> 
-        /// <returns>associate details for joining bonus</returns>
-        public static DataSet GetAPACSchoolFeesAssociateDetails(ComponentDetails objcompDetails)
-        {
-            return APACUtilityDAL.GetAPACSchoolFeesAssociateDetails(objcompDetails);
-        }
-
-        /// <summary>Method to get the associate details for joining bonus</summary>
-        /// <param name="objcompDetails"> passing object </param> 
-        /// <returns>associate details for joining bonus</returns>
-        public static DataSet GetCELunchVoucherLeaveDetails(SGPUploadData objcompDetails)
-        {
-            return APACUtilityDAL.GetCELunchVoucherLeaveDetails(objcompDetails);
-        }
-        /// <summary>
-        /// Method to get the reversal valid data
-        /// </summary>
-        /// <param name="objCompDetails">passing object</param>
-        /// <returns>reversal valid data</returns>
-        public static DataSet GetReversalValidData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetReversalValidData(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to get the reversal valid data
-        /// </summary>
-        /// <param name="objCompDetails">passing object</param>
-        /// <returns>reversal valid data</returns>
-        public static DataSet GetReversalValidDataNLD(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetReversalValidDataNLD(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to get the reversal exception data
-        /// </summary>
-        /// <param name="objCompDetails">passing object</param>
-        /// <returns>reversal exception data</returns>
-        public static DataSet GetReversalExceptionData(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetReversalExceptionData(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to get the reversal exception data
-        /// </summary>
-        /// <param name="objCompDetails">passing object</param>
-        /// <returns>reversal exception data</returns>
-        public static DataSet GetReversalExceptionDataNLD(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetReversalExceptionDataNLD(objCompDetails);
-        }
-
-        /// <summary>
-        /// Method to delete the reversal data
-        /// </summary>
-        /// <param name="objUploadData"> passing object</param>
-        /// <returns>status of the delete reversal data </returns>
-        public static DataSet DeleteReversalData(UploaderData objUploadData)
-        {
-            return APACUtilityDAL.DeleteReversalData(objUploadData);
-        }
-
-        /// <summary>
-        /// Method to get the processed reversal report
-        /// </summary>
-        /// <param name="objuploaderData">passing object</param>
-        /// <returns>processed reversal report</returns>
-        public static DataSet GetReversalProcessedReport(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetReversalProcessedReport(objuploaderData);
-        }
-        /// <summary>
-        /// Method to get the Lunch Voucher year report
-        /// </summary>
-        /// <param name="objuploaderData">passing object</param>
-        /// <returns>Lunch Voucher Year Report</returns>
-        public static DataSet GetLunchVoucherYearReport(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetLunchVoucherYearReport(objuploaderData);
-        }
-        /// <summary>
-        /// Method to get the reversal data template
-        /// </summary>
-        /// <param name="objuploaderData">passing object</param>
-        /// <returns>reversal data template</returns>
-        public static DataSet GetReversalDataTemplate(UploaderData objuploaderData)
-        {
-            return APACUtilityDAL.GetReversalDataTemplate(objuploaderData);
-        }
-
-        /// <summary> Method to get the project ID for the Associate</summary>
-        /// <param name="objcompDetails"> passing object </param> 
-        /// <returns>Project id for the associate</returns>
-        public static DataSet GetAssociateProjectIdAndName(ComponentDetails objcompDetails)
-        {
-            return APACUtilityDAL.GetAssociateProjectIdAndName(objcompDetails);
-        }
-
-        /// <summary>Method to insert the currency new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveNLDReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.SaveNLDReversalData(objReversalData);
-        }
-
-        /// <summary>Method to insert the currency new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveAPACReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.SaveAPACReversalData(objReversalData);
-        }
-
-        /// <summary>Method to insert the currency new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveJBReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.SaveJBReversalData(objReversalData);
-        }
-
-        /// <summary>Method to insert the currency new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveShiftPayoutReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.SaveShiftPayoutReversalData(objReversalData);
-        }
-
-        /// <summary>Method to insert the currency new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveSARReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.SaveSARReversalData(objReversalData);
-        }
-
-        /// <summary>Method to insert the currency new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet SaveAPReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.SaveAPReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateNLDReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateNLDReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateShiftTimepayoutReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateShiftTimepayoutReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateSARReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateSARReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateAPReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateAPReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateAPACReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateAPACReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateNLDExceptionReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateNLDExceptionReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateExceptionReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateExceptionReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateExceptionShiftTimepayoutReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateExceptionShiftTimepayoutReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateExceptionSARReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateExceptionSARReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateExceptionAPReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateExceptionAPReversalData(objReversalData);
-        }
-
-        /// <summary>Method to update the reversal new data into the table </summary>
-        /// <param name="objReversalData"> passing object </param> 
-        /// <returns> Status for saving the uploader data in new popup </returns>
-        public static DataSet UpdateExceptionAPACReversalData(TrtReversal objReversalData)
-        {
-            return APACUtilityDAL.UpdateExceptionAPACReversalData(objReversalData);
-        }
-
-        /// <summary>Method to view the valid data for an currency</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the valid data</returns>
-        public static DataSet GetSGPReversalViewData(TrtReversal objCompDetails)
-        {
-            return APACUtilityDAL.GetSGPReversalViewData(objCompDetails);
-        }
-
-        /// <summary>Method to view the valid data for an currency</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>view the valid data</returns>
-        public static DataSet GetNLDReversalViewData(TrtReversal objCompDetails)
-        {
-            return APACUtilityDAL.GetNLDReversalViewData(objCompDetails);
-        }
-
-        /// <summary> Method to get the project ID for the Associate</summary>
-        /// <param name="objcompDetails"> passing object </param> 
-        /// <returns>Project id for the associate</returns>
-        public static DataSet GetAssociateProjectIdAndNameForReversal(ComponentDetails objcompDetails)
-        {
-            return APACUtilityDAL.GetAssociateProjectIdAndNameForReversal(objcompDetails);
-        }
-
-        /// <summary>Method to update the referral bonus valid data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the referral bonus valid data</returns>
-        public static DataSet UpdateUploaderValidData(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.UpdateUploaderValidData(objUploadData);
-        }
-
-        /// <summary>Method to update the referral bonus valid data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the referral bonus valid data</returns>
-        public static DataSet UpdateUploaderExceptionData(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.UpdateUploaderExceptionData(objUploadData);
-        }
-
-        /// <summary>Method to save the file upload details to database</summary>
-        /// <param name="objFileUploadDetails"> passing object </param> 
-        /// <returns>file upload details</returns>
-        public static object SaveSGPFileUploadDetailstoDB(FileUploadDetails objFileUploadDetails)
-        {
-            return APACUtilityDAL.SaveSGPFileUploadDetailstoDB(objFileUploadDetails);
-        }
-
-        /// <summary>Method to save the file upload details to database</summary>
-        /// <param name="objFileUploadDetails"> passing object </param> 
-        /// <returns>file upload details</returns>
-        public static object SaveCEFileUploadDetailstoDB(FileUploadDetails objFileUploadDetails)
-        {
-            return APACUtilityDAL.SaveCEFileUploadDetailstoDB(objFileUploadDetails);
-        }
-
-        /// <summary>Method to get the app template ID for SAN</summary>
-        /// <returns>app template ID for SAN</returns>
-        public static DataSet FetchAppTemplateIdforSAN()
-        {
-            return APACUtilityDAL.FetchAppTemplateIdforSAN();
-        }
-
-        /// <summary>
-        /// TO save grid data
-        /// </summary>
-        /// <param name="objShiftDetails">passing object</param>
-        /// <param name="shiftData">shift Data</param>
-        /// <returns>save data</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design",
-            "CA1006:DoNotNestGenericTypesInMemberSignatures", Justification = "Reviewed."),
-         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design",
-            "CA1002:DoNotExposeGenericLists", Justification = "Reviewed")]
-        public static List<List<string>> SaveNewSDAShiftGrid(ShiftDetails objShiftDetails, List<string> shiftData)
-        {
-            return APACUtilityDAL.SaveNewSDAShiftGrid(objShiftDetails, shiftData);
-        }
-
-        /// <summary>
-        /// Method to update the shift allowance grid data
-        /// </summary>
-        /// <param name="objShiftDetails"> passing object</param>
-        /// <param name="bpsSda">List of Shift Data</param>
-        /// <returns>all data with updated one</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists",
-            Justification = "Reviewed")]
-        public static List<string> UpdateSDAGridData(ShiftDetails objShiftDetails, List<string> bpsSda)
-        {
-            return APACUtilityDAL.UpdateSDAGridData(objShiftDetails, bpsSda);
-        }
-
-        /// <summary>
-        /// TO save grid data
-        /// </summary>
-        /// <param name="objShiftDetails">passing object</param>
-        /// <param name="shiftData">shift Data</param>
-        /// <returns>save data</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design",
-            "CA1006:DoNotNestGenericTypesInMemberSignatures", Justification = "Reviewed."),
-         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists",
-            Justification = "Reviewed")]
-        public static List<List<string>> SaveNewNSAShiftGrid(ShiftDetails objShiftDetails, List<string> shiftData)
-        {
-            return APACUtilityDAL.SaveNewNSAShiftGrid(objShiftDetails, shiftData);
-        }
-
-        /// <summary>
-        /// Method to update the shift allowance grid data
-        /// </summary>
-        /// <param name="objShiftDetails"> passing object</param>
-        /// <param name="cliNsa"> List of Shift Data </param>
-        /// <returns>all data with updated one</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists",
-            Justification = "Reviewed")]
-        public static List<string> UpdateNSAGridData(ShiftDetails objShiftDetails, List<string> cliNsa)
-        {
-            return APACUtilityDAL.UpdateNSAGridData(objShiftDetails, cliNsa);
-        }
-
-        /// <summary>
-        /// Method to save the shift details
-        /// </summary>
-        /// <param name="objpolicyDetails"> passing object</param>
-        /// <param name="policyData"> List of Shift Data </param>
-        /// <returns>returns the status</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design", "CA1002:DoNotExposeGenericLists",
-            Justification = "Reviewed")]
-        public static List<string> SaveNewPolicyGrid(ShiftDetails objpolicyDetails, List<string> policyData)
-        {
-            return APACUtilityDAL.SaveNewPolicyGrid(objpolicyDetails, policyData);
-        }
-
-        /// <summary>Method to update the referral bonus valid data</summary>
-        /// <param name="objUploadData"> passing object </param> 
-        /// <returns>Status on updating the referral bonus valid data</returns>
-        public static DataSet GetAccountNameDetails(SGPUploadData objUploadData)
-        {
-            return APACUtilityDAL.GetAccountNameDetails(objUploadData);
-        }
-
-        /// <summary>Method to get the BG Status</summary>
-        /// <param name="objCompDetails"> passing object </param> 
-        /// <returns>BG status</returns>
-        public static DataSet GetDropdownSPDDataUK(ComponentDetails objCompDetails)
-        {
-            return APACUtilityDAL.GetDropdownSPDDataUK(objCompDetails);
-        }
-
-        /// <summary>Method to get the empty template url</summary>
-        /// <param name="objdetails"> passing object </param> 
-        /// <returns>empty template url</returns>
-        public static DataSet GetFAQDocument(FileUploadDetails objdetails)
-        {
-            return APACUtilityDAL.GetFAQDocument(objdetails);
-        }
-
-        /// <summary>
-        /// Method to check associate is servian or contino of Australia
-        /// </summary>
-        /// <param name="objdetails">passing object </param>
-        /// <returns>servian assocites</returns>
-        public static DataSet IsAssociateServianContino(ComponentDetails objdetails)
-        {
-            return APACUtilityDAL.IsAssociateServianContino(objdetails);
-        }
-
-
-        public static string IsAssociateExist(string associateId)
-        {
-            return APACUtilityDAL.IsAssociateExist(associateId);
-        }
-        /// <summary>
-        /// Method to check associate is servian or contino of Australia
-        /// </summary>
-        /// <param name="objdetails">passing object </param>
-        /// <returns>servian assocites</returns>
-        public static DataSet GetAPACProject(ComponentDetails objdetails)
-        {
-            return APACUtilityDAL.GetAPACProject(objdetails);
-        }
-
-        /// <summary>
-        /// Method to Dispose
-        /// </summary>
-        public void Dispose()
-        {
-            GC.SuppressFinalize(this);
-        }
-    }
-}
-
+            DataSet resultDS = new DataSet();
+            using (SqlConnection con = new SqlConnection(conString))
+            {
+                try
+                {
+                    con.OpenWithMSI();
+                    SqlCommand processCmd = new SqlCommand("usp_GetFreezePayrollGridUKI", con);
+                    processCmd.CommandType = CommandType.StoredProcedure;
+                    processCmd.Parameters.AddWithValue("@AssociateID", userID);
+                    processCmd.Parameters.AddWithValue("@ROLEID", roleID);
+                    processCmd.Parameters.AddWithValue("@CountryID", countryID);
+                    SqlDataAdapter da = new SqlDataAdapter();
+                    da.SelectCommand = processCmd;
+                    da.Fill(resultDS);
+                    con.Close();
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                }
+                return resultDS;
+            }
+        }
+
+      

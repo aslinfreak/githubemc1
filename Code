@@ -1,34 +1,4 @@
 This is FileUpload.aspx.cs
-//-----------------------------------------------------------------------
-// <copyright file="FileUpload.aspx.cs" company="Special pay">
-//     Copyright (c) Special pay Enterprises. All rights reserved.
-// </copyright>
-//-----------------------------------------------------------------------
-
-/*About me
- *******************************************************
- * Namespace        : SPayWebApp
- * Class Name       : PopupUpload.apsx
- * Version          : 1.0
- * Type             : WebPage
- * Purpose          : This is the page where Uploader has to upload files for Processing
- * Created date     : 2013-June-17
- * Author           : 290050
- * Reviewed by      :
- *------------------------------------------------------
- *                  Change history
- *------------------------------------------------------
- * Date             :
- * Author           :
- * Signature        :
- * Reviewed by      :`
- * Change details   :
- * -----------------------------------------------------
- *******************************************************
-*/
-[module: System.Diagnostics.CodeAnalysis.SuppressMessage("StyleCop.CSharp.NamingRules",
-    "SA1305:FieldNamesMustNotUseHungarianNotation", Justification = "Reviewed.")]
-
 namespace SPayWebApp
 {
     #region Namespace

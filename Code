@@ -1,105 +1,84 @@
-namespace SPayWebApp
-{
-    #region Namespaces
+ /// <summary>
+ /// File Download using OCM ContentID
+ /// </summary>
+ /// <param name = "OCMContentID" ></ param >
+ //[CustomAuthorize]
+ public ActionResult APIFileDownload(string OCMContentID, string AssociateID)
+ {
+     //string OCMContentID = ocmService.stringSanitizer(HttpUtility.HtmlEncode(Request.QueryString["OCMContentID"]));
+     string path = Server.MapPath("~/App_Data/SpecialPay.json");
 
-    using System;
-    using System.Configuration;
-    using System.Data;
-    using System.Text;
-    using System.Text.RegularExpressions;
-    using System.Web;
-    using ECMSharedServices;
-    using SPay.BAL.UtilityBAL;
+     WrapperUI ocmFileupload = new WrapperUI();
+     OCMBL DownloadOCMFile = new OCMBL();
+     DownloadedFileContent downloadedFile = new DownloadedFileContent();
+     //var context = UserContext.GetUserContext();
+     //var contextUserID = context.CurrentUser.UserId;
+     var contextUserID = "311556";
+     try
+     {
+         //System.Web.HttpResponseBase
+         string MetadataPath = Server.MapPath("~/App_Data/SpecialPay.json");
+         var appJson = System.IO.File.ReadAllText(MetadataPath);
+         dynamic TaxonomieJsonObj = JsonConvert.DeserializeObject(appJson);
+         TaxonomieJsonObj.DeptID = TaxonomieJsonObj["DeptID"].ToString();
+         TaxonomieJsonObj.Region = TaxonomieJsonObj["Region"].ToString();
+         TaxonomieJsonObj.DocType = TaxonomieJsonObj["DocType"].ToString();
+         string AppJson = JsonConvert.SerializeObject(TaxonomieJsonObj);
 
-    #endregion Namespaces
+         string AccessToken = APITokenGenerator.GetToken();
+         string downloadApi =
+             ConfigurationManager.AppSettings.Get("OCMAPIDownload").ToString();
+         string searchApi =
+             ConfigurationManager.AppSettings.Get("OCMAPISearch").ToString();
+         string Type = ConfigurationManager.AppSettings.Get("AssetType").ToString();
+         downloadedFile =
+             ocmService.DownloadFileContent(AccessToken, OCMContentID, MetadataPath, downloadApi, Type);
 
-    /// <summary>
-    /// Download class
-    /// </summary>
-    public partial class Download : System.Web.UI.Page
-    {
-        /// <summary>
-        /// Page Load
-        /// </summary>
-        /// <param name="sender">the sender</param>
-        /// <param name="e">the e</param>
-        protected void Page_Load(object sender, EventArgs e)
-        {
-            var regexItem = new Regex(@"^[a-zA-Z0-9_\-\s]*$");
-            string versionkey = ConfigurationManager.AppSettings["Version"].ToString();
-            string downloadUrl = ConfigurationManager.AppSettings["FileDownloadUIOCM"].ToString();
-            string ocm = ConfigurationManager.AppSettings["IsOCMEnabled"].ToString();
-            string associateID = HttpContext.Current.Session["UserId"].ToString();
+         if (downloadedFile != null && downloadedFile.FileByteArray != null)
+         {
+             downloadedFile.FileName = HttpUtility.UrlDecode(downloadedFile.FileName.ToString());
+             this.Response.Clear();
+             this.Response.ContentType = "application/octet-stream";
+             this.Response.AddHeader("Content-Disposition",
+                 "attachment; filename=\"" + HttpUtility.HtmlEncode(downloadedFile.FileName) + "\"");
+             this.Response.AddHeader("Content-Length", Convert.ToString(downloadedFile.FileByteArray.Length));
+             this.Response.AddHeader("X-Oracle-Dms-Ecid", downloadedFile.Ecid);
+             this.Response.BinaryWrite(downloadedFile.FileByteArray);
+             this.Response.Flush();
+             this.Response.End();
+             return null;
+         }
+         else
+         {
+             //this.Json("File content id not found.");
+             return View("Download", ocmFileupload);
+         }
+     }
+     catch (FileNotFoundException ex)
+     {
+         OCMExceptionLog.HandleException(ex.ToString(), this.GetType().Name, contextUserID, "Apifiledownload", "Download Failed", ex.StackTrace.ToString());
+         string msg = "Issue in downloading the file";
+         return this.Json(msg);
+     }
+     catch (HttpException ex)
+     {
+         OCMExceptionLog.HandleException(ex.ToString(), this.GetType().Name, contextUserID, "Apifiledownload", "Download Failed", ex.StackTrace.ToString());
+         string msg = "Issue in downloading the file";
+         return this.Json(msg);
 
-            string ClientIdkey = SendMailer.FetchKeyVaultSecret("OCMClientId");
-            string encryptAssociateid = UtilityBAL.Encrypt(associateID, ClientIdkey);
-            //string ocmcontenid = "CONT6BE08832C7334B89A22C9E61E036E522";
-            if (Request.QueryString["fileUploadId"].ToString() != "null")
-            {
-                try
-                {
-                    string fileUploadId = string.Empty;
-                    if (regexItem.IsMatch(Request.QueryString["fileUploadId"].ToString().Trim()))
-                    {
-                        fileUploadId = CAS.Security.Application.EncodeHelper.HtmlEncode(
-                            HttpUtility.UrlEncode(Request.QueryString["fileUploadId"]));
-                    }
+     }
+     catch (SystemException ex)
+     {
+         OCMExceptionLog.HandleException(ex.ToString(), this.GetType().Name, contextUserID, "Apifiledownload", "Download Failed", ex.StackTrace.ToString());
+         string msg = "Issue in downloading the file";
+         return this.Json(msg);
 
-                    if (ocm == "1")
-                    {
-                        string stFinalQueryString = string.Format("?OCMContentID={0}&AssociateID={1}", fileUploadId, encryptAssociateid);
-                        string finalurl = string.Format(downloadUrl + stFinalQueryString);
-                        Response.Redirect(finalurl);
-                    }
-                    else
-                    {
-                        ErrorLogger loggerECM = new ErrorLogger();
-                        loggerECM.LogErrorECM("Download", fileUploadId, associateID, "ECM Download Triggered");
-
-                        var ecmAppid =
-                        Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings["ECMAppID"]);
-                        ECMCommon.IdcFile downloadFile = new ECMCommon.IdcFile();
-                        WrapperUICheckIn checkIn = new WrapperUICheckIn(ecmAppid);
-                        downloadFile = checkIn.DownloadFileContent(fileUploadId, ecmAppid);
-                        var filename = downloadFile.Filename;                        
-
-                        if (!string.IsNullOrEmpty(filename))
-                        {
-                            string fileType = System.IO.Path.GetExtension(filename).ToString().ToLower();
-                            filename = filename.Split('.').Length - 1 >= 2 ? filename.Split('.')[0] + fileType : filename;
-                            this.Session["NoFile"] = "0";
-                            HttpContext.Current.Response.Clear();
-                            HttpContext.Current.Response.ClearContent();
-                            HttpContext.Current.Response.ClearHeaders();
-                            HttpContext.Current.Response.Buffer = true;
-                            HttpContext.Current.Response.AddHeader("Content-Type", "application/octet-stream");
-                            HttpContext.Current.Response.AddHeader("Content-Disposition",
-                                "attachment;filename=\"" + filename + "\"");
-                            HttpContext.Current.Response.BinaryWrite(downloadFile.Filecontent);
-                            HttpContext.Current.Response.Flush();
-                            HttpContext.Current.ApplicationInstance.CompleteRequest();
-                            HttpContext.Current.Response.End();
-                        }
-                        else
-                        {
-                            this.Session["NoFile"] = "1";
-                            string errormsg = "The server is down to Upload/ Download templates. Please try after sometime";
-                            string url = Request.UrlReferrer.AbsolutePath.ToString();
-                            ClientScript.RegisterStartupScript(GetType(), "alert", "callAlert('" +HttpUtility.HtmlEncode(errormsg) + "','" + HttpUtility.HtmlEncode(url) + "');", true);
-                        }
-                    }
-                }
-                catch (SystemException ex)
-                {
-                    ErrorLogger logger = new ErrorLogger();
-                    logger.LogError(ex);
-                    return;
-                }
-            }
-            else
-            {
-                return;
-            }
-        }
-    }
-}
+     }
+     catch(Exception ex)
+     {
+         OCMExceptionLog.HandleException(ex.ToString(), this.GetType().Name, contextUserID, "Apifiledownload","Download Failed", ex.StackTrace.ToString());
+         string msg = "Issue in downloading the file";
+         return this.Json(msg);
+     }
+     return null; //ConstructorNeedsTagAttribute to add common catch excep
+ }

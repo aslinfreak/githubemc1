@@ -1,84 +1,111 @@
- /// <summary>
- /// File Download using OCM ContentID
- /// </summary>
- /// <param name = "OCMContentID" ></ param >
- //[CustomAuthorize]
- public ActionResult APIFileDownload(string OCMContentID, string AssociateID)
- {
-     //string OCMContentID = ocmService.stringSanitizer(HttpUtility.HtmlEncode(Request.QueryString["OCMContentID"]));
-     string path = Server.MapPath("~/App_Data/SpecialPay.json");
-
-     WrapperUI ocmFileupload = new WrapperUI();
-     OCMBL DownloadOCMFile = new OCMBL();
-     DownloadedFileContent downloadedFile = new DownloadedFileContent();
-     //var context = UserContext.GetUserContext();
-     //var contextUserID = context.CurrentUser.UserId;
-     var contextUserID = "311556";
-     try
-     {
-         //System.Web.HttpResponseBase
-         string MetadataPath = Server.MapPath("~/App_Data/SpecialPay.json");
-         var appJson = System.IO.File.ReadAllText(MetadataPath);
-         dynamic TaxonomieJsonObj = JsonConvert.DeserializeObject(appJson);
-         TaxonomieJsonObj.DeptID = TaxonomieJsonObj["DeptID"].ToString();
-         TaxonomieJsonObj.Region = TaxonomieJsonObj["Region"].ToString();
-         TaxonomieJsonObj.DocType = TaxonomieJsonObj["DocType"].ToString();
-         string AppJson = JsonConvert.SerializeObject(TaxonomieJsonObj);
-
-         string AccessToken = APITokenGenerator.GetToken();
-         string downloadApi =
-             ConfigurationManager.AppSettings.Get("OCMAPIDownload").ToString();
-         string searchApi =
-             ConfigurationManager.AppSettings.Get("OCMAPISearch").ToString();
-         string Type = ConfigurationManager.AppSettings.Get("AssetType").ToString();
-         downloadedFile =
-             ocmService.DownloadFileContent(AccessToken, OCMContentID, MetadataPath, downloadApi, Type);
-
-         if (downloadedFile != null && downloadedFile.FileByteArray != null)
-         {
-             downloadedFile.FileName = HttpUtility.UrlDecode(downloadedFile.FileName.ToString());
-             this.Response.Clear();
-             this.Response.ContentType = "application/octet-stream";
-             this.Response.AddHeader("Content-Disposition",
-                 "attachment; filename=\"" + HttpUtility.HtmlEncode(downloadedFile.FileName) + "\"");
-             this.Response.AddHeader("Content-Length", Convert.ToString(downloadedFile.FileByteArray.Length));
-             this.Response.AddHeader("X-Oracle-Dms-Ecid", downloadedFile.Ecid);
-             this.Response.BinaryWrite(downloadedFile.FileByteArray);
-             this.Response.Flush();
-             this.Response.End();
-             return null;
-         }
-         else
-         {
-             //this.Json("File content id not found.");
-             return View("Download", ocmFileupload);
-         }
-     }
-     catch (FileNotFoundException ex)
-     {
-         OCMExceptionLog.HandleException(ex.ToString(), this.GetType().Name, contextUserID, "Apifiledownload", "Download Failed", ex.StackTrace.ToString());
-         string msg = "Issue in downloading the file";
-         return this.Json(msg);
-     }
-     catch (HttpException ex)
-     {
-         OCMExceptionLog.HandleException(ex.ToString(), this.GetType().Name, contextUserID, "Apifiledownload", "Download Failed", ex.StackTrace.ToString());
-         string msg = "Issue in downloading the file";
-         return this.Json(msg);
-
-     }
-     catch (SystemException ex)
-     {
-         OCMExceptionLog.HandleException(ex.ToString(), this.GetType().Name, contextUserID, "Apifiledownload", "Download Failed", ex.StackTrace.ToString());
-         string msg = "Issue in downloading the file";
-         return this.Json(msg);
-
-     }
-     catch(Exception ex)
-     {
-         OCMExceptionLog.HandleException(ex.ToString(), this.GetType().Name, contextUserID, "Apifiledownload","Download Failed", ex.StackTrace.ToString());
-         string msg = "Issue in downloading the file";
-         return this.Json(msg);
-     }
-     return null; //ConstructorNeedsTagAttribute to add common catch excep
- }
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  For more information on how to configure your ASP.NET application, please visit
+  https://go.microsoft.com/fwlink/?LinkId=301880
+  -->
+<configuration>
+  <appSettings>
+    <add key="webpages:Version" value="3.0.0.0" />
+    <add key="webpages:Enabled" value="false" />
+    <add key="ClientValidationEnabled" value="true" />
+    <add key="UnobtrusiveJavaScriptEnabled" value="true" />
+    <add key="OCMAPI" value="https://ocmsiteu-ctsitoraclecloud.cec.ocp.oraclecloud.com/content/management/api/v1.1/items"/>
+    <add key="OCMAPIToken" value="https://ocmsiteu-ctsitoraclecloud.cec.ocp.oraclecloud.com/system/api/v1/security/token"/>
+    <add key="OCMAPIDownload" value="https://ocmsiteu-ctsitoraclecloud.cec.ocp.oraclecloud.com/content/management/api/v1.1/items"/>
+    <add key="OCMAPIDelete" value="https://ocmsiteu-ctsitoraclecloud.cec.ocp.oraclecloud.com/content/management/api/v1.1/items/"/>
+    <add key="OCMAPISearch" value="https://ocmsiteu-ctsitoraclecloud.cec.ocp.oraclecloud.com/content/management/api/v1.1/items"/>
+    <add key="OCMBaseURL" value="https://ocmsiteu-ctsitoraclecloud.cec.ocp.oraclecloud.com"/>
+    <add key="ScopeURL" value="https://ocmsiteu-ctsitoraclecloud.cec.ocp.oraclecloud.com/urn:opc:cec:all"/>
+    <add key="AuthorizeURL" value="https://idcs-5251da33760e48fe8e40b5fe4135f5af.identity.oraclecloud.com/oauth2/v1/authorize?"/>
+    <add key="AccessURL" value="https://idcs-7548681cdfa741c28208e245c90d32d3.identity.oraclecloud.com/oauth2/v1/token"/>
+    <add key="ClientId" value="ec410d51527443f8ba7d14c5aaa66d43" />
+    <add key="ClientSecret" value="5b4ddd01-cc9b-4166-900c-8aa4688fb155" />
+    <add key="RepositoryID" value="D54E08128A8D4F02AE354D8CBE834034" />
+    <!--<add key="AuthCode" value="AgAgMjM5MWVhM2IzNDNlNGI0NmFmMzI4YWE2YzQwNGUzZjEIABBOX8c-L-UbsbjNfTDHchkVAAAAQF7FSk0jZf3h7ABSrlJ_UuTjt7DDXgbVGamUrKfG__dkO0HkPvCzAFygSxEbelvYBF-wxmFZp0xBmMWIoXdeUYg=" />-->
+    <add key="UploadEndPoint" value="/content/management/api/v1.1/items" />
+    <add key="DownloadEndPoint" value="/content/management/api/v1.1/items" />
+    <add key="DeleteEndPoint" value="/content/management/api/v1.1/items" />
+    <add key="SearchEndPoint" value="/content/management/api/v1.1/items" />
+    <add key="ECMEnvironment" value="SIT" />
+    <add key="UploadUI" value="https://onececmssldev/OCMPOCUpload/FileUpload.aspx" />
+    <add key="ECMOneCQueryUrl" value="http://localhost/ECMClienttestApp/Default.aspx" />
+    <add key="AppId" value="727" />
+    <add key="ClientURL" value="http://localhost:8305/OCM_Service.aspx" />
+    <add key="ControlClientURL" value="http://localhost:8305/Control.aspx" />
+    <add key="AssetType" value="727_SpecialPay" />
+    <add key="Base64EncodeKey" value="MTc4N2VjYzg0ZDI5NDM3M2IwYmVkMDc4MTRmYWY1YTY6ODYyMWVhNDEtNTkyNS00YTEzLWEyMGEtZDMyZmJhYWJkMjcx" />
+    <add key="MaxRetryAttempts" value="2" />
+    <add key="RetryDelayMilliseconds" value="1000" />
+    <add key="IncludedStatusCodes" value="500,503,404" />
+    <add key="FileSize" value="40"/>
+    <add key="AllowedSpecialChar" value="^[a-zA-Z0-9() –_.-]*$" />
+    <add key="IsProxyEnabled" value="0" />
+  </appSettings>
+  <connectionStrings>
+    <add name="SQLManagedAzureAD" connectionString="Data Source=ctsazsimisgntm1.inso13dfbbbfa2150.database.windows.net;Initial Catalog=OneC_SPay;User ID=OneC_SPay;Password=OneC_$p@y_sit;Persist Security Info=False;MultipleActiveResultSets=False;Connect Timeout=30;Encrypt=True;TrustServerCertificate=False;MultiSubnetFailover=True" />
+  </connectionStrings>
+  <system.web>
+    <compilation debug="true" targetFramework="4.8" />
+    <httpRuntime targetFramework="4.8" maxRequestLength="104857600" />
+  </system.web>
+  <runtime>
+    <assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+      <dependentAssembly>
+        <assemblyIdentity name="Antlr3.Runtime" publicKeyToken="eb42632606e9261f" />
+        <bindingRedirect oldVersion="0.0.0.0-3.5.0.2" newVersion="3.5.0.2" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="Newtonsoft.Json" publicKeyToken="30ad4fe6b2a6aeed" />
+        <bindingRedirect oldVersion="0.0.0.0-13.0.0.0" newVersion="13.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.Optimization" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="1.0.0.0-1.1.0.0" newVersion="1.1.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="WebGrease" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="0.0.0.0-1.6.5135.21930" newVersion="1.6.5135.21930" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.Helpers" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="1.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.WebPages" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="1.0.0.0-3.0.0.0" newVersion="3.0.0.0" />
+      </dependentAssembly>
+      <dependentAssembly>
+        <assemblyIdentity name="System.Web.Mvc" publicKeyToken="31bf3856ad364e35" />
+        <bindingRedirect oldVersion="1.0.0.0-5.3.0.0" newVersion="5.3.0.0" />
+      </dependentAssembly>
+    </assemblyBinding>
+  </runtime>
+  <system.serviceModel>
+    <bindings>
+      <basicHttpBinding>
+        <binding name="BasicHttpBinding_IKeyVaultService">
+          <security mode="Transport">
+            <transport clientCredentialType="Windows" />
+          </security>
+        </binding>
+      </basicHttpBinding>
+    </bindings>
+    <client>
+      <endpoint address="https://onecsitcoresrvs.cognizant.com/2730/KeyVaultService.svc" binding="basicHttpBinding" bindingConfiguration="BasicHttpBinding_IKeyVaultService" contract="KeyVaultService.IKeyVaultService" name="BasicHttpBinding_IKeyVaultService" />
+    </client>
+  </system.serviceModel>
+  <system.codedom>
+    <compilers>
+      <compiler language="c#;cs;csharp" extension=".cs" warningLevel="4" compilerOptions="/langversion:default /nowarn:1659;1699;1701;612;618" type="Microsoft.CodeDom.Providers.DotNetCompilerPlatform.CSharpCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=4.1.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" />
+      <compiler language="vb;vbs;visualbasic;vbscript" extension=".vb" warningLevel="4" compilerOptions="/langversion:default /nowarn:41008,40000,40008 /define:_MYTYPE=\&quot;Web\&quot; /optionInfer+" type="Microsoft.CodeDom.Providers.DotNetCompilerPlatform.VBCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=4.1.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35" />
+    </compilers>
+  </system.codedom>
+  <system.webServer>
+    <security>
+      <requestFiltering>
+        <requestLimits maxAllowedContentLength="104857600">
+        </requestLimits>
+      </requestFiltering>
+    </security>
+  </system.webServer>
+</configuration>

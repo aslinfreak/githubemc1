@@ -1,171 +1,20 @@
-      This is my APAC_WebMethods.aspx.cs
-        /// <summary>
-        /// save currency data
-        /// </summary>
-        /// <param name="primaryKey">primary Key</param>
-        /// <param name="currencyType">Currency Type</param>
-        /// <param name="currencyValue">Currency Value</param>
-        /// <param name="advisedBy">Advised By</param>
-        /// <returns>returns data</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes",
-            Justification = "Reviewed."),
-         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes",
-            Justification = "Reviewed."), WebMethod]
-        public static string CurrencyUpdateData(
-            int primaryKey,
-            string currencyType,
-            string currencyValue,
-            string advisedBy)
-        {
-            try
-            {
-                CurrencyData objCurrencyData = new CurrencyData()
-                {
-                    //// ComponentGroupId = Convert.ToInt64(componentGroupID),
-                    CurrencyType = currencyType,
-                    CurrencyValue = currencyValue,
-                    AdvisedBy = advisedBy,
-                    PrimaryKey = primaryKey
-                };
+APACUtilityBAL.cs
 
-                
-                DataSet saveCurrency = new DataSet();
-
-                objCurrencyData.LoginId = HttpContext.Current.Session["UserId"].ToString();
-                objCurrencyData.CountryID = HttpContext.Current.Session["CountryID"].ToString();
-                saveCurrency = APACUtilityBAL.UpdateCurrencyData(objCurrencyData);
-
-                if (saveCurrency.Tables.Count > 0 && saveCurrency.Tables[0].Rows.Count > 0)
-                {
-                    return saveCurrency.Tables[0].Rows[0][0].ToString();
-                }
-                else
-                {
-                    throw new SystemException("Save Failed");
-                }
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-                return ex.Message;
-            }
-        }
-
-        /// <summary>
-        /// save currency data
-        /// </summary>
-        /// <param name="primaryKey">primary Key</param>
-        /// <param name="currencyType">Currency Type</param>
-        /// <param name="currencyValue">Currency Value</param>
-        /// <param name="advisedBy">Advised By</param>
-        /// <returns>returns data</returns>
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes",
-            Justification = "Reviewed."),
-         System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Usage", "CA2201:DoNotRaiseReservedExceptionTypes",
-            Justification = "Reviewed."), WebMethod]
-        public static string ValidateExceptionCurrencyUpdateData(
-            int primaryKey,
-            string currencyType,
-            string currencyValue,
-            string advisedBy)
-        {
-            try
-            {
-                CurrencyData objCurrencyData = new CurrencyData()
-                {
-                    ////ComponentGroupId = Convert.ToInt64(componentGroupID),
-                    CurrencyType = currencyType,
-                    CurrencyValue = currencyValue,
-                    AdvisedBy = advisedBy,
-                    PrimaryKey = primaryKey
-                };
-
-                
-                DataSet saveCurrency = new DataSet();
-
-                objCurrencyData.LoginId = HttpContext.Current.Session["UserId"].ToString();
-                objCurrencyData.CountryID = HttpContext.Current.Session["CountryID"].ToString();
-
-                saveCurrency = APACUtilityBAL.ValidateExceptionCurrencyUpdateData(objCurrencyData);
-
-                if (saveCurrency.Tables.Count > 0 && saveCurrency.Tables[0].Rows.Count > 0)
-                {
-                    return saveCurrency.Tables[0].Rows[0][0].ToString();
-                }
-                else
-                {
-                    throw new SystemException("Save Failed");
-                }
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-                return ex.Message;
-            }
-        }
-This is my APAC_ExcelServices.aspx.cs
- #region this.downloadDataTemplate
-
- /// <summary>
- /// 316271: Download Data Template Records
- /// </summary>
- /// <param name="dataType">Type of Report Data</param>
- private void DownloadCurrencyDataTemplate(int dataType)
- {
-     try
-     {
-         UploaderData objuploaderData = new UploaderData()
-         {
-             ////ComponentGroupId = componentGroupId,
-             TypeofData = dataType
-         };
-
-         objuploaderData.LoginId = Session["UserId"].ToString();
-         objuploaderData.RoleID = Convert.ToInt32(Session["RoleId"].ToString());
-         objuploaderData.CountryId = Convert.ToInt32(Session["CountryID"].ToString());
-         DataSet report = new DataSet();
-
-         report = UtilityBAL.GetCurrencyDataTemplate(objuploaderData);
-
-         if (report.Tables.Count > 0 && report.Tables[0].Rows.Count > 0)
-         {
-             this.ExportDatasetToExcel(report.Tables[0], this.componentName + "CurrencyDataTemplate");
-         }
-         else
-         {
-             string script = "<script type='text/javascript'>Message('There are no records to download');" +
-                 "</script>";
-             Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-         }
-     }
-     catch (System.Threading.ThreadAbortException abrtex)
-     {
-         ErrorLogger logger = new ErrorLogger();
-         logger.LogError(abrtex);
-     }
-     catch (SystemException ex)
-     {
-         ErrorLogger logger = new ErrorLogger();
-         logger.LogError(ex);
-     }
- }
-This is my APACUtilityBAL.cs
-
-  public static DataSet GetDataTemplateSGP(UploaderData objuploaderData)
+public static DataSet UpdateCurrencyData(CurrencyData objCurrencyData)
   {
-      return APACUtilityDAL.GetDataTemplateSGP(objuploaderData);
+      return APACUtilityDAL.UpdateCurrencyData(objCurrencyData);
   }
-This is my APACUtilityDAL.cs
-public static DataSet GetDataTemplateSGP(UploaderData objuploaderData)
-{
-    try
+
+APACUtilityDAL.cs
+
+    public static DataSet UpdateCurrencyData(CurrencyData objCurrencyData)
     {
-        return DBHelper.ExecuteDataset("usp_DataTemplateUploaderReportSGP", objuploaderData);
+        try
+        {
+            return DBHelper.ExecuteDataset("[dbo].[Usp_CU_UpdateValidSuperAdminData]", objCurrencyData);
+        }
+        catch (SystemException ex)
+        {
+            throw ex;
+        }
     }
-    catch (SystemException ex)
-    {
-        throw ex;
-    }
-}

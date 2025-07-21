@@ -151,3 +151,21 @@ This is my APAC_ExcelServices.aspx.cs
          logger.LogError(ex);
      }
  }
+This is my APACUtilityBAL.cs
+
+  public static DataSet GetDataTemplateSGP(UploaderData objuploaderData)
+  {
+      return APACUtilityDAL.GetDataTemplateSGP(objuploaderData);
+  }
+This is my APACUtilityDAL.cs
+public static DataSet GetDataTemplateSGP(UploaderData objuploaderData)
+{
+    try
+    {
+        return DBHelper.ExecuteDataset("usp_DataTemplateUploaderReportSGP", objuploaderData);
+    }
+    catch (SystemException ex)
+    {
+        throw ex;
+    }
+}

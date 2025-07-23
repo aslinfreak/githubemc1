@@ -1,141 +1,38 @@
-                    }
+Explain this both code how it connected
 
-                    HttpContext.Current.Session.Add("RoleId", string.Empty);
-                    HttpContext.Current.Session.Add("CountryID", string.Empty);
-                    HttpContext.Current.Session.Add("Renewal", "1");
+This is my CurrencyUpdate.html
 
+<li class="  p-3">
+    <a onclick="OnUploadButtonClick()" id="uploadData" class="download flft uploadIcon" style="cursor: pointer;">
+        <span style="" class="">Upload Data</span>
+    </a>
+    <a id="clck" class="thickbox"></a>
+</li>
 
+This is my CurrencyUpdate.js
 
-                    if (!string.IsNullOrEmpty(this.strAssociateId))
-                    {
-                        var regexItem = new Regex(@"^[a-zA-Z0-9_.\s]*$");
-                        if (regexItem.IsMatch(this.strAssociateId))
-                        {
-                            HttpContext.Current.Session["UserId"] = this.strAssociateId;
-                        }
+function OnUploadButtonClick() {
+    var url = "";
 
-                        SessionDetails objSession = new SessionDetails();
-                        objSession.LoginId = this.strAssociateId;
-                        DataSet user = new DataSet();
-                        if (HttpContext.Current.Session["userDS"] == null)
-                        {
-                            user = UtilityBAL.GetUserRolesandPages(objSession);
-                            HttpContext.Current.Session["userDS"] = user;
-                        }
-                        else
-                        {
-                            user = (DataSet)HttpContext.Current.Session["userDS"];
-                        }
+    if (isCutOffDateOver == 0) {
+        if (ocm == "0") {
+            url = "../PopupUpload.aspx?componentGroupId=" + 5 + "&CountryId=1&isCurrencyUpdate=1&TB_iframe=true&height=220&width=442&modal=true&allowTransparency=true";
+        }
+        else {
+            url = clienturl + "componentGroupId=" + 5 + "&CountryID=1&page=isCurrencyUpdate&label1=Select File:&RoleID=2&action=1&ocmflag=1&TB_iframe=true&height=237&width=460&modal=true&allowTransparency=true";
+            //url = "../OCM_Service.aspx?componentGroupId=" + 5 +"&CountryId=1&Block=isCurrencyUpdate&Label1=Select File:&RoleID=2&Flag=1&ocmflag=1";
+        }
+        url = EncodeUrlParameters(url);
+        $("a#clck").attr('href', encodeURI(url)).click();
+        if (ocm == "1") {
 
-
-                        if (user.Tables.Count > 0 && user.Tables[3].Rows.Count > 0)
-                        {
-                            if (!isMakeMeAs && user.Tables[3].Rows[0][0].ToString().Contains(this.strAssociateId))
-                            {
-                                ////this.Session["ProxyAccessCheck"] = "1";
-                                Response.Redirect("MakeMeAs.aspx?vs=" + versionkey, false);
-                            }
-                            else if (user.Tables[0].Rows.Count == 0)
-                            {
-                                ////this.Session["ProxyAccessCheck"] = "2";
-                                this.Session["MakeMeAsHitCheck"] = "1";
-                                Response.Redirect("HTML/AccessDenied.htm", false);
-                            }
-                            else
-                            {
-
-                                ////this.Session["ProxyAccessCheck"] = "0";
-                                if (HttpContext.Current.Session["MakeMeAsHitCheck"] == null)
-                                {
-                                    this.Session["MakeMeAsHitCheck"] = "0";
-
-                                }
-                                else
-                                {
-                                    this.Session["MakeMeAsHitCheck"] = "1";
-                                }
-
-
-                                HttpContext.Current.Session["UserRoles"] = string.Empty;
-                                for (int i = 0; i < user.Tables[0].Rows.Count; i++)
-                                {
-
-                                    col.Append(user.Tables[0].Rows[i]["RoleID"].ToString());
-                                    col.Append(",");
-
-                                }
-                                HttpContext.Current.Session["UserRoles"] = col;
-
-                                HttpContext.Current.Session["UserRoles"] =
-                                   HttpContext.Current.Session["UserRoles"].ToString().TrimEnd(',');
-
-                                ////HttpContext.Current.Session["UserName"] = user.Tables[4].Rows[0]["Name"].ToString();
-                                ////HttpContext.Current.Session["UserName"] = user.Tables[4].Rows[0]["Name"].ToString();
-                            }
-                            col.Clear();
-                            if (user.Tables[1].Rows.Count > 0)
-                            {
-                                List<string> pageUrlList = new List<string>();
-                                for (int i = 0; i < user.Tables[1].Rows.Count; i++)
-                                {
-                                    col.Append(user.Tables[1].Rows[i]["PageUrl"].ToString());
-                                    col.Append(",");
-                                }
-
-                                col.Append("FileUpload.aspx,APAC_FileUpload.aspx,Download.aspx,ExcelServices.aspx,APAC_ExcelServices.aspx");
-                                HttpContext.Current.Session["PageUrlListSegments"] = col;
-                            }
-                        }
-                        else
-                        {
-                            Response.Redirect("HTML/AccessDenied.htm", false);
-                        }
-                    }
-                }
-                catch (SystemException ex)
-                {
-                    ErrorLogger logger = new ErrorLogger();
-                    logger.LogError(ex);
-                }
-            }
+            $('#TB_title').css('display', 'none');
+            $('.TB_overlayBG').css('display', 'block');
+            $('#TB_closeAjaxWindow').css('display', 'none');
         }
 
-        /// <summary>
-        /// Gets Current user
-        /// </summary>
-        /// <returns>Current user id</returns>
-        private string GetCurrentUser()
-        {
-            string loginId = string.Empty;
-            try
-            {
-                if (ConfigurationManager.AppSettings["env"].ToString() == "1" &&
-                    !string.IsNullOrEmpty(Request.QueryString["MakeMeAs"].ToString()))
-                {
-                    var regexNum = new Regex(@"^[0-9]*$");
-                    if (regexNum.IsMatch(Request.QueryString["MakeMeAs"].ToString()))
-                    {
-                        loginId = HttpUtility.HtmlDecode(HttpUtility.HtmlEncode(Request.QueryString["MakeMeAs"].ToString()));
-                        this.Session["MakeMeAs"] = loginId;
-                    }
-                }
-                else
-                {
-                    ////UserContext objUser = UserContext.GetUserContext();
-                    ////loginId = objUser.CurrentUser.UserId;
-                    loginId = UserContext.GetLoggedInUserID();
-                }
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-            }
-
-            return loginId;
-        }
-
-        #endregion Page Init
     }
-
+    else {
+        errorpopup("Upload frozen");
+    }
 }

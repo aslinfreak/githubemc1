@@ -1,374 +1,251 @@
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="PopupUpload.aspx.cs" Inherits="SPayWebApp.PopupUpload" %>
-<%@ Import Namespace="System.Web.Optimization" %>
-<%--<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-
-    transitional.dtd">--%>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head id="Head1" runat="server">
-    <meta http-equiv="X-UA-Compatible" content="IE=8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=10" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta http-equiv="PRAGMA" content="No-Cache" />
-    <meta http-equiv="Cache-control"
-        content="no-cache, no-store, must-revalidate, pre-check=0, post-check=0, max-age=0, s-maxage=0" />
-    <title>Upload File</title>
-    <asp:PlaceHolder runat="server">
-        <%: Scripts.Render("~/bundles/ScriptBundlePopupUpload") %>
-        <%: Styles.Render("~/bundles/StyleBundlePopupUpload") %>
-    </asp:PlaceHolder>
+ #region Upload Button Click
 
-    <style type="text/css">
-        .black {
-            color: black;
-        }
+ /// <summary>
+ /// 290050: Uploading the file to SAN and add an entry in DB with isProcessed=0
+ /// </summary>
+ /// <param name="sender">object sender</param>
+ /// <param name="e">event arguments</param>
+ [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance", "CA1804:RemoveUnusedLocals",
+     MessageId = "workbookPart", Justification = "Reviewed"),
+ System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Maintainability",
+     "CA1506:AvoidExcessiveClassCoupling", Justification = "Reviewed"),
+ System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Performance",
+     "CA1804:RemoveUnusedLocals", MessageId = "fileType", Justification = "Reviewed")]
+ protected void BtnUpload_Click(object sender, EventArgs e)
+ {
+     this.processMessage.Style.Add("display", "block");
+     this.progressBackgroundFilter.Style.Add("display", "block");
+     if (Request.QueryString["componentGroupId"] != null)
+     {
+         this.ComponentGroupID = Request.QueryString["componentGroupId"].ToString();
+     }
 
-        #tagerr {
-            margin-top: 0px;
-            font-weight: bold;
-            font-size: 15px;
-            color: black !important;
-        }
+     if (Request.QueryString["countryId"] != null)
+     {
+         this.CountryId = Request.QueryString["countryId"].ToString();
+     }
+     if (Request.QueryString["componentId"] != null)
+     {
+         this.ComponentID = Request.QueryString["componentId"].ToString();
+     }
 
-        .closepopup {
-            position: absolute;
-            right: -1px;
-            top: 0px;
-        }
+     ErrorLogger loggerECM = new ErrorLogger();
+     loggerECM.LogErrorECM("Upload - PopupUpload - BtnUpload_Click", "Country " + this.CountryId + "Role " + this.RoleID + "ComponentGroupID "
+                + this.ComponentGroupID + "ComponentID " + this.ComponentID + "ProjectID " + this.projectID, this.userId, "ECM Upload Triggered");
 
+     try
+     {
+         if (this.filUploadIcon.HasFile)
+         {
+             this.FileUpLoadValidator.IsValid = true;
+             string fileType = this.filUploadIcon.PostedFile.ContentType;
+             int rowsCount, length, headerlength;
+             ////+ DateTime.Now.ToString("ddMMyyyy_HHmmss");
+             ////Cleansing Canonicalization and Comparison Errors
+             string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(this.filUploadIcon.FileName));
+             string strFileName = fileName.Replace("'", string.Empty).Replace(@"\", string.Empty);
+             string strFileType = System.IO.Path.GetExtension(strFileName).ToString().ToLower();
+             var rootPath = Server.MapPath("~/ExcelFile/");
+             var nameExt = string.Concat(strFileName, strFileType);
+             this.fullpath = EncodeHelper.HtmlEncode(Path.Combine(rootPath, nameExt));
+             //if (strFileType == ".xlsm")
+             //{
+             //    this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
+             //}
+             //else
+             //{
+             //    throw new SystemException("Uploaded file in .xlsm Format");
+             //}
 
-        /* Tiny Scrollbar */
-        #scrollbar4 {
-            width: 410px;
-            height: 90px;
-            margin: 20px 10px 10px;
-        }
+             int limitsize = this.fileConfig * 1024 * 1024;
+             if (strFileType != ".xlsm" )
+             {
+                 throw new SystemException("Uploaded file in .xlsm Format");
+             }
 
-            #scrollbar4 .viewport {
-                /*width: 360px;*/
-                height: 100px;
-                overflow: hidden;
-                position: relative;
-            }
+             if (this.filUploadIcon.PostedFile.ContentLength > limitsize)
+             {
+                 throw new SystemException("FileSize exceeded");
+             }
+             if (fileName.Split('.').Length - 1 >= 2)
+             {
+                 throw new SystemException("Upload file in single extension");
+             }
+             else
+             {
+                 this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(fullpath));
+             }
 
-            #scrollbar4 .overview {
-                list-style: none;
-                position: absolute;
-                left: 0;
-                top: 0;
-                padding: 0;
-                margin: 0;
-            }
+             string[] excelHeaders;
 
-            #scrollbar4 .scrollbar {
-                background: transparent url(Images/bg-scrollbar-track-y.png) no-repeat;
-                position: relative;
-                float: right;
-                width: 15px;
-            }
+             using (SpreadsheetDocument spreadSheetDocument = SpreadsheetDocument.Open(this.fullpath, false))
+             {
+                 WorkbookPart workbookPart = spreadSheetDocument.WorkbookPart;
+                 IEnumerable<Sheet> sheets =
+                     spreadSheetDocument.WorkbookPart.Workbook.GetFirstChild<Sheets>().Elements<Sheet>();
+                 string relationshipId = sheets.First().Id.Value;
+                 WorksheetPart worksheetPart =
+                     (WorksheetPart)spreadSheetDocument.WorkbookPart.GetPartById(relationshipId);
+                 Worksheet workSheet = worksheetPart.Worksheet;
+                 SheetData sheetData = workSheet.GetFirstChild<SheetData>();
+                 IEnumerable<Row> rows = sheetData.Descendants<Row>();
+                 ////rowsCount = rows.Count();
+                 headerlength = rows.ElementAt(0).Count();
+                 length = rows.Count();
+                 Row row =
+                     worksheetPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>().FirstOrDefault();
+                 var numberOfColumns = 0;
+                 if (row != null)
+                 {
+                     var spans = row.Spans != null ? row.Spans.InnerText : string.Empty;
+                     if (!string.IsNullOrEmpty(spans))
+                     {
+                         char[] delimiter = new char[1];
+                         delimiter[0] = ':';
+                         string[] columns = spans.Split(delimiter);
+                         numberOfColumns = int.Parse(columns[1]);
+                     }
+                 }
 
-            #scrollbar4 .track {
-                background: transparent url(Images/bg-scrollbar-trackend-y.png) no-repeat 0 100%;
-                height: 100%;
-                width: 13px;
-                position: relative;
-                padding: 0 1px;
-            }
+                 excelHeaders = new string[numberOfColumns];
+                 rowsCount = 0;
+                 int i = 0;
+                 foreach (Cell cell in rows.ElementAt(0))
+                 {
+                     if (cell.CellValue != null)
+                     {
+                         excelHeaders[i] = GetCellValue(spreadSheetDocument, cell);
+                         i++;
+                         rowsCount++;
+                     }
+                 }
+             }                    
 
-            #scrollbar4 .thumb {
-                background: transparent url(Images/bg-scrollbar-thumb-y.png) no-repeat 50% 100%;
-                height: 70px;
-                width: 25px;
-                cursor: pointer;
-                overflow: hidden;
-                position: absolute;
-                top: 0;
-                left: -5px;
-            }
+             if (length > 1)
+             {
+                 if (this.isAPAC == true)
+                 {
+                     DataTable dt = new DataTable();
+                     if (this.isGradeAmount != true)
+                     {
+                         int GradeAmount = 0;
+                         dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID, GradeAmount);
+                         this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                         if (dt.Rows.Count != 0)
+                         {
+                             this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                             this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                             this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
 
-                #scrollbar4 .thumb .end {
-                    background: transparent url(Images/bg-scrollbar-thumb-y.png) no-repeat 50%;
-                    overflow: hidden;
-                    height: 5px;
-                    width: 25px;
-                    position: absolute;
-                }
+                             this.processMessage.Style.Add("display", "none");
+                             this.progressBackgroundFilter.Style.Add("display", "none");
+                         }
 
-            #scrollbar4 .disable {
-                display: none;
-            }
+                     }
+                     else
+                     {
+                         int GradeAmount = 1;
+                         dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID,GradeAmount);
+                         this.ValidateGradeAmountexcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                         if (dt.Rows.Count != 0)
+                         {
+                             this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                             this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                             this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
 
-        #header {
-            position: absolute;
-            top: 0px;
-            left: 0px;
-            height: 22px;
-            width: 100%;
-            z-index: -1;
-        }
+                             this.processMessage.Style.Add("display", "none");
+                             this.progressBackgroundFilter.Style.Add("display", "none");
+                         }
+                     }
+                 }
+                 else if (this.isSchoolFees == true)
+                 {
+                     DataTable dt = new DataTable();
+                     dt = this.GetExcelAsDataTableForSchoolFees(this.fullpath, "Template");
+                     this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                     if (dt.Rows.Count != 0)
+                     {
+                         this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                         this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                         this.MoveSFDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType);
 
-        #img {
-            background: url(Images/popup_header.png);
-            position: absolute;
-            top: 0px;
-            left: 584px;
-        }
+                         this.processMessage.Style.Add("display", "none");
+                         this.progressBackgroundFilter.Style.Add("display", "none");
+                     }
+                 }
+                 else if (this.isReversal == true)
+                 {
+                     this.ValidateReversalExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                 }
 
-        #mesaageDiv {
-            position: absolute;
-            top: 70px;
-        }
+                 else if (this.isVerify == true)
+                 {
+                     this.ValidateVerifyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                 }
 
-        #btnUpload {
-            border: none;
-            top: 65px;
-            left: 260px;
-            cursor: pointer;
-        }
+                 else if (this.isVerifyBulk == true)
+                 {
+                     this.ValidateVerifyBulkExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                 }
 
-        #btnUploadcancel {
-            border: none;
-            top: 75px;
-            left: 480px;
-            cursor: pointer;
-        }
+                 else if (this.isMyPayUpload == true)
+                 {
+                     this.ValidateMyPayUploadExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                 }
+                 else if (this.isCurrencyUpdate == true)
+                 {
+                     this.ValidateCurrencyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                 }
+                 else
+                 {
+                     this.ValidateExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                 }
+             }
+             else
+             {
+                 throw new SystemException("Uploaded file is empty");
+             }
+         }
+     }
+     catch (SystemException ex)
+     {
+         ErrorLogger logger = new ErrorLogger();
+         logger.LogError(ex);
+         if (!(ex.Message.Equals("Uploaded file is empty") ||
+             ex.Message.Equals("Number of columns in uploaded file does not match") ||
+             ex.Message.Equals("Please fill the mandatory columns")))
+         {
+             SendMailer.SendErrorMaileronFailure("Upload data", ex);
+         }
 
-        #progressBackgroundFilter {
-            position: fixed;
-            top: 0px;
-            bottom: 0px;
-            left: 0px;
-            right: 0px;
-            overflow: hidden;
-            padding: 0;
-            margin: 0;
-            background-color: Gray;
-            filter: alpha(opacity=50);
-            opacity: 0.5;
-            z-index: 1000;
-            display: none;
-        }
+         this.processMessage.Style.Add("display", "none");
+         this.progressBackgroundFilter.Style.Add("display", "none");
+         string exception = string.Empty;
 
-        #processMessage {
-            position: fixed;
-            top: 30%;
-            left: 15%;
-            padding: 10px 0px 10px 0px;
-            width: 325px;
-            z-index: 1001;
-            background-color: #fff;
-            border: solid 1px #000;
-            color: #028fbc;
-            font-size: 1em;
-            font-weight: 600;
-            font-family: Segoe UI;
-            display: none;
-        }
+         if (this.ComponentGroupID == "4" &&
+             ex.Message.Equals("Number of columns in uploaded file does not match"))
+         {
+             exception = "File uploaded has extra inputs in columns after \"End Time\".";
+         }
+         else if (ex.Message.Equals("Number of columns in uploaded file does not match") &&
+             this.ComponentGroupID != "4")
+         {
+             exception = "Number of columns in uploaded file does not match";
+         }
 
-        .save_btn {
-            background: url(Images/Savegreen.png) no-repeat;
-            width: 66px;
-            height: 34px;
-        }
+         if (ex.Message.Equals("Please fill the mandatory columns"))
+         {
+             exception =
+                 "Columns/Headers in the uploaded file does not match with the standard template format.";
+         }
+         else
+         {
+             exception = ex.Message;
+         }
 
-        .mleft280 {
-            margin-left: 250px;
-        }
+         string script = "<script type='text/javascript'>Message('" + exception + "');" + "</script>";
+         Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+     }
+ }
 
-        .mtop20 {
-            margin-top: -40px !important;
-        }
-    </style>
-<asp:PlaceHolder runat="server">
-    <%: Scripts.Render("~/bundles/ScriptBundlePopupUploadSPS") %>
-</asp:PlaceHolder>
-</head>
-<body class="popup">
-    <div class="popupdiv">
-        <form id="Form1" runat="server" autocomplete="off">
-            <div class="popup_wrap">
-                <a class="close_btn_pop" onclick="closepop()"></a><%--href="javascript:self.parent.tb_remove();"--%>
-                <p class="pop_head">
-                    Special Pay Upload
-                </p>
-                <div id="divPopUp" runat="server" style="display: none;">
-                    <label style="font-size: 14px" class="pull-left">
-                        Select File :</label>
-                    <asp:FileUpload CssClass="txt-box" ID="filUploadIcon" type="file" runat="server"
-                        onchange="FileUpload_OnChange(this,event);"
-                        Style="margin-left: -10px; width: 250px; word-wrap: initial;" />
-                    <asp:Button ID="btnUpload" CssClass="upload_pop my-3 mt-5 btn btn-primary" runat="server" OnClick="BtnUpload_Click"
-                        OnClientClick="return check();" ToolTip="Upload" Text="Upload" />
-                    <input type="button" id="btnUploadcancel" class='delete_pop my-3 mt-5 btn btn-secondary'
-                        onclick="javascript: self.parent.tb_remove();" runat="server" value="Cancel" />
-
-                    <asp:RegularExpressionValidator Style="padding-left: 5px; color: Red" ID="FileUpLoadValidator"
-                        runat="server" ErrorMessage="Upload .xlsm files only." ValidationExpression="(.*\.(xlsm)$)"
-                        ControlToValidate="filUploadIcon">
-                    </asp:RegularExpressionValidator>
-                    <div id="scrollbar2">
-                        <div class="scrollbar disable">
-                            <div class="track">
-                                <div class="thumb">
-                                    <div class="end">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="viewport">
-                            <div class="overview">
-                                <span style="color: Red; display:inline-block;width:450px!important; margin-top:5px;" id="msg_display"  runat="server"
-                                    href="<%$ AppSettings:Sprint %>"></span>
-                                <span style="color: Red" id="msg_displaytrtCba" runat="server"
-                                    href="<%$ AppSettings:SprinttrtCba %>"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <span id="spnFormat" style="padding-left: 5px; position: absolute; top: 200px; left: 25px">* Recommended Format: .xlsm
-                    </span>
-                </div>
-
-                <div id="divmailpopup" runat="server" style="display: none; margin-top: 40px; margin-left: 30px;">
-                    <label style="font-size: 14px; color: #00547e">
-                        Select File :</label>
-                    <asp:FileUpload CssClass="txt-box" ID="mailUploadIcon" runat="server"
-                        onchange="MailUpload_OnChange(this,event);"
-                        Style="margin-left: -10px; width: 250px; word-wrap: initial;" />
-                    <br />
-                    <br />
-                    <label style="color: #00547e; font-size: 14px; font-family: Segoe UI; margin-left: 10px;">
-                        Remarks
-                        <label class="red" id="label" runat="server" style="margin-left: -2px;">*</label></label>
-                    <input id="trtmailremarks" type="text" class="txtbx_small" style="margin-left: 5px;" runat="server" />
-                    <asp:Button runat="server" OnClick="BtnUploadSave_Click" ID="btn_save"
-                        OnClientClick="return mailcheck();" CssClass="save_btn mleft280 mtop20"
-                        Style="vertical-align: middle; border-top-width: medium; border-right-width: medium; border-bottom-width: medium; border-left-width: medium; border-top-style: none; border-right-style: none; border-bottom-style: none; border-left-style: none; cursor: pointer; margin-left: 2px; position: relative; top: 18px; height: 22px; width: 55px;" />
-                    <br />
-                    <asp:RegularExpressionValidator Style="padding-left: 5px; position: relative; top: 10px; color: Red"
-                        ID="MailUpLoadValidator" runat="server" ErrorMessage="Upload .msg or .zip files only."
-                        ValidationExpression=".*\.(msg|zip)$" ControlToValidate="mailUploadIcon">
-                    </asp:RegularExpressionValidator>
-                    <div id="scrollbar3">
-                        <div class="scrollbar disable">
-                            <div class="track">
-                                <div class="thumb">
-                                    <div class="end">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="viewport">
-                            <div class="overview">
-                                <span style="top: -5px; color: red; margin-left: 10px; position: relative;"
-                                    id="mailmsg_display"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <span id="spnmailFormat" style="padding-left: 5px; position: absolute; top: 190px; left: 25px">* Recommended Format: .msg and .zip
-                    </span>
-
-                    <asp:HiddenField ID="hdnlbl" runat="server" />
-                </div>
-                <div id="divSession" style="width: 300px; height: 100px; display: none; padding-top: 0px; margin: 32px 0px 0px 50px; color: Red"
-                    runat="server">
-                    <img class='spriteImage' style="--x: -2539px; --y: -1305px; width: 45px; height: 45px" />
-                    <p>
-                        Sorry! Session Time Out! Please login again
-                    </p>
-                </div>
-
-                <div id="divPopUp2" style="display: none">
-                    <a class="closepopup" href="javascript:self.parent.tb_remove();">
-                        <img class='spriteImage' style="--x: -2201px; --y: -1414px; width: 13px; height: 13px" /></a>
-                    <div class="top">
-                    </div>
-                    <div class="middle clearfix" style="height: 180px;">
-                        <div class="clear">
-                        </div>
-                        <div class="divBorder" style="background-image: url(Images/popup_middle_small.png); height: 175px;">
-                            <img class='spriteImage' style="--x: -2665px; --y: -404px; width: 45px; height: 45px" />
-
-                            <div id="scrollbar4">
-
-                                <div class="scrollbar disable">
-                                    <div class="track">
-                                        <div class="thumb">
-                                            <div class="end">
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="viewport">
-                                    <div class="overview">
-                                        <span id="tagerr"></span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="clear">
-                            </div>
-                            <div class="popup_btns">
-                                <input type="button" class="ok_btn "
-                                    style="margin-left: 25px! important; margin-top: 20px;" onclick="closepop()" />
-                            </div>
-                        </div>
-
-                    </div>
-
-                    <div class="bottom">
-                    </div>
-                </div>
-                <div id="divPopUp3" runat="server" style="display: none;">
-                    <label style="font-size: 14px;" class="pull-left">
-                        Select File :</label>
-                    <asp:FileUpload CssClass="txt-box" ID="FileUpload1" type="file" runat="server"
-                        onchange="FileUpload_OnChange(this,event);" />
-                    <asp:Button ID="Button1" CssClass="upload_pop btn btn-primary my-3 mt-5" runat="server" OnClick="BtnUpload_NSA_Click"
-                        OnClientClick="return nsacheck();" ToolTip="Upload" Text="Upload" Style="margin-right: 5px;" />
-                    <input type="button" id="Button2" class='delete_pop btn btn-secondary my-3 mt-5'
-                        onclick="javascript: self.parent.tb_remove();" runat="server" value="Delete" />
-
-                    <asp:RegularExpressionValidator Style="padding-left: 5px; color: Red"
-                        ID="RegularExpressionValidator1"
-                        runat="server" ErrorMessage="Upload .xlsx files only." ValidationExpression="(.*\.(xlsx)$)"
-                        ControlToValidate="FileUpload1">
-                    </asp:RegularExpressionValidator>
-                    <div id="scrollbar5">
-                        <div class="scrollbar disable">
-                            <div class="track">
-                                <div class="thumb">
-                                    <div class="end">
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="viewport">
-                            <div class="overview">
-                                <span style="color: Red" id="msg_display_nsa" runat="server"
-                                    href="<%$ AppSettings:Sprint %>"></span>
-                            </div>
-                        </div>
-                    </div>
-                    <span id="spnFormat" style="padding-left: 5px; position: absolute; top: 210px; left: 25px">* Recommended Format: .xlsx
-                    </span>
-                </div>
-            </div>
-
-
-            <a id="clk" class="thickbox"></a>
-            <div class="background_bg" style="z-index: 500 !important">
-            </div>
-        </form>
-    </div>
-
-
-    <div id="progressBackgroundFilter" runat="server">
-    </div>
-    <div id="processMessage" runat="server">
-        <center>
-            <%-- <img src="../Images/progressbar.gif" />--%>
-            <img src="Images/progressbar.gif" />
-
-        </center>
-    </div>
-</body>
-</html>
+ #endregion Upload Button Click      

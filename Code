@@ -1,38 +1,374 @@
-Explain this both code how it connected
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="PopupUpload.aspx.cs" Inherits="SPayWebApp.PopupUpload" %>
+<%@ Import Namespace="System.Web.Optimization" %>
+<%--<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-
+    transitional.dtd">--%>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head id="Head1" runat="server">
+    <meta http-equiv="X-UA-Compatible" content="IE=8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=10" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta http-equiv="PRAGMA" content="No-Cache" />
+    <meta http-equiv="Cache-control"
+        content="no-cache, no-store, must-revalidate, pre-check=0, post-check=0, max-age=0, s-maxage=0" />
+    <title>Upload File</title>
+    <asp:PlaceHolder runat="server">
+        <%: Scripts.Render("~/bundles/ScriptBundlePopupUpload") %>
+        <%: Styles.Render("~/bundles/StyleBundlePopupUpload") %>
+    </asp:PlaceHolder>
 
-This is my CurrencyUpdate.html
-
-<li class="  p-3">
-    <a onclick="OnUploadButtonClick()" id="uploadData" class="download flft uploadIcon" style="cursor: pointer;">
-        <span style="" class="">Upload Data</span>
-    </a>
-    <a id="clck" class="thickbox"></a>
-</li>
-
-This is my CurrencyUpdate.js
-
-function OnUploadButtonClick() {
-    var url = "";
-
-    if (isCutOffDateOver == 0) {
-        if (ocm == "0") {
-            url = "../PopupUpload.aspx?componentGroupId=" + 5 + "&CountryId=1&isCurrencyUpdate=1&TB_iframe=true&height=220&width=442&modal=true&allowTransparency=true";
-        }
-        else {
-            url = clienturl + "componentGroupId=" + 5 + "&CountryID=1&page=isCurrencyUpdate&label1=Select File:&RoleID=2&action=1&ocmflag=1&TB_iframe=true&height=237&width=460&modal=true&allowTransparency=true";
-            //url = "../OCM_Service.aspx?componentGroupId=" + 5 +"&CountryId=1&Block=isCurrencyUpdate&Label1=Select File:&RoleID=2&Flag=1&ocmflag=1";
-        }
-        url = EncodeUrlParameters(url);
-        $("a#clck").attr('href', encodeURI(url)).click();
-        if (ocm == "1") {
-
-            $('#TB_title').css('display', 'none');
-            $('.TB_overlayBG').css('display', 'block');
-            $('#TB_closeAjaxWindow').css('display', 'none');
+    <style type="text/css">
+        .black {
+            color: black;
         }
 
-    }
-    else {
-        errorpopup("Upload frozen");
-    }
-}
+        #tagerr {
+            margin-top: 0px;
+            font-weight: bold;
+            font-size: 15px;
+            color: black !important;
+        }
+
+        .closepopup {
+            position: absolute;
+            right: -1px;
+            top: 0px;
+        }
+
+
+        /* Tiny Scrollbar */
+        #scrollbar4 {
+            width: 410px;
+            height: 90px;
+            margin: 20px 10px 10px;
+        }
+
+            #scrollbar4 .viewport {
+                /*width: 360px;*/
+                height: 100px;
+                overflow: hidden;
+                position: relative;
+            }
+
+            #scrollbar4 .overview {
+                list-style: none;
+                position: absolute;
+                left: 0;
+                top: 0;
+                padding: 0;
+                margin: 0;
+            }
+
+            #scrollbar4 .scrollbar {
+                background: transparent url(Images/bg-scrollbar-track-y.png) no-repeat;
+                position: relative;
+                float: right;
+                width: 15px;
+            }
+
+            #scrollbar4 .track {
+                background: transparent url(Images/bg-scrollbar-trackend-y.png) no-repeat 0 100%;
+                height: 100%;
+                width: 13px;
+                position: relative;
+                padding: 0 1px;
+            }
+
+            #scrollbar4 .thumb {
+                background: transparent url(Images/bg-scrollbar-thumb-y.png) no-repeat 50% 100%;
+                height: 70px;
+                width: 25px;
+                cursor: pointer;
+                overflow: hidden;
+                position: absolute;
+                top: 0;
+                left: -5px;
+            }
+
+                #scrollbar4 .thumb .end {
+                    background: transparent url(Images/bg-scrollbar-thumb-y.png) no-repeat 50%;
+                    overflow: hidden;
+                    height: 5px;
+                    width: 25px;
+                    position: absolute;
+                }
+
+            #scrollbar4 .disable {
+                display: none;
+            }
+
+        #header {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            height: 22px;
+            width: 100%;
+            z-index: -1;
+        }
+
+        #img {
+            background: url(Images/popup_header.png);
+            position: absolute;
+            top: 0px;
+            left: 584px;
+        }
+
+        #mesaageDiv {
+            position: absolute;
+            top: 70px;
+        }
+
+        #btnUpload {
+            border: none;
+            top: 65px;
+            left: 260px;
+            cursor: pointer;
+        }
+
+        #btnUploadcancel {
+            border: none;
+            top: 75px;
+            left: 480px;
+            cursor: pointer;
+        }
+
+        #progressBackgroundFilter {
+            position: fixed;
+            top: 0px;
+            bottom: 0px;
+            left: 0px;
+            right: 0px;
+            overflow: hidden;
+            padding: 0;
+            margin: 0;
+            background-color: Gray;
+            filter: alpha(opacity=50);
+            opacity: 0.5;
+            z-index: 1000;
+            display: none;
+        }
+
+        #processMessage {
+            position: fixed;
+            top: 30%;
+            left: 15%;
+            padding: 10px 0px 10px 0px;
+            width: 325px;
+            z-index: 1001;
+            background-color: #fff;
+            border: solid 1px #000;
+            color: #028fbc;
+            font-size: 1em;
+            font-weight: 600;
+            font-family: Segoe UI;
+            display: none;
+        }
+
+        .save_btn {
+            background: url(Images/Savegreen.png) no-repeat;
+            width: 66px;
+            height: 34px;
+        }
+
+        .mleft280 {
+            margin-left: 250px;
+        }
+
+        .mtop20 {
+            margin-top: -40px !important;
+        }
+    </style>
+<asp:PlaceHolder runat="server">
+    <%: Scripts.Render("~/bundles/ScriptBundlePopupUploadSPS") %>
+</asp:PlaceHolder>
+</head>
+<body class="popup">
+    <div class="popupdiv">
+        <form id="Form1" runat="server" autocomplete="off">
+            <div class="popup_wrap">
+                <a class="close_btn_pop" onclick="closepop()"></a><%--href="javascript:self.parent.tb_remove();"--%>
+                <p class="pop_head">
+                    Special Pay Upload
+                </p>
+                <div id="divPopUp" runat="server" style="display: none;">
+                    <label style="font-size: 14px" class="pull-left">
+                        Select File :</label>
+                    <asp:FileUpload CssClass="txt-box" ID="filUploadIcon" type="file" runat="server"
+                        onchange="FileUpload_OnChange(this,event);"
+                        Style="margin-left: -10px; width: 250px; word-wrap: initial;" />
+                    <asp:Button ID="btnUpload" CssClass="upload_pop my-3 mt-5 btn btn-primary" runat="server" OnClick="BtnUpload_Click"
+                        OnClientClick="return check();" ToolTip="Upload" Text="Upload" />
+                    <input type="button" id="btnUploadcancel" class='delete_pop my-3 mt-5 btn btn-secondary'
+                        onclick="javascript: self.parent.tb_remove();" runat="server" value="Cancel" />
+
+                    <asp:RegularExpressionValidator Style="padding-left: 5px; color: Red" ID="FileUpLoadValidator"
+                        runat="server" ErrorMessage="Upload .xlsm files only." ValidationExpression="(.*\.(xlsm)$)"
+                        ControlToValidate="filUploadIcon">
+                    </asp:RegularExpressionValidator>
+                    <div id="scrollbar2">
+                        <div class="scrollbar disable">
+                            <div class="track">
+                                <div class="thumb">
+                                    <div class="end">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="viewport">
+                            <div class="overview">
+                                <span style="color: Red; display:inline-block;width:450px!important; margin-top:5px;" id="msg_display"  runat="server"
+                                    href="<%$ AppSettings:Sprint %>"></span>
+                                <span style="color: Red" id="msg_displaytrtCba" runat="server"
+                                    href="<%$ AppSettings:SprinttrtCba %>"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <span id="spnFormat" style="padding-left: 5px; position: absolute; top: 200px; left: 25px">* Recommended Format: .xlsm
+                    </span>
+                </div>
+
+                <div id="divmailpopup" runat="server" style="display: none; margin-top: 40px; margin-left: 30px;">
+                    <label style="font-size: 14px; color: #00547e">
+                        Select File :</label>
+                    <asp:FileUpload CssClass="txt-box" ID="mailUploadIcon" runat="server"
+                        onchange="MailUpload_OnChange(this,event);"
+                        Style="margin-left: -10px; width: 250px; word-wrap: initial;" />
+                    <br />
+                    <br />
+                    <label style="color: #00547e; font-size: 14px; font-family: Segoe UI; margin-left: 10px;">
+                        Remarks
+                        <label class="red" id="label" runat="server" style="margin-left: -2px;">*</label></label>
+                    <input id="trtmailremarks" type="text" class="txtbx_small" style="margin-left: 5px;" runat="server" />
+                    <asp:Button runat="server" OnClick="BtnUploadSave_Click" ID="btn_save"
+                        OnClientClick="return mailcheck();" CssClass="save_btn mleft280 mtop20"
+                        Style="vertical-align: middle; border-top-width: medium; border-right-width: medium; border-bottom-width: medium; border-left-width: medium; border-top-style: none; border-right-style: none; border-bottom-style: none; border-left-style: none; cursor: pointer; margin-left: 2px; position: relative; top: 18px; height: 22px; width: 55px;" />
+                    <br />
+                    <asp:RegularExpressionValidator Style="padding-left: 5px; position: relative; top: 10px; color: Red"
+                        ID="MailUpLoadValidator" runat="server" ErrorMessage="Upload .msg or .zip files only."
+                        ValidationExpression=".*\.(msg|zip)$" ControlToValidate="mailUploadIcon">
+                    </asp:RegularExpressionValidator>
+                    <div id="scrollbar3">
+                        <div class="scrollbar disable">
+                            <div class="track">
+                                <div class="thumb">
+                                    <div class="end">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="viewport">
+                            <div class="overview">
+                                <span style="top: -5px; color: red; margin-left: 10px; position: relative;"
+                                    id="mailmsg_display"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <span id="spnmailFormat" style="padding-left: 5px; position: absolute; top: 190px; left: 25px">* Recommended Format: .msg and .zip
+                    </span>
+
+                    <asp:HiddenField ID="hdnlbl" runat="server" />
+                </div>
+                <div id="divSession" style="width: 300px; height: 100px; display: none; padding-top: 0px; margin: 32px 0px 0px 50px; color: Red"
+                    runat="server">
+                    <img class='spriteImage' style="--x: -2539px; --y: -1305px; width: 45px; height: 45px" />
+                    <p>
+                        Sorry! Session Time Out! Please login again
+                    </p>
+                </div>
+
+                <div id="divPopUp2" style="display: none">
+                    <a class="closepopup" href="javascript:self.parent.tb_remove();">
+                        <img class='spriteImage' style="--x: -2201px; --y: -1414px; width: 13px; height: 13px" /></a>
+                    <div class="top">
+                    </div>
+                    <div class="middle clearfix" style="height: 180px;">
+                        <div class="clear">
+                        </div>
+                        <div class="divBorder" style="background-image: url(Images/popup_middle_small.png); height: 175px;">
+                            <img class='spriteImage' style="--x: -2665px; --y: -404px; width: 45px; height: 45px" />
+
+                            <div id="scrollbar4">
+
+                                <div class="scrollbar disable">
+                                    <div class="track">
+                                        <div class="thumb">
+                                            <div class="end">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="viewport">
+                                    <div class="overview">
+                                        <span id="tagerr"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="clear">
+                            </div>
+                            <div class="popup_btns">
+                                <input type="button" class="ok_btn "
+                                    style="margin-left: 25px! important; margin-top: 20px;" onclick="closepop()" />
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <div class="bottom">
+                    </div>
+                </div>
+                <div id="divPopUp3" runat="server" style="display: none;">
+                    <label style="font-size: 14px;" class="pull-left">
+                        Select File :</label>
+                    <asp:FileUpload CssClass="txt-box" ID="FileUpload1" type="file" runat="server"
+                        onchange="FileUpload_OnChange(this,event);" />
+                    <asp:Button ID="Button1" CssClass="upload_pop btn btn-primary my-3 mt-5" runat="server" OnClick="BtnUpload_NSA_Click"
+                        OnClientClick="return nsacheck();" ToolTip="Upload" Text="Upload" Style="margin-right: 5px;" />
+                    <input type="button" id="Button2" class='delete_pop btn btn-secondary my-3 mt-5'
+                        onclick="javascript: self.parent.tb_remove();" runat="server" value="Delete" />
+
+                    <asp:RegularExpressionValidator Style="padding-left: 5px; color: Red"
+                        ID="RegularExpressionValidator1"
+                        runat="server" ErrorMessage="Upload .xlsx files only." ValidationExpression="(.*\.(xlsx)$)"
+                        ControlToValidate="FileUpload1">
+                    </asp:RegularExpressionValidator>
+                    <div id="scrollbar5">
+                        <div class="scrollbar disable">
+                            <div class="track">
+                                <div class="thumb">
+                                    <div class="end">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="viewport">
+                            <div class="overview">
+                                <span style="color: Red" id="msg_display_nsa" runat="server"
+                                    href="<%$ AppSettings:Sprint %>"></span>
+                            </div>
+                        </div>
+                    </div>
+                    <span id="spnFormat" style="padding-left: 5px; position: absolute; top: 210px; left: 25px">* Recommended Format: .xlsx
+                    </span>
+                </div>
+            </div>
+
+
+            <a id="clk" class="thickbox"></a>
+            <div class="background_bg" style="z-index: 500 !important">
+            </div>
+        </form>
+    </div>
+
+
+    <div id="progressBackgroundFilter" runat="server">
+    </div>
+    <div id="processMessage" runat="server">
+        <center>
+            <%-- <img src="../Images/progressbar.gif" />--%>
+            <img src="Images/progressbar.gif" />
+
+        </center>
+    </div>
+</body>
+</html>

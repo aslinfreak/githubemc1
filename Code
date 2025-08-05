@@ -1,236 +1,236 @@
-  protected void BtnUpload_Click(object sender, EventArgs e)
-  {
-      this.processMessage.Style.Add("display", "block");
-      this.progressBackgroundFilter.Style.Add("display", "block");
-      if (Request.QueryString["componentGroupId"] != null)
-      {
-          this.ComponentGroupID = Request.QueryString["componentGroupId"].ToString();
-      }
+protected void BtnUpload_Click(object sender, EventArgs e)
+{
+    this.processMessage.Style.Add("display", "block");
+    this.progressBackgroundFilter.Style.Add("display", "block");
+    if (Request.QueryString["componentGroupId"] != null)
+    {
+        this.ComponentGroupID = Request.QueryString["componentGroupId"].ToString();
+    }
 
-      if (Request.QueryString["countryId"] != null)
-      {
-          this.CountryId = Request.QueryString["countryId"].ToString();
-      }
-      if (Request.QueryString["componentId"] != null)
-      {
-          this.ComponentID = Request.QueryString["componentId"].ToString();
-      }
+    if (Request.QueryString["countryId"] != null)
+    {
+        this.CountryId = Request.QueryString["countryId"].ToString();
+    }
+    if (Request.QueryString["componentId"] != null)
+    {
+        this.ComponentID = Request.QueryString["componentId"].ToString();
+    }
 
-      ErrorLogger loggerECM = new ErrorLogger();
-      loggerECM.LogErrorECM("Upload - PopupUpload - BtnUpload_Click", "Country " + this.CountryId + "Role " + this.RoleID + "ComponentGroupID "
-                 + this.ComponentGroupID + "ComponentID " + this.ComponentID + "ProjectID " + this.projectID, this.userId, "ECM Upload Triggered");
+    ErrorLogger loggerECM = new ErrorLogger();
+    loggerECM.LogErrorECM("Upload - PopupUpload - BtnUpload_Click", "Country " + this.CountryId + "Role " + this.RoleID + "ComponentGroupID "
+               + this.ComponentGroupID + "ComponentID " + this.ComponentID + "ProjectID " + this.projectID, this.userId, "ECM Upload Triggered");
 
-      try
-      {
-          if (this.filUploadIcon.HasFile)
-          {
-              this.FileUpLoadValidator.IsValid = true;
-              string fileType = this.filUploadIcon.PostedFile.ContentType;
-              int rowsCount, length, headerlength;
-              ////+ DateTime.Now.ToString("ddMMyyyy_HHmmss");
-              ////Cleansing Canonicalization and Comparison Errors
-              string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(this.filUploadIcon.FileName));
-              string strFileName = fileName.Replace("'", string.Empty).Replace(@"\", string.Empty);
-              string strFileType = System.IO.Path.GetExtension(strFileName).ToString().ToLower();
-              var rootPath = Server.MapPath("~/ExcelFile/");
-              var nameExt = string.Concat(strFileName, strFileType);
-              this.fullpath = EncodeHelper.HtmlEncode(Path.Combine(rootPath, nameExt));
-              //if (strFileType == ".xlsm")
-              //{
-              //    this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
-              //}
-              //else
-              //{
-              //    throw new SystemException("Uploaded file in .xlsm Format");
-              //}
+    try
+    {
+        if (this.filUploadIcon.HasFile)
+        {
+            this.FileUpLoadValidator.IsValid = true;
+            string fileType = this.filUploadIcon.PostedFile.ContentType;
+            int rowsCount, length, headerlength;
+            ////+ DateTime.Now.ToString("ddMMyyyy_HHmmss");
+            ////Cleansing Canonicalization and Comparison Errors
+            string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(this.filUploadIcon.FileName));
+            string strFileName = fileName.Replace("'", string.Empty).Replace(@"\", string.Empty);
+            string strFileType = System.IO.Path.GetExtension(strFileName).ToString().ToLower();
+            var rootPath = Server.MapPath("~/ExcelFile/");
+            var nameExt = string.Concat(strFileName, strFileType);
+            this.fullpath = EncodeHelper.HtmlEncode(Path.Combine(rootPath, nameExt));
+            //if (strFileType == ".xlsm")
+            //{
+            //    this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
+            //}
+            //else
+            //{
+            //    throw new SystemException("Uploaded file in .xlsm Format");
+            //}
 
-              int limitsize = this.fileConfig * 1024 * 1024;
-              if (strFileType != ".xlsm" )
-              {
-                  throw new SystemException("Uploaded file in .xlsm Format");
-              }
+            int limitsize = this.fileConfig * 1024 * 1024;
+            if (strFileType != ".xlsm" )
+            {
+                throw new SystemException("Uploaded file in .xlsm Format");
+            }
 
-              if (this.filUploadIcon.PostedFile.ContentLength > limitsize)
-              {
-                  throw new SystemException("FileSize exceeded");
-              }
-              if (fileName.Split('.').Length - 1 >= 2)
-              {
-                  throw new SystemException("Upload file in single extension");
-              }
-              else
-              {
-                  this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(fullpath));
-              }
+            if (this.filUploadIcon.PostedFile.ContentLength > limitsize)
+            {
+                throw new SystemException("FileSize exceeded");
+            }
+            if (fileName.Split('.').Length - 1 >= 2)
+            {
+                throw new SystemException("Upload file in single extension");
+            }
+            else
+            {
+                this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(fullpath));
+            }
 
-              string[] excelHeaders;
+            string[] excelHeaders;
 
-              using (SpreadsheetDocument spreadSheetDocument = SpreadsheetDocument.Open(this.fullpath, false))
-              {
-                  WorkbookPart workbookPart = spreadSheetDocument.WorkbookPart;
-                  IEnumerable<Sheet> sheets =
-                      spreadSheetDocument.WorkbookPart.Workbook.GetFirstChild<Sheets>().Elements<Sheet>();
-                  string relationshipId = sheets.First().Id.Value;
-                  WorksheetPart worksheetPart =
-                      (WorksheetPart)spreadSheetDocument.WorkbookPart.GetPartById(relationshipId);
-                  Worksheet workSheet = worksheetPart.Worksheet;
-                  SheetData sheetData = workSheet.GetFirstChild<SheetData>();
-                  IEnumerable<Row> rows = sheetData.Descendants<Row>();
-                  ////rowsCount = rows.Count();
-                  headerlength = rows.ElementAt(0).Count();
-                  length = rows.Count();
-                  Row row =
-                      worksheetPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>().FirstOrDefault();
-                  var numberOfColumns = 0;
-                  if (row != null)
-                  {
-                      var spans = row.Spans != null ? row.Spans.InnerText : string.Empty;
-                      if (!string.IsNullOrEmpty(spans))
-                      {
-                          char[] delimiter = new char[1];
-                          delimiter[0] = ':';
-                          string[] columns = spans.Split(delimiter);
-                          numberOfColumns = int.Parse(columns[1]);
-                      }
-                  }
+            using (SpreadsheetDocument spreadSheetDocument = SpreadsheetDocument.Open(this.fullpath, false))
+            {
+                WorkbookPart workbookPart = spreadSheetDocument.WorkbookPart;
+                IEnumerable<Sheet> sheets =
+                    spreadSheetDocument.WorkbookPart.Workbook.GetFirstChild<Sheets>().Elements<Sheet>();
+                string relationshipId = sheets.First().Id.Value;
+                WorksheetPart worksheetPart =
+                    (WorksheetPart)spreadSheetDocument.WorkbookPart.GetPartById(relationshipId);
+                Worksheet workSheet = worksheetPart.Worksheet;
+                SheetData sheetData = workSheet.GetFirstChild<SheetData>();
+                IEnumerable<Row> rows = sheetData.Descendants<Row>();
+                ////rowsCount = rows.Count();
+                headerlength = rows.ElementAt(0).Count();
+                length = rows.Count();
+                Row row =
+                    worksheetPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>().FirstOrDefault();
+                var numberOfColumns = 0;
+                if (row != null)
+                {
+                    var spans = row.Spans != null ? row.Spans.InnerText : string.Empty;
+                    if (!string.IsNullOrEmpty(spans))
+                    {
+                        char[] delimiter = new char[1];
+                        delimiter[0] = ':';
+                        string[] columns = spans.Split(delimiter);
+                        numberOfColumns = int.Parse(columns[1]);
+                    }
+                }
 
-                  excelHeaders = new string[numberOfColumns];
-                  rowsCount = 0;
-                  int i = 0;
-                  foreach (Cell cell in rows.ElementAt(0))
-                  {
-                      if (cell.CellValue != null)
-                      {
-                          excelHeaders[i] = GetCellValue(spreadSheetDocument, cell);
-                          i++;
-                          rowsCount++;
-                      }
-                  }
-              }                    
+                excelHeaders = new string[numberOfColumns];
+                rowsCount = 0;
+                int i = 0;
+                foreach (Cell cell in rows.ElementAt(0))
+                {
+                    if (cell.CellValue != null)
+                    {
+                        excelHeaders[i] = GetCellValue(spreadSheetDocument, cell);
+                        i++;
+                        rowsCount++;
+                    }
+                }
+            }                    
 
-              if (length > 1)
-              {
-                  if (this.isAPAC == true)
-                  {
-                      DataTable dt = new DataTable();
-                      if (this.isGradeAmount != true)
-                      {
-                          int GradeAmount = 0;
-                          dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID, GradeAmount);
-                          this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                          if (dt.Rows.Count != 0)
-                          {
-                              this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                              this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                              this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
+            if (length > 1)
+            {
+                if (this.isAPAC == true)
+                {
+                    DataTable dt = new DataTable();
+                    if (this.isGradeAmount != true)
+                    {
+                        int GradeAmount = 0;
+                        dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID, GradeAmount);
+                        this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                        if (dt.Rows.Count != 0)
+                        {
+                            this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                            this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                            this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
 
-                              this.processMessage.Style.Add("display", "none");
-                              this.progressBackgroundFilter.Style.Add("display", "none");
-                          }
+                            this.processMessage.Style.Add("display", "none");
+                            this.progressBackgroundFilter.Style.Add("display", "none");
+                        }
 
-                      }
-                      else
-                      {
-                          int GradeAmount = 1;
-                          dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID,GradeAmount);
-                          this.ValidateGradeAmountexcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                          if (dt.Rows.Count != 0)
-                          {
-                              this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                              this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                              this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
+                    }
+                    else
+                    {
+                        int GradeAmount = 1;
+                        dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID,GradeAmount);
+                        this.ValidateGradeAmountexcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                        if (dt.Rows.Count != 0)
+                        {
+                            this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                            this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                            this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
 
-                              this.processMessage.Style.Add("display", "none");
-                              this.progressBackgroundFilter.Style.Add("display", "none");
-                          }
-                      }
-                  }
-                  else if (this.isSchoolFees == true)
-                  {
-                      DataTable dt = new DataTable();
-                      dt = this.GetExcelAsDataTableForSchoolFees(this.fullpath, "Template");
-                      this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                      if (dt.Rows.Count != 0)
-                      {
-                          this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                          this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                          this.MoveSFDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType);
+                            this.processMessage.Style.Add("display", "none");
+                            this.progressBackgroundFilter.Style.Add("display", "none");
+                        }
+                    }
+                }
+                else if (this.isSchoolFees == true)
+                {
+                    DataTable dt = new DataTable();
+                    dt = this.GetExcelAsDataTableForSchoolFees(this.fullpath, "Template");
+                    this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                    if (dt.Rows.Count != 0)
+                    {
+                        this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                        this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                        this.MoveSFDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType);
 
-                          this.processMessage.Style.Add("display", "none");
-                          this.progressBackgroundFilter.Style.Add("display", "none");
-                      }
-                  }
-                  else if (this.isReversal == true)
-                  {
-                      this.ValidateReversalExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                  }
+                        this.processMessage.Style.Add("display", "none");
+                        this.progressBackgroundFilter.Style.Add("display", "none");
+                    }
+                }
+                else if (this.isReversal == true)
+                {
+                    this.ValidateReversalExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                }
 
-                  else if (this.isVerify == true)
-                  {
-                      this.ValidateVerifyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                  }
+                else if (this.isVerify == true)
+                {
+                    this.ValidateVerifyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                }
 
-                  else if (this.isVerifyBulk == true)
-                  {
-                      this.ValidateVerifyBulkExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                  }
+                else if (this.isVerifyBulk == true)
+                {
+                    this.ValidateVerifyBulkExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                }
 
-                  else if (this.isMyPayUpload == true)
-                  {
-                      this.ValidateMyPayUploadExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                  }
-                  else if (this.isCurrencyUpdate == true)
-                  {
-                      this.ValidateCurrencyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                  }
-                  else
-                  {
-                      this.ValidateExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                  }
-              }
-              else
-              {
-                  throw new SystemException("Uploaded file is empty");
-              }
-          }
-      }
-      catch (SystemException ex)
-      {
-          ErrorLogger logger = new ErrorLogger();
-          logger.LogError(ex);
-          if (!(ex.Message.Equals("Uploaded file is empty") ||
-              ex.Message.Equals("Number of columns in uploaded file does not match") ||
-              ex.Message.Equals("Please fill the mandatory columns")))
-          {
-              SendMailer.SendErrorMaileronFailure("Upload data", ex);
-          }
+                else if (this.isMyPayUpload == true)
+                {
+                    this.ValidateMyPayUploadExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                }
+                else if (this.isCurrencyUpdate == true)
+                {
+                    this.ValidateCurrencyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                }
+                else
+                {
+                    this.ValidateExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                }
+            }
+            else
+            {
+                throw new SystemException("Uploaded file is empty");
+            }
+        }
+    }
+    catch (SystemException ex)
+    {
+        ErrorLogger logger = new ErrorLogger();
+        logger.LogError(ex);
+        if (!(ex.Message.Equals("Uploaded file is empty") ||
+            ex.Message.Equals("Number of columns in uploaded file does not match") ||
+            ex.Message.Equals("Please fill the mandatory columns")))
+        {
+            SendMailer.SendErrorMaileronFailure("Upload data", ex);
+        }
 
-          this.processMessage.Style.Add("display", "none");
-          this.progressBackgroundFilter.Style.Add("display", "none");
-          string exception = string.Empty;
+        this.processMessage.Style.Add("display", "none");
+        this.progressBackgroundFilter.Style.Add("display", "none");
+        string exception = string.Empty;
 
-          if (this.ComponentGroupID == "4" &&
-              ex.Message.Equals("Number of columns in uploaded file does not match"))
-          {
-              exception = "File uploaded has extra inputs in columns after \"End Time\".";
-          }
-          else if (ex.Message.Equals("Number of columns in uploaded file does not match") &&
-              this.ComponentGroupID != "4")
-          {
-              exception = "Number of columns in uploaded file does not match";
-          }
+        if (this.ComponentGroupID == "4" &&
+            ex.Message.Equals("Number of columns in uploaded file does not match"))
+        {
+            exception = "File uploaded has extra inputs in columns after \"End Time\".";
+        }
+        else if (ex.Message.Equals("Number of columns in uploaded file does not match") &&
+            this.ComponentGroupID != "4")
+        {
+            exception = "Number of columns in uploaded file does not match";
+        }
 
-          if (ex.Message.Equals("Please fill the mandatory columns"))
-          {
-              exception =
-                  "Columns/Headers in the uploaded file does not match with the standard template format.";
-          }
-          else
-          {
-              exception = ex.Message;
-          }
+        if (ex.Message.Equals("Please fill the mandatory columns"))
+        {
+            exception =
+                "Columns/Headers in the uploaded file does not match with the standard template format.";
+        }
+        else
+        {
+            exception = ex.Message;
+        }
 
-          string script = "<script type='text/javascript'>Message('" + exception + "');" + "</script>";
-          Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-      }
-  }
+        string script = "<script type='text/javascript'>Message('" + exception + "');" + "</script>";
+        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
+    }
+}

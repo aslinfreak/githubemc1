@@ -1,10 +1,11 @@
-// <summary>
-		/// The Encrypt
-		/// </summary>
-		/// <param name="encryptString">encrypt String</param>
-		/// <param name="key">the key</param>
-		/// <returns>return string</returns>
-		public static string Encrypt(string encryptString, string key)
+
+        /// <summary>
+        /// The Encrypt string
+        /// </summary>
+        /// <param name="encryptString">encrypt String</param>
+        /// <param name="key">the key</param>
+        /// <returns>return the string value</returns>
+        public static string Encrypt(string encryptString, string key)
         {
             var randomNumber = SecureNumber();
             string finalEncryptedString = encryptString + "," + randomNumber.ToString();
@@ -26,6 +27,5 @@
                     encryptString = Convert.ToBase64String(ms.ToArray());
                 }
             }
-
             return encryptString;
         }

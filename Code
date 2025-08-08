@@ -1,236 +1,31 @@
-protected void BtnUpload_Click(object sender, EventArgs e)
-{
-    this.processMessage.Style.Add("display", "block");
-    this.progressBackgroundFilter.Style.Add("display", "block");
-    if (Request.QueryString["componentGroupId"] != null)
-    {
-        this.ComponentGroupID = Request.QueryString["componentGroupId"].ToString();
-    }
+Server Error in '/' Application.
+String reference not set to an instance of a String.
+Parameter name: s
+Description: An unhandled exception occurred during the execution of the current web request. Please review the stack trace for more information about the error and where it originated in the code.
 
-    if (Request.QueryString["countryId"] != null)
-    {
-        this.CountryId = Request.QueryString["countryId"].ToString();
-    }
-    if (Request.QueryString["componentId"] != null)
-    {
-        this.ComponentID = Request.QueryString["componentId"].ToString();
-    }
+Exception Details: System.ArgumentNullException: String reference not set to an instance of a String.
+Parameter name: s
 
-    ErrorLogger loggerECM = new ErrorLogger();
-    loggerECM.LogErrorECM("Upload - PopupUpload - BtnUpload_Click", "Country " + this.CountryId + "Role " + this.RoleID + "ComponentGroupID "
-               + this.ComponentGroupID + "ComponentID " + this.ComponentID + "ProjectID " + this.projectID, this.userId, "ECM Upload Triggered");
+Source Error:
 
-    try
-    {
-        if (this.filUploadIcon.HasFile)
-        {
-            this.FileUpLoadValidator.IsValid = true;
-            string fileType = this.filUploadIcon.PostedFile.ContentType;
-            int rowsCount, length, headerlength;
-            ////+ DateTime.Now.ToString("ddMMyyyy_HHmmss");
-            ////Cleansing Canonicalization and Comparison Errors
-            string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(this.filUploadIcon.FileName));
-            string strFileName = fileName.Replace("'", string.Empty).Replace(@"\", string.Empty);
-            string strFileType = System.IO.Path.GetExtension(strFileName).ToString().ToLower();
-            var rootPath = Server.MapPath("~/ExcelFile/");
-            var nameExt = string.Concat(strFileName, strFileType);
-            this.fullpath = EncodeHelper.HtmlEncode(Path.Combine(rootPath, nameExt));
-            //if (strFileType == ".xlsm")
-            //{
-            //    this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
-            //}
-            //else
-            //{
-            //    throw new SystemException("Uploaded file in .xlsm Format");
-            //}
 
-            int limitsize = this.fileConfig * 1024 * 1024;
-            if (strFileType != ".xlsm" )
-            {
-                throw new SystemException("Uploaded file in .xlsm Format");
-            }
+Line 2220:            using (Aes encryptor = Aes.Create())
+Line 2221:            {
+Line 2222:                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(key, new byte[] {
+Line 2223:                    0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76
+Line 2224:                });
 
-            if (this.filUploadIcon.PostedFile.ContentLength > limitsize)
-            {
-                throw new SystemException("FileSize exceeded");
-            }
-            if (fileName.Split('.').Length - 1 >= 2)
-            {
-                throw new SystemException("Upload file in single extension");
-            }
-            else
-            {
-                this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(fullpath));
-            }
+Source File: C:\Users\2318190\source\repos\OneC_727_WebApp\SPay\SPay.BAL\UtilityBAL\UtilityBAL.cs    Line: 2222
 
-            string[] excelHeaders;
+Stack Trace:
 
-            using (SpreadsheetDocument spreadSheetDocument = SpreadsheetDocument.Open(this.fullpath, false))
-            {
-                WorkbookPart workbookPart = spreadSheetDocument.WorkbookPart;
-                IEnumerable<Sheet> sheets =
-                    spreadSheetDocument.WorkbookPart.Workbook.GetFirstChild<Sheets>().Elements<Sheet>();
-                string relationshipId = sheets.First().Id.Value;
-                WorksheetPart worksheetPart =
-                    (WorksheetPart)spreadSheetDocument.WorkbookPart.GetPartById(relationshipId);
-                Worksheet workSheet = worksheetPart.Worksheet;
-                SheetData sheetData = workSheet.GetFirstChild<SheetData>();
-                IEnumerable<Row> rows = sheetData.Descendants<Row>();
-                ////rowsCount = rows.Count();
-                headerlength = rows.ElementAt(0).Count();
-                length = rows.Count();
-                Row row =
-                    worksheetPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>().FirstOrDefault();
-                var numberOfColumns = 0;
-                if (row != null)
-                {
-                    var spans = row.Spans != null ? row.Spans.InnerText : string.Empty;
-                    if (!string.IsNullOrEmpty(spans))
-                    {
-                        char[] delimiter = new char[1];
-                        delimiter[0] = ':';
-                        string[] columns = spans.Split(delimiter);
-                        numberOfColumns = int.Parse(columns[1]);
-                    }
-                }
 
-                excelHeaders = new string[numberOfColumns];
-                rowsCount = 0;
-                int i = 0;
-                foreach (Cell cell in rows.ElementAt(0))
-                {
-                    if (cell.CellValue != null)
-                    {
-                        excelHeaders[i] = GetCellValue(spreadSheetDocument, cell);
-                        i++;
-                        rowsCount++;
-                    }
-                }
-            }                    
-
-            if (length > 1)
-            {
-                if (this.isAPAC == true)
-                {
-                    DataTable dt = new DataTable();
-                    if (this.isGradeAmount != true)
-                    {
-                        int GradeAmount = 0;
-                        dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID, GradeAmount);
-                        this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                        if (dt.Rows.Count != 0)
-                        {
-                            this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                            this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                            this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
-
-                            this.processMessage.Style.Add("display", "none");
-                            this.progressBackgroundFilter.Style.Add("display", "none");
-                        }
-
-                    }
-                    else
-                    {
-                        int GradeAmount = 1;
-                        dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID,GradeAmount);
-                        this.ValidateGradeAmountexcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                        if (dt.Rows.Count != 0)
-                        {
-                            this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                            this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                            this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
-
-                            this.processMessage.Style.Add("display", "none");
-                            this.progressBackgroundFilter.Style.Add("display", "none");
-                        }
-                    }
-                }
-                else if (this.isSchoolFees == true)
-                {
-                    DataTable dt = new DataTable();
-                    dt = this.GetExcelAsDataTableForSchoolFees(this.fullpath, "Template");
-                    this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                    if (dt.Rows.Count != 0)
-                    {
-                        this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                        this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                        this.MoveSFDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType);
-
-                        this.processMessage.Style.Add("display", "none");
-                        this.progressBackgroundFilter.Style.Add("display", "none");
-                    }
-                }
-                else if (this.isReversal == true)
-                {
-                    this.ValidateReversalExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                }
-
-                else if (this.isVerify == true)
-                {
-                    this.ValidateVerifyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                }
-
-                else if (this.isVerifyBulk == true)
-                {
-                    this.ValidateVerifyBulkExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                }
-
-                else if (this.isMyPayUpload == true)
-                {
-                    this.ValidateMyPayUploadExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                }
-                else if (this.isCurrencyUpdate == true)
-                {
-                    this.ValidateCurrencyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                }
-                else
-                {
-                    this.ValidateExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                }
-            }
-            else
-            {
-                throw new SystemException("Uploaded file is empty");
-            }
-        }
-    }
-    catch (SystemException ex)
-    {
-        ErrorLogger logger = new ErrorLogger();
-        logger.LogError(ex);
-        if (!(ex.Message.Equals("Uploaded file is empty") ||
-            ex.Message.Equals("Number of columns in uploaded file does not match") ||
-            ex.Message.Equals("Please fill the mandatory columns")))
-        {
-            SendMailer.SendErrorMaileronFailure("Upload data", ex);
-        }
-
-        this.processMessage.Style.Add("display", "none");
-        this.progressBackgroundFilter.Style.Add("display", "none");
-        string exception = string.Empty;
-
-        if (this.ComponentGroupID == "4" &&
-            ex.Message.Equals("Number of columns in uploaded file does not match"))
-        {
-            exception = "File uploaded has extra inputs in columns after \"End Time\".";
-        }
-        else if (ex.Message.Equals("Number of columns in uploaded file does not match") &&
-            this.ComponentGroupID != "4")
-        {
-            exception = "Number of columns in uploaded file does not match";
-        }
-
-        if (ex.Message.Equals("Please fill the mandatory columns"))
-        {
-            exception =
-                "Columns/Headers in the uploaded file does not match with the standard template format.";
-        }
-        else
-        {
-            exception = ex.Message;
-        }
-
-        string script = "<script type='text/javascript'>Message('" + exception + "');" + "</script>";
-        Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-    }
-}
+[ArgumentNullException: String reference not set to an instance of a String.
+Parameter name: s]
+   System.Text.Encoding.GetBytes(String s) +14550071
+   System.Security.Cryptography.Rfc2898DeriveBytes..ctor(String password, Byte[] salt) +114
+   SPay.BAL.UtilityBAL.UtilityBAL.Encrypt(String encryptString, String key) in C:\Users\2318190\source\repos\OneC_727_WebApp\SPay\SPay.BAL\UtilityBAL\UtilityBAL.cs:2222
+   SPayWebApp.Download.Page_Load(Object sender, EventArgs e) in C:\Users\2318190\source\repos\OneC_727_WebApp\SPay\SPayWebApp\Download.aspx.cs:78
+   System.Web.UI.Control.OnLoad(EventArgs e) +108
+   System.Web.UI.Control.LoadRecursive() +90
+   System.Web.UI.Page.ProcessRequestMain(Boolean includeStagesBeforeAsyncPoint, Boolean includeStagesAfterAsyncPoint) +1602

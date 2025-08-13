@@ -1,31 +1,120 @@
+fileupload:
 
-        /// <summary>
-        /// The Encrypt string
-        /// </summary>
-        /// <param name="encryptString">encrypt String</param>
-        /// <param name="key">the key</param>
-        /// <returns>return the string value</returns>
-        public static string Encrypt(string encryptString, string key)
+
+protected void Page_Load(object sender, EventArgs e)
+{
+    string versionkey = ConfigurationManager.AppSettings["Version"].ToString();
+    if (HttpContext.Current.Session["UserId"] != null)
+    {
+        this.userId = HttpContext.Current.Session["UserId"].ToString();
+    }
+    else
+    {
+    }
+
+    if (HttpContext.Current.Session["UserRoles"] != null)
+    {
+        if (HttpContext.Current.Session["RoleId"] != null)
         {
-            var randomNumber = SecureNumber();
-            string finalEncryptedString = encryptString + "," + randomNumber.ToString();
-            byte[] clearBytes = Encoding.Unicode.GetBytes(finalEncryptedString);
-            using (Aes encryptor = Aes.Create())
-            {
-                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(key, new byte[] {
-                    0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76
-                });
-                encryptor.Key = pdb.GetBytes(32);
-                encryptor.IV = pdb.GetBytes(16);
-                using (MemoryStream ms = new MemoryStream())
-                {
-                    using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateEncryptor(), CryptoStreamMode.Write))
-                    {
-                        cs.Write(clearBytes, 0, clearBytes.Length);
-                        cs.Close();
-                    }
-                    encryptString = Convert.ToBase64String(ms.ToArray());
-                }
-            }
-            return encryptString;
+            this.RoleID = HttpContext.Current.Session["RoleId"].ToString();
         }
+        else
+        {
+        }
+
+        string[] roles = HttpContext.Current.Session["UserRoles"].ToString().Split(',');
+        if (!roles.Contains(this.RoleID))
+        {
+            Response.Redirect("HTML/AccessDenied.htm");
+        }
+    }
+    else
+    {
+    }
+
+    if (Request.QueryString["componentId"] != null)
+    {
+        this.componentId = Request.QueryString["componentId"].ToString();
+    }
+
+    if (Request.QueryString["isReversal"] != null)
+    {
+        this.isReversal = true;
+    }
+
+    if (Request.QueryString["isVerify"] != null)
+    {
+        this.isVerify = true;
+    }
+
+    if (Request.QueryString["Label"] != null)
+    {
+        var regexItem = new Regex(@"^[a-zA-Z0-9_.\s]*$");
+        if (regexItem.IsMatch(this.hdnlbl.Value))
+        {
+            this.hdnlbl.Value = HttpUtility.HtmlEncode(Convert.ToString(Request.QueryString["Label"]));
+        }
+    }
+}
+
+#endregion Page Load
+
+Apacfileupload:
+
+ protected void Page_Load(object sender, EventArgs e)
+ {
+     if (HttpContext.Current.Session["UserId"] != null)
+     {
+         this.userId = HttpContext.Current.Session["UserId"].ToString();
+     }
+     else
+     {
+        
+     }
+
+     if (HttpContext.Current.Session["UserRoles"] != null)
+     {
+         if (HttpContext.Current.Session["RoleId"] != null)
+         {
+             this.RoleID = HttpContext.Current.Session["RoleId"].ToString();
+         }
+         else
+         {
+            
+         }
+
+         string[] roles = HttpContext.Current.Session["UserRoles"].ToString().Split(',');
+         if (!roles.Contains(this.RoleID))
+         {
+             Response.Redirect("HTML/AccessDenied.htm");
+         }
+     }
+     else
+     {
+        
+     }
+
+     if (Request.QueryString["componentId"] != null)
+     {
+         this.componentId = Request.QueryString["componentId"].ToString();
+     }
+
+     if (Request.QueryString["isReversal"] != null)
+     {
+         this.isReversal = true;
+     }
+
+     if (Request.QueryString["Label"] != null)
+     {
+         var regexItem = new Regex(@"^[a-zA-Z0-9_.\s]*$");
+         string hiddenval = string.Empty;
+         if (regexItem.IsMatch(this.hdnlbl.Value))
+         {
+             this.hdnlbl.Value = HttpUtility.HtmlEncode(Convert.ToString(Request.QueryString["Label"]));
+         }
+     }
+
+    
+ }
+
+ #endregion Page Load

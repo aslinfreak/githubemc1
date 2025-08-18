@@ -1,46 +1,41 @@
-#region GetEmptyTemplateURL
-/// <summary>
-/// 290050: Get Empty Template URL for selected component
-/// </summary>
-/// <param name="keycode">key code of selected component</param>
-/// <param name="componentGroupID">Passing the ComponentID</param>
-/// <returns>Empty template URL</returns>
-[System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Design",
-"CA1055:UriReturnValuesShouldNotBeStrings", Justification = "Reviewed"), WebMethod]
-public static string GetEmptyTemplateURL(string keycode, int componentGroupID)
-{
-    string value = string.Empty;
-    try
-    {
-        string strRoleId = HttpContext.Current.Session["RoleId"].ToString();
-        string strcountryid = HttpContext.Current.Session["CountryID"].ToString();
-        int RoleId = Convert.ToInt32(strRoleId);
-        int countryID = Convert.ToInt32(strcountryid);
+function OnUploadButtonClick() {
+    event.preventDefault();
+    var componentGroupId = $('#bonus').val();
+    var check = this.GetFileUploadCount(componentGroupId);
+    var url = "";
 
-        FileUploadDetails objdetails = new FileUploadDetails()
-        {
-            KeyCode = keycode,
-            ComponentID = componentGroupID,
-            RoleID = RoleId,
-            CountryID = countryID
-        };
-        DataSet template = UtilityBAL.GetEmptyTemplateURL(objdetails);
-        if (template.Tables.Count > 0 && template.Tables[0].Rows.Count > 0)
-        {
-            value = template.Tables[0].Rows[0]["KeyValue"].ToString();
+    if (check) {
+        var projectID = '';
+        var flag = 0;
+        if (componentGroupId == 4 || componentGroupId == 12 || componentGroupId == 98 || componentGroupId == 100) {
+            projectID = $('#proid').val();
+            flag = 1;
         }
-        else
-        {
-            value = string.Empty;
+        if (flag == 1 && (projectID == "" || projectID == "-1")) {
+            errorpopup("Please select the Project ID before uploading the file. If the project is not listed, please check your access/project validity with your ESA PM");
         }
-    }
-    catch (SystemException ex)
-    {
-        ErrorLogger logger = new ErrorLogger();
-        logger.LogError(ex);
-    }
+        else {
+            if (isCutOffDateOver == 0) {
+                if (ocm == "0") {
+                    url = clienturl + "componentGroupId=" + componentGroupId + "&projectID=" + projectID + "&CountryId=1&label1=Select File:&roleID=" + RoleId + "&action=1&ocmflag=0&close=0&TB_iframe=true&height=249&width=490&modal=true&allowTransparency=true";
+                    url = EncodeUrlParameters(url);
+                    $("a#clck").attr('href', encodeURI(url)).click();
+                    $('#TB_title').css('display', 'none');
+                    $('.TB_overlayBG').css('display', 'block');
+                    $('#TB_closeAjaxWindow').css('display', 'none');
+                }
+                else {
+                    url = clienturl + "componentGroupId=" + componentGroupId + "&projectID=" + projectID + "&CountryId=1&label1=Select File:&roleID=" + RoleId + "&action=1&ocmflag=1&close=0&TB_iframe=true&height=249&width=490&modal=true&allowTransparency=true";
+                    url = EncodeUrlParameters(url);
+                    $("a#clck").attr('href', encodeURI(url)).click();
+                    $('#TB_title').css('display', 'none');
+                    $('.TB_overlayBG').css('display', 'block');
+                    $('#TB_closeAjaxWindow').css('display', 'none');
+                }
+            }
+            else {
+                errorpopup("Upload frozen");
+            }
+        }
 
-    return value;
-}
-
-#endregion GetEmptyTemplateURL
+    }

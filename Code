@@ -1,41 +1,38 @@
 function OnUploadButtonClick() {
     event.preventDefault();
+    // Bulck Upload
     var componentGroupId = $('#bonus').val();
     var check = this.GetFileUploadCount(componentGroupId);
-    var url = "";
-
     if (check) {
         var projectID = '';
-        var flag = 0;
-        if (componentGroupId == 4 || componentGroupId == 12 || componentGroupId == 98 || componentGroupId == 100) {
+        var url = "";
+
+        if (componentGroupId == 15 || componentGroupId == 16 || componentGroupId == 41) {
             projectID = $('#proid').val();
-            flag = 1;
         }
-        if (flag == 1 && (projectID == "" || projectID == "-1")) {
-            errorpopup("Please select the Project ID before uploading the file. If the project is not listed, please check your access/project validity with your ESA PM");
-        }
-        else {
-            if (isCutOffDateOver == 0) {
-                if (ocm == "0") {
-                    url = clienturl + "componentGroupId=" + componentGroupId + "&projectID=" + projectID + "&CountryId=1&label1=Select File:&roleID=" + RoleId + "&action=1&ocmflag=0&close=0&TB_iframe=true&height=249&width=490&modal=true&allowTransparency=true";
-                    url = EncodeUrlParameters(url);
-                    $("a#clck").attr('href', encodeURI(url)).click();
-                    $('#TB_title').css('display', 'none');
-                    $('.TB_overlayBG').css('display', 'block');
-                    $('#TB_closeAjaxWindow').css('display', 'none');
-                }
-                else {
-                    url = clienturl + "componentGroupId=" + componentGroupId + "&projectID=" + projectID + "&CountryId=1&label1=Select File:&roleID=" + RoleId + "&action=1&ocmflag=1&close=0&TB_iframe=true&height=249&width=490&modal=true&allowTransparency=true";
-                    url = EncodeUrlParameters(url);
-                    $("a#clck").attr('href', encodeURI(url)).click();
-                    $('#TB_title').css('display', 'none');
-                    $('.TB_overlayBG').css('display', 'block');
-                    $('#TB_closeAjaxWindow').css('display', 'none');
-                }
+        if (isCutOffDateOver == 0) {
+            if (ocm == "0") {
+                url = clienturl + "componentGroupId=" + componentGroupId + "&projectID=" + projectID + "&CountryId=" + CountryId + "&label1=Select File:&roleID=" + RoleId + "&action=1&ocmflag=1&TB_iframe=true&height=220&width=490&modal=true&allowTransparency=true";
+                //LogInfoIntoDB(url);
+                url = EncodeUrlParameters(url);
+                $("a#clck").attr('href', encodeURI(url)).click();
+                $('#TB_title').css('display', 'none');
+                $('.TB_overlayBG').css('display', 'block');
+                $('#TB_closeAjaxWindow').css('display', 'none');
             }
             else {
-                errorpopup("Upload frozen");
+                //LogInfoIntoDB(url);
+                url = clienturl + "componentGroupId=" + componentGroupId + "&projectID=" + projectID + "&CountryId=" + CountryId + "&label1=Select File:&roleID=" + RoleId + "&action=1&ocmflag=1&TB_iframe=true&height=220&width=490&modal=true&allowTransparency=true";
+                //LogInfoIntoDB(url);
+                 url = EncodeUrlParameters(url);
+                $("a#clck").attr('href', encodeURI(url)).click();
+                $('#TB_title').css('display', 'none');
+                $('.TB_overlayBG').css('display', 'block');
+                $('#TB_closeAjaxWindow').css('display', 'none');
             }
         }
-
+        else {
+            errorpopup("Upload frozen");
+        }
     }
+}

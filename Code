@@ -1,38 +1,20 @@
-function OnUploadButtonClick() {
-    event.preventDefault();
-    // Bulck Upload
-    var componentGroupId = $('#bonus').val();
-    var check = this.GetFileUploadCount(componentGroupId);
-    if (check) {
-        var projectID = '';
-        var url = "";
+var datastring = '{"keycode":"' + keycode + '","componentGroupID":"' + componentGroupId + '","criteriaType":"0"}';
+$.ajax({
+    type: "POST",
+    url: "../APAC_WebMethods.aspx/GetEmptyTemplateURL",
+    contentType: "application/json; charset=utf-8",
+    data: datastring,
+    dataType: "json",
+    cache: false,
+    success: function (msg) {
+        if (msg.d != '') {              
+            const url = msg.d;
+            $("#progressBackgroundFilter, #processMessage").show();
 
-        if (componentGroupId == 15 || componentGroupId == 16 || componentGroupId == 41) {
-            projectID = $('#proid').val();
-        }
-        if (isCutOffDateOver == 0) {
-            if (ocm == "0") {
-                url = clienturl + "componentGroupId=" + componentGroupId + "&projectID=" + projectID + "&CountryId=" + CountryId + "&label1=Select File:&roleID=" + RoleId + "&action=1&ocmflag=1&TB_iframe=true&height=220&width=490&modal=true&allowTransparency=true";
-                //LogInfoIntoDB(url);
-                url = EncodeUrlParameters(url);
-                $("a#clck").attr('href', encodeURI(url)).click();
-                $('#TB_title').css('display', 'none');
-                $('.TB_overlayBG').css('display', 'block');
-                $('#TB_closeAjaxWindow').css('display', 'none');
-            }
-            else {
-                //LogInfoIntoDB(url);
-                url = clienturl + "componentGroupId=" + componentGroupId + "&projectID=" + projectID + "&CountryId=" + CountryId + "&label1=Select File:&roleID=" + RoleId + "&action=1&ocmflag=1&TB_iframe=true&height=220&width=490&modal=true&allowTransparency=true";
-                //LogInfoIntoDB(url);
-                 url = EncodeUrlParameters(url);
-                $("a#clck").attr('href', encodeURI(url)).click();
-                $('#TB_title').css('display', 'none');
-                $('.TB_overlayBG').css('display', 'block');
-                $('#TB_closeAjaxWindow').css('display', 'none');
-            }
-        }
-        else {
-            errorpopup("Upload frozen");
-        }
-    }
-}
+            document.cookie = "fileDownload=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            const checkInterval = setInterval(() => {
+                if (document.cookie.includes("fileDownload=true")) {
+                    clearInterval(checkInterval);
+                    $("#progressBackgroundFilter, #processMessage").hide();
+                }
+            }, 1000);

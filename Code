@@ -1,240 +1,71 @@
-AS  
-SET NOCOUNT ON  
-BEGIN  
-BEGIN TRY
-IF(@componentGroupId=1)
-	BEGIN 
-		 SELECT PNP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-		 +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS NAME,
-		 AD.JobCode+' - '+DESG.JobCodeDescription AS GRADE,
-		 REPLACE(CONVERT(VARCHAR(11), AD.DateOfJoining, 106), ' ', '-') AS DateOfJoining,PNP.Amount, 
-		 LOC.City AS PresentHCMLocationCode,PNP.ProjectId,PNP.CompanyId,PNP.SetId,
-		 PNP.InputRemarks AS REMARKS , (CASE WHEN PNP.Status=3 AND PNP.RowStatus=1 THEN 'Rejected' 
-		 WHEN PNP.RowStatus=0 THEN 'Deleted' END) AS STATUS,
-		 PNP.AdvisedBy,PNP.RejectionReason,
-		 (CASE WHEN PNP.SpecialCaseReason=7 THEN 'Approved Payment'  ELSE '' END) AS SpecialCaseReason
-	   FROM PR.NoticePay PNP WITH(NOLOCK) 
-	   INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-	   ON AD.Associate_ID=PNP.AssociateID
-	   LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)
-	   ON DESG.JobCode=AD.JobCode 
-	   AND DESG.Bussiness_unit=AD.Business_Unit 
-	   LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC WITH(NOLOCK) 
-	   ON LOC.HCMLocationCode=AD.PresentHCMLocationCode 
-	   AND LOC.Business_Unit=AD.Business_Unit 	
-	   WHERE (PNP.Status =3 or PNP.RowStatus=0)
-	   AND DATEPART(MM,PNP.CreatedDate)=@Month  AND DATEPART(YY,PNP.CreatedDate)=@Year
-	 END
-	 
-IF(@componentGroupId=2)
-	BEGIN 
-
-		SELECT PRB.ReferrorAssociateID,ISNULL(LTRIM(RTRIM(CD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(CD.Associate_LastName)),'') AS REFERRORNAME ,
-		REPLACE(CONVERT(VARCHAR(11), CD.DateOfJoining, 106), ' ', '-') AS REFERRORDOJ,
-		REFERRERPRESENT.JobCode+' - '+REFERRERPRESENT.JobCodeDescription AS ReferrorLevel,
-		REFERRERPRESENTDEP.Dept_Desc AS ReferrorDepartment,
-		REFERRERPAST.JobCode+' - '+REFERRERPAST.JobCodeDescription AS ReferrorLevelWhileReferring,
-		REFERRERPASTDEP.Dept_Desc AS ReferrorDepartmentWhileReferring,
-		CD.Company AS REFERRERCOMPANY,LOC.LocationDescription AS LOC_OF_REFERRER,
-		CD.Business_Unit AS REFERRER_SETID,		
-		(CASE WHEN PRB.ReferrorBGstatus=1 THEN 'Positive' 
-				      WHEN PRB.ReferrorBGstatus=2 THEN 'Negative'
-					 WHEN PRB.ReferrorBGstatus=3 THEN 'WIP'      
-					 WHEN PRB.ReferrorBGstatus=4 THEN 'NA' 
-                                ELSE '' END) AS ReferrorBGstatus,		
-		PRB.RefereeAssociateID AS REFREEID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS REFEREENAME,
-		REPLACE(CONVERT(VARCHAR(11), PRB.RefereeDOJ, 106), ' ', '-') AS RefereeDOJ,
-		REFEREE.JobCode+' - '+REFEREE.JobCodeDescription AS REFREEGRADECODE,		
-		REFEREEDEP.Dept_Desc AS RefereeDepartment,LOC_A.LocationDescription AS LOC_OF_REFREE,PRB.ProjectId,
-		(CASE WHEN PRB.RefereeBGstatus=1 THEN 'Positive' 
-				      WHEN PRB.RefereeBGstatus=2 THEN 'Negative'
-                          WHEN PRB.RefereeBGstatus=3 THEN 'WIP'      
-                          WHEN PRB.RefereeBGstatus=4 THEN 'NA' 
-                                 ELSE '' END) AS RefereeBGstatus,				
-		PRB.Amount,PPM.Currency,
-		(CASE WHEN PRB.SpecialCaseReason=1 THEN 'Double Referral Bonus'
-					WHEN PRB.SpecialCaseReason=2 THEN 'Second Installment'
-					WHEN PRB.SpecialCaseReason=3 THEN 'Third Installment'
-					WHEN PRB.SpecialCaseReason=4 THEN 'Early Payout Case'
-					WHEN PRB.SpecialCaseReason=5 THEN 'Approved Amount Deviation'
-					WHEN PRB.SpecialCaseReason=6 
-					THEN 'Other Geography referral Bonus' ELSE '' END) AS SpecialCaseReason,
-		PRB.RejectionReason,
-		(CASE WHEN (PRB.Status=3 AND PRB.RowStatus=1) THEN 'Rejected' 
-		WHEN PRB.RowStatus=0 THEN 'Deleted' END) AS STATUS   
-		FROM PR.ReferralBonus PRB WITH(NOLOCK) 
-		  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-		  ON AD.Associate_ID=PRB.RefereeAssociateID
-		  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK) 
-		  ON CD.Associate_ID=PRB.ReferrorAssociateID
-		  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC_A WITH(NOLOCK) 
-		  ON LOC_A.HCMLocationCode=AD.PresentHCMLocationCode 
-		  AND LOC_A.Business_Unit=AD.Business_Unit 
-		  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC WITH(NOLOCK) 
-		  ON LOC.HCMLocationCode=CD.PresentHCMLocationCode 
-		  AND LOC.Business_Unit=CD.Business_Unit 		
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFERRERPAST WITH(NOLOCK) 
-		  ON REFERRERPAST.JobCode=PRB.ReferrorGrade  
-		  AND REFERRERPAST.Bussiness_unit=PRB.ReferrerSetID	    
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFERRERPRESENT WITH(NOLOCK) 
-		  ON REFERRERPRESENT.JobCode=CD.JobCode 
-		  AND REFERRERPRESENT.Bussiness_unit=CD.Business_Unit	    
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFEREE WITH(NOLOCK)
-		  ON REFEREE.JobCode=AD.JobCode
-		  AND REFEREE.Bussiness_unit=AD.Business_Unit		
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERPASTDEP WITH(NOLOCK) 
-		  on REFERRERPASTDEP.Dept_ID=PRB.ReferrorDepartment
-		  AND REFERRERPASTDEP.Business_Unit=PRB.ReferrerSetID		    
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERPRESENTDEP WITH(NOLOCK) 
-		  ON REFERRERPRESENTDEP.Dept_ID=CD.Dept_ID
-		  AND REFERRERPRESENTDEP.Business_Unit=CD.Business_Unit	        
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFEREEDEP WITH(NOLOCK) 
-		  on REFEREEDEP.Dept_ID=AD.Dept_ID
-		  AND REFEREEDEP.Business_Unit=AD.Business_Unit	
-		  INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentID=@componentGroupId
-		  WHERE (PRB.Status =3 or PRB.RowStatus=0) 
-		  AND DATEPART(MM,PRB.CreatedDate)=@Month  AND DATEPART(YY,PRB.CreatedDate)=@Year
-		
-	 END	 
- 
- IF(@componentGroupId=3)
-	BEGIN 
-	
-		SELECT PJB.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS Name,
-		DESG.JobCode+' - '+DESG.JobCodeDescription AS Grade,		
-		REPLACE(CONVERT(VARCHAR(11), AD.DateOfJoining, 106), ' ', '-') AS DateOfJoining,PJB.Amount,		
-		(CASE WHEN PJB.BGstatus=1 THEN 'Positive' 
-				      WHEN PJB.BGstatus=2 THEN 'Negative'
-                      WHEN PJB.BGstatus=3 THEN 'WIP'      
-                      WHEN PJB.BGstatus=4 THEN 'NA' 
-                      ELSE '' END) AS BGstatus,		
-		LOC.LocationDescription AS LOCATION,PJB.ProjectId,
-		(CASE WHEN PJB.SpecialCaseReason=1 THEN 'Double Referral Bonus'
-              WHEN PJB.SpecialCaseReason=2 THEN 'Second Installment'
-			  WHEN PJB.SpecialCaseReason=3 THEN 'Third Installment'
-			  WHEN PJB.SpecialCaseReason=4 THEN 'Early Payout Case'
-			  WHEN PJB.SpecialCaseReason=5 THEN 'Approved Amount Deviation'
-			  WHEN PJB.SpecialCaseReason=6 
-			  THEN 'Other Geography referral Bonus' ELSE '' END) AS SpecialCaseReason,
-	    PJB.InputRemarks AS REMARKS,PJB.CompanyID,PJB.SetID AS SETID,PJB.RejectionReason,
-		(CASE WHEN PJB.Status=3 AND PJB.RowStatus=1 THEN 'Rejected' 
-		WHEN PJB.RowStatus=0 THEN 'Deleted' END) AS STATUS 
-		  FROM PR.JoiningBonus PJB WITH(NOLOCK) 
-		  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-		  ON AD.Associate_ID=PJB.AssociateID
-		  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC WITH(NOLOCK) 
-		  ON LOC.HCMLocationCode=AD.ParentHCMLocationCode 
-		  AND LOC.Business_Unit=AD.Business_Unit 
-
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)
-		  ON DESG.JobCode=PJB.Grade 
-		  AND DESG.Bussiness_unit=PJB.SetID
-		  WHERE (PJB.Status =3 or PJB.RowStatus=0) 
-		  AND DATEPART(MM,PJB.CreatedDate)=@Month  AND DATEPART(YY,PJB.CreatedDate)=@Year
-		
-	 END	
-
-IF(@COMPONENTGROUPID=4)
-	BEGIN
-		 IF(@RoleID=4)
-			 BEGIN
-
-				CREATE TABLE #COMPONENTS (ComponentID INT,ProjectID VARCHAR(50))
-        	  
-				INSERT INTO #COMPONENTS (ComponentID ,ProjectID )    
-				EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID,@componentGroupId  
-
-				SELECT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-				+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,
-				PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,
-				CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,
-				CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,
-				CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,
-				CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,
-				(CASE  WHEN PSTP.TravelAllowance=1 THEN 'Yes'
-				WHEN PSTP.TravelAllowance=0 THEN 'No' END) AS TravelAllowance,PSTP.Amount,
-				ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,
-				(CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' 
-				WHEN PSTP.RowStatus=0 THEN 'Deleted' END) AS Status, 
-				ISNULL(PSTP.InputRemarks,'') AS Remarks
-				FROM PR.SHIFTTIMEPAYOUT PSTP WITH(NOLOCK)
-				LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK) 
-				ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1
-				LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK) 
-				ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1
-				LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-				ON AD.Associate_ID=PSTP.AssociateID
-				INNER JOIN #COMPONENTS CMTS WITH(NOLOCK) 
-				ON  CMTS.ComponentID=PSTP.Fk_ComponentID AND CMTS.ProjectID=PSTP.ProjectID
-				WHERE (PSTP.STATUS=3 OR PSTP.RowStatus=0)
-				AND DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year
-
-				DROP TABLE  #COMPONENTS 
-		END 
-		 ELSE 
-			 BEGIN
-				SELECT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-				+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,
-				PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,
-				CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,
-				CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,
-				CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,
-				CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,
-				(CASE  WHEN PSTP.TravelAllowance=1 THEN 'Yes'
-				WHEN PSTP.TravelAllowance=0 THEN 'No' END) AS TravelAllowance,PSTP.Amount,
-				ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,
-				(CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' 
-				WHEN PSTP.RowStatus=0 THEN 'Deleted' END) AS Status, 
-				ISNULL(PSTP.InputRemarks,'') AS Remarks
-				FROM PR.SHIFTTIMEPAYOUT PSTP WITH(NOLOCK)
-				LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK) 
-				ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1
-				LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK)
-				ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1
-				LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-				ON AD.Associate_ID=PSTP.AssociateID
-				WHERE (PSTP.STATUS=3 OR PSTP.RowStatus=0)
-				AND DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year
-	   END
-
-	END
-IF(@componentGroupId>4)
-  BEGIN
-  SELECT AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,ProjectID,
-  CUM.CurrencyCode,PCUD.CurrencyValue,
-  TRT.Amount,TRT.InvoiceNumber,TRT.RewardName, COALESCE( ApproverID , '' )  ApproverID,
-  ISNULL(LTRIM(RTRIM(CD.Associate_FirstName)),'')+' '
-  +ISNULL(LTRIM(RTRIM(CD.Associate_LastName)),'') AS ApproverName,
-  isnull(TRT.Vertical,'') Vertical,Case When TRT.Funded=1 then 'Project' 
-  when TRT.Funded=2 then 'Client' else '' end Funded,TRT.UploaderID, 
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '
-  +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,
-  isnull(MC.Cdescription,'') SpecialCaseReason,
-  isnull(TRT.InputRemarks,'') InputRemarks,	isnull(MC_A.Cdescription,'') AS Status 
- FROM PR.TRTSPECIALINPUTS TRT
-  LEFT OUTER JOIN CurrencyMaster Cum WITH (NOLOCK) 
-  ON TRT.FK_CurrencyID=Cum.PK_CurrencyID and CUM.Rowstatus=1
-  LEFT OUTER JOIN PR.CurrencyUpdatedata PCUD WITH (NOLOCK) 
-  on TRT.Fk_CurrencyID=PCUD.Fk_CurrencyID and PCUD.Rowstatus=1
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-  ON AD.Associate_ID=TRT.AssociateID 
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK) 
-  ON CD.Associate_ID=isnull(TRT.ApproverID,'')
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK) 
-  ON UD.Associate_ID=TRT.UploaderID  
-  LEFT OUTER JOIN mastercodes MC on MC.CParentref=2 and MC.CUserdefined1=5 and MC.Rowstatus=1 
-  and MC.CCodeid=TRT.SpecialCaseReason
-  LEFT Outer Join MasterCodes MC_A on MC_A.CParentRef=3 and TRT.Status=MC_A.CCodeId 
-  and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'
-  WHERE (TRT.Status IN (8,9) OR TRT.RowStatus=0) AND DATEPART(MM,TRT.CreatedDate)=@month
-  AND DATEPART(YY,TRT.CreatedDate)=@year and Fk_Componentid=@componentGroupID
-  END
-   END TRY
- BEGIN CATCH
- SELECT @@ERROR
- END CATCH 
-END
+ELSE IF(@componentid in (50,51) AND @RoleID in (2,3))  
+    BEGIN  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+       PSTP.TransportEligibility AS TransportEligibility,  
+    isnull(SDA_OCA_Amount,0) as SDA_OCA_Amount1,  
+    isnull(SDA_OCA_Amount2,0) as SDA_OCA_Amount2,  
+    PSTP.Amount as TotalAmount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0 THEN 'Deleted'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+    ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+    PSTP.CreatedDate UploadedDate,PSTP.ModifiedBy RejectedBy,  
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
+    ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK)  
+    ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)  
+    WHERE (PSTP.STATUS in(3,17,23,36) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR   
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid  
+    END  
+    ELSE  
+    BEGIN  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+       PSTP.TransportEligibility AS TransportEligibility,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0 THEN 'Deleted'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+    ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+    PSTP.CreatedDate UploadedDate,PSTP.ModifiedBy RejectedBy,  
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
+    ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK)  
+    ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy )  
+    WHERE (PSTP.STATUS in(3,17,23,36) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR   
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid  
+    END  
+    END  
+ END  

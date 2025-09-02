@@ -1,73 +1,30 @@
-    public partial class Download : System.Web.UI.Page
-    {
-        /// <summary>
-        /// Page Load
-        /// </summary>
-        /// <param name="sender">the sender</param>
-        /// <param name="e">the e</param>
-        protected void Page_Load(object sender, EventArgs e)
-        {
-            var regexItem = new Regex(@"^[a-zA-Z0-9_\-\s]*$");
-          
-            string versionkey = ConfigurationManager.AppSettings["Version"].ToString();
-            
-            string downloadUrl = string.Empty;
-            string ClientIdkey = string.Empty;
-            string ocm = ConfigurationManager.AppSettings["IsOCMEnabled"].ToString();
-            string associateID = HttpContext.Current.Session["UserId"].ToString();
-            
-            //string ocmcontenid = "CONT6BE08832C7334B89A22C9E61E036E522";
-
-            if (ocm == "1")
-            {
-                downloadUrl = ConfigurationManager.AppSettings["FileDownloadUIOCM"].ToString();
-                ClientIdkey = SendMailer.FetchKeyVaultSecret("OCMClientId");
-            }
-            else
-            {
-                downloadUrl = ConfigurationManager.AppSettings["FileDownloadUIOCI"].ToString();
-
-                ClientIdkey = "ec410d51527443f8ba7d14c5aaa66d43";
-                    //SendMailer.FetchKeyVaultSecret("OCMClientId");
-            }
-
-            string encryptAssociateid = UtilityBAL.Encrypt(associateID, ClientIdkey);
-
-            if (Request.QueryString["fileUploadId"].ToString() != "null")
-            {
-                try
-                {
-                    string fileUploadId = string.Empty;
-                    if (regexItem.IsMatch(Request.QueryString["fileUploadId"].ToString().Trim()))
-                    {
-                        fileUploadId = CAS.Security.Application.EncodeHelper.HtmlEncode(
-                            HttpUtility.UrlEncode(Request.QueryString["fileUploadId"]));
-                    }
-
-                    if (ocm == "1")
-                    {
-                        string stFinalQueryString = string.Format("?OCMContentID={0}&AssociateID={1}", fileUploadId, encryptAssociateid);
-                        string finalurl = string.Format(downloadUrl + stFinalQueryString);
-                        Response.Redirect(finalurl);
-                    }
-                    else
-                    {
-                        string stFinalQueryString = string.Format("?OCMContentID={0}&categoryidentifier={1}", fileUploadId, encryptAssociateid);
-                        string finalurl = string.Format(downloadUrl + stFinalQueryString);
-                        Response.Redirect(finalurl);
-                    }
-                }
-                catch (SystemException ex)
-                {
-                    ErrorLogger logger = new ErrorLogger();
-                    logger.LogError(ex);
-                    return;
-                }
-            }
-            else
-            {
-                return;
-            }
-        }
-    }
-}
+--IT 6th Day Allowance
+else if(@COMPONENTID =52)
+BEGIN
+    SELECT PCBA.PK_ITNSAID UniqueID,CM.ComponentName,PCBA.AssociateID,
+	ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+
+	ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,
+	Date, HCMSchedule ,SwipeInTime, SwipeOutTime, ProjectID,TotalEligibleHours TotalMinutes,ExceptionReason,
+	PCBA.CreatedBy,
+	PCBA.CreatedDate,PCBA.ModifiedBy,PCBA.ModifiedDate,
+	TopUpInTime_1, TopUpOutTime_1, TopUpReason_1,TopUpInTime_2, TopUpOutTime_2, TopUpReason_2,TopUpInTime_3,
+	TopUpOutTime_3,TopUpReason_3,TopUpInTime_4, TopUpOutTime_4, TopUpReason_4,	TopUpInTime_5, TopUpOutTime_5, 
+	TopUpReason_5,TopUpInTime_6,TopUpOutTime_6, TopUpReason_6
+	FROM EXP.IT_NSA PCBA WITH(NOLOCK)
+	INNER JOIN dbo.ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId = PCBA.Fk_ComponentID and CM.RowStatus = 1
+	LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
+	on AD.Associate_ID = PCBA.AssociateID 
+	WHERE PCBA.RowStatus = 1 and (Month(PCBA.CreatedDate) = @MONTH AND YEAR(PCBA.CreatedDate) = @YEAR)
+	and PCBA.CreatedBy <> 000000 and PCBA.Fk_ComponentID=52
+END
+END
+END
+COMMIT TRANSACTION
+	END TRY
+	BEGIN CATCH
+		IF @@TRANCOUNT > 0
+		BEGIN		
+			ROLLBACK TRANSACTION
+		END
+	END CATCH 
+END

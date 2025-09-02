@@ -18,8 +18,7 @@ ELSE IF(@componentid in (50,51) AND @RoleID in (2,3))
     ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
     ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
     +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-    PSTP.CreatedDate UploadedDate,PSTP.ModifiedBy RejectedBy,  
-    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    PSTP.CreatedDate UploadedDate, 'PFSS Admin' as RejectedBy,PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
     FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
     LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
     ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
@@ -51,8 +50,7 @@ ELSE IF(@componentid in (50,51) AND @RoleID in (2,3))
     ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
     ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
     +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-    PSTP.CreatedDate UploadedDate,PSTP.ModifiedBy RejectedBy,  
-    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    PSTP.CreatedDate UploadedDate,'PFSS Admin' as RejectedBy,PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
     FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
     LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
     ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
@@ -68,4 +66,3 @@ ELSE IF(@componentid in (50,51) AND @RoleID in (2,3))
     AND CM.PK_componentid=@componentid  
     END  
     END  
- END  

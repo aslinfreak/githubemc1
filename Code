@@ -1,74 +1,98 @@
-BEGIN
+use OneC_Spay
+
+Declare @ManagerId VARCHAR(11) = '673225' 
+Declare @PortfolioName VARCHAR(50) = 'HR Services IT systems'
+
+declare @SLM varchar(50) 
+select @SLM =(LTRIM(RTRIM(Associate_FirstName)) +' '+ LTRIM(RTRIM(Associate_LastName))) from  
+[CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] where Associate_Id = @ManagerId
+
+Declare @Team table (AssociateId varchar(11), AssociateName varchar(50), DOB date, Age int, DOJ date, WorkAnniversary int, IsActive char,Location varchar(50), SupervisorId varchar(11),SupervisorName varchar(50))
+
+Insert into @Team (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId,SupervisorName)
+--For Leads under Manager
+SELECT distinct a.Associate_ID ,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName, 
+a.DateOfBirth , a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a,
+[CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as b 
+where a.Associate_ID = @ManagerId OR (a.[Associate_ID] = b.Supervisor_ID and a.[Supervisor_ID] = @ManagerId and a.IsActive='A')
+
+Union 
+--For senior reportees under lead
+SELECT distinct b.Associate_ID,(LTRIM(RTRIM(b.Associate_FirstName)) +' '+ LTRIM(RTRIM(b.Associate_LastName))) AS AssociateName, 
+b.DateOfBirth ,b.DateOfJoining, b.IsActive,b.PresentHCMLocationCode, b.Supervisor_ID,NULL
+FROM [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a,
+[CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as b 
+where a.[Associate_ID] = b.Supervisor_ID and a.[Supervisor_ID] = @ManagerId and b.IsActive='A'
+
+--For junior reportees under senior reportees
+Insert into @Team  (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId, SupervisorName)
+SELECT distinct a.Associate_ID,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,a.DateOfBirth ,a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM  [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a join @Team b  
+on a.Supervisor_ID = b.AssociateId 
+where a.IsActive='A'
+
+--For sub junior reportees under junior reportees
+Insert into @Team  (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId,SupervisorName)
+SELECT distinct a.Associate_ID,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,a.DateOfBirth ,a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM  [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a join @Team b  
+on a.Supervisor_ID = b.AssociateId 
+where a.IsActive='A'
+
+--For sub junior reportees under junior reportees
+Insert into @Team  (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId,SupervisorName)
+SELECT distinct a.Associate_ID,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,a.DateOfBirth ,a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM  [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a join @Team b  
+on a.Supervisor_ID = b.AssociateId 
+where a.IsActive='A'
+
+--For sub junior reportees under junior reportees
+Insert into @Team  (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId,SupervisorName)
+SELECT distinct a.Associate_ID,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,a.DateOfBirth ,a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM  [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a join @Team b  
+on a.Supervisor_ID = b.AssociateId 
+where a.IsActive='A'
+
+--For sub junior reportees under junior reportees
+Insert into @Team  (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId,SupervisorName)
+SELECT distinct a.Associate_ID,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,a.DateOfBirth ,a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM  [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a join @Team b  
+on a.Supervisor_ID = b.AssociateId 
+where a.IsActive='A'
+
+--For sub junior reportees under junior reportees
+Insert into @Team  (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId,SupervisorName)
+SELECT distinct a.Associate_ID,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,a.DateOfBirth ,a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM  [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a join @Team b  
+on a.Supervisor_ID = b.AssociateId 
+where a.IsActive='A'
+
+--For sub junior reportees under junior reportees
+Insert into @Team  (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId,SupervisorName)
+SELECT distinct a.Associate_ID,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,a.DateOfBirth ,a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM  [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a join @Team b  
+on a.Supervisor_ID = b.AssociateId 
+where a.IsActive='A'
+
+--For sub junior reportees under junior reportees
+Insert into @Team  (AssociateId,AssociateName,DOB,DOJ,IsActive,Location,SupervisorId,SupervisorName)
+SELECT distinct a.Associate_ID,(LTRIM(RTRIM(a.Associate_FirstName)) +' '+ LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,a.DateOfBirth ,a.DateOfJoining, a.IsActive,a.PresentHCMLocationCode, a.Supervisor_ID,NULL
+FROM  [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] as a join @Team b  
+on a.Supervisor_ID = b.AssociateId 
+where a.IsActive='A'
 
 
-	  SELECT 
-		NSA.PK_BPSNSAId, NSA.AssociateID, NSA.ShiftType, NSA.StartDate, NSA.EndDate,
-	    NSA.StartTime, NSA.EndTime, NSA.StartDateTime, NSA.EndDateTime, NSA.Amount,
-		NSA.Grade, NSA.SetID, NSA.ProjectId,  NSA.Fk_RejectedRoleID,
-		NSA.RejectedBy, NSA.RejectedDate, NSA.Approvedby, NSA.Fk_ApprovedRoleID, 
-		NSA.ApprovedDate,NSA.[Status], @Currentdate as CreatedDate, NSA.Createdby, 
-		 NSA.Modifiedby, NSA.Modifieddate, NSA.Remarks, 
-		NSA.Rowstatus, NSA.MonthAmount,NSA.MonthlyWorkedDays, NSA.RoughAmount,
-		STP.RejectionReason AS RejectionReason,STP.Approve_Reject,NSA.NSADate,
-
-		COALESCE((CASE WHEN (ISNULL(STP.RejectionReason,'') = '' AND STP.approve_Reject = 'Reject') 
-		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
-		+
-		COALESCE((CASE WHEN ISNULL(NSA.PK_BPSNSAId,'') = '' 
-		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 
-		STP.CreatedBy AS EPCreatedBy, @Currentdate AS EPCreateddate,
-		STP.ModifiedBy AS EPModifiedBy, STP.ModifiedDate AS EPModifiedDate,
-		  0 AS MailStatus 
-		INTO #Exception_NSA
-		FROM STG.ExceptiontovalidAllowance STP WITH (NOLOCK)  
-		INNER JOIN pr.BPSNSA NSA WITH (NOLOCK) ON STP.UniqueID = NSA.PK_BPSNSAId 
-		WHERE STP.RowStatus = 1 AND NSA.RowStatus = 1 AND FK_ComponentGroupID = @componentGroupId
-		AND NSA.[Status] IN (1,3,4,8,14,18,17,15,16,12,21,35)
-
-	  --------- inserting data------------------
-	  INSERT INTO pr.BPSNSA_Log (PK_BPSNSAId, AssociateID, ShiftType, StartDate, EndDate,
-	    StartTime, EndTime, StartDateTime, EndDateTime, Amount, Grade, SetID, ProjectId,
-		RejectionReason, Fk_RejectedRoleID, RejectedBy, RejectedDate, Approvedby, 
-		Fk_ApprovedRoleID, ApprovedDate, Status, Logcreatedby, LogCreateddate, Createdby,
-		Createddate, Modifiedby, Modifieddate, Remarks, Rowstatus, MonthAmount, 
-		MonthlyWorkedDays, RoughAmount)
-	  SELECT NSA.PK_BPSNSAId, NSA.AssociateID, NSA.ShiftType, NSA.StartDate, NSA.EndDate,
-	    NSA.StartTime, NSA.EndTime, NSA.StartDateTime, NSA.EndDateTime, NSA.Amount,
-		NSA.Grade, NSA.SetID, NSA.ProjectId, NSA.RejectionReason, NSA.Fk_RejectedRoleID,
-		NSA.RejectedBy, NSA.RejectedDate, NSA.Approvedby, NSA.Fk_ApprovedRoleID, 
-		NSA.ApprovedDate,NSA.[Status], EPCreatedBy,GETDATE(), NSA.Createdby, 
-		NSA.Createddate, NSA.Modifiedby, NSA.Modifieddate, NSA.Remarks, 
-		NSA.Rowstatus, NSA.MonthAmount,NSA.MonthlyWorkedDays, NSA.RoughAmount
-	  FROM #Exception_NSA NSA     
-	
-
-		DELETE FROM #Exception_NSA WHERE ISNULL(ExceptionRemarks,'')<>''	
-	  
-			UPDATE ESTP 
-		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN 14 ELSE 3 END,
-			ESTP.ModifiedBy = STP.EPCreatedBy,
-			ESTP.ModifiedDate = @Currentdate, 
-			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
-			ESTP.RejectionReason = STP.RejectionReason, 
-			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedBy ELSE ESTP.ApprovedBy END, 
-			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
-			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedBy ELSE ESTP.RejectedBy END, 
-			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN 3  END
-		  FROM PR.BPSNSA ESTP WITH (NOLOCK) 
-		  INNER JOIN #Exception_NSA STP WITH (NOLOCK) 
-			ON ESTP.PK_BPSNSAId = STP.PK_BPSNSAId 
-		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
-	 	 
-	 -----------------Update---------------- 
-	  UPDATE BPS SET BPS.RowStatus = 0, BPS.ModifiedBy = ESTP.EPCreatedBy, BPS.ModifiedDate = @Currentdate,
-		 BPS.TopUpReason_6 = CAST(ESTP.PK_BPSNSAId AS VARCHAR(20)) + '-' + ESTP.RejectionReason
-	  FROM PR.BPS_NSA BPS  
-	  INNER JOIN #Exception_NSA ESTP WITH (NOLOCK) 
-	    ON BPS.AssociateID = ESTP.AssociateID AND BPS.[Date] = ESTP.NSADate 
-		AND BPS.Fk_ComponentID = 39 AND BPS.ProjectID = ESTP.ProjectID	    
-	  WHERE  ESTP.RejectionReason='Rejected due to mismatch in Trutime and NSA request'
-
-      -----------------Update----------------
-	  DROP TABLE #Exception_NSA
-
-	END
+Select distinct AssociateId as ASSOCIATE_ID,AssociateName as ASSOCIATE_NAME,D.JobCodeDescription as DEPT_DESC,SupervisorId as Supervisor_ID, 
+(LTRIM(RTRIM(SUP.Associate_FirstName)) +' '+ LTRIM(RTRIM(SUP.Associate_LastName))) AS Supervisor_Name, @SLM as SLM, AD.DateOfJoining, Dept.Dept_Desc,
+--Location, 
+@PortfolioName as PortfolioName from @Team T
+inner join [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] AD
+on T.AssociateId = AD.Associate_ID
+inner join [CentralRepository].[dbo].[vw_CentralRepository_Designation] D
+on D.JobCode = AD.JobCode
+inner join [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] SUP
+on T.SupervisorId = SUP.Associate_ID
+inner join [CentralRepository].[dbo].[vw_CentralRepository_Department] Dept 
+on Dept.Dept_ID = AD.Dept_ID and Dept.Eff_Status='A' AND AD.Business_Unit = Dept.BUSINESS_UNIT
+where D.Bussiness_unit = AD.Business_Unit
+order by SupervisorId desc

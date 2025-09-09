@@ -1,5 +1,4 @@
-IF(@componentGroupId=10)
-	BEGIN
+BEGIN
 
 
 	  SELECT 

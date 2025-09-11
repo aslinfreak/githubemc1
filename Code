@@ -1,101 +1,63 @@
-IF(@componentGroupId=10)
+IF(@componentGroupId=5)
 	BEGIN
 
-
-	  SELECT 
-		NSA.PK_BPSNSAId, NSA.AssociateID, NSA.ShiftType, NSA.StartDate, NSA.EndDate,
-	    NSA.StartTime, NSA.EndTime, NSA.StartDateTime, NSA.EndDateTime, NSA.Amount,
-		NSA.Grade, NSA.SetID, NSA.ProjectId,  NSA.Fk_RejectedRoleID,
-		NSA.RejectedBy, NSA.RejectedDate, NSA.Approvedby, NSA.Fk_ApprovedRoleID, 
-		NSA.ApprovedDate,NSA.[Status], @Currentdate as CreatedDate, NSA.Createdby, 
-		 NSA.Modifiedby, NSA.Modifieddate, NSA.Remarks, 
-		NSA.Rowstatus, NSA.MonthAmount,NSA.MonthlyWorkedDays, NSA.RoughAmount,
-		STP.RejectionReason AS RejectionReason,STP.Approve_Reject,NSA.NSADate,
-
-		COALESCE((CASE WHEN (ISNULL(STP.RejectionReason,'') = '' AND STP.approve_Reject = 'Reject') 
+	  SELECT trt.PK_TRTSpecialInputsID, trt.Fk_ComponentTypeID, trt.FK_ComponentID,
+	    trt.AssociateID, trt.ProjectID, trt.Fk_CurrencyID, trt.Amount, trt.InvoiceNumber,
+		trt.RewardName, trt.ApproverID, trt.Department, trt.vertical, trt.Funded,
+		trt.uploaderID, trt.SpecialCaseReason, trt.IsApprovalAttached, trt.InputRemarks,
+		trt.FileUploadID, trt.FK_RejectedRoleID, trt.RejectedBy, trt.RejectionReason,
+		trt.OtherMailUploadID, trt.[Status], trt.ApprovedBy, trt.ApprovedDate,
+	    trt.ApproverRoleID, ep.CreatedBy as EPCreatedby, trt.CreatedBy,@Currentdate as EPCreatedDAte,
+		trt.Createddate,		trt.ModifiedBy, trt.ModifiedDate, trt.Remarks, trt.Rowstatus,
+		ep.RejectionReason AS EPRejectionReason,Ep.Approve_Reject,
+		COALESCE((CASE WHEN (ISNULL(ep.RejectionReason,'') = '' AND ep.approve_Reject = 'Reject') 
 		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
 		+
-		COALESCE((CASE WHEN ISNULL(NSA.PK_BPSNSAId,'') = '' 
-		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 
-		STP.CreatedBy AS EPCreatedBy, @Currentdate AS EPCreateddate,
-		STP.ModifiedBy AS EPModifiedBy, STP.ModifiedDate AS EPModifiedDate,
-		  0 AS MailStatus 
-		INTO #Exception_NSA
-		FROM STG.ExceptiontovalidAllowance STP WITH (NOLOCK)  
-		INNER JOIN pr.BPSNSA NSA WITH (NOLOCK) ON STP.UniqueID = NSA.PK_BPSNSAId 
-		WHERE STP.RowStatus = 1 AND NSA.RowStatus = 1 AND FK_ComponentGroupID = @componentGroupId
-		AND NSA.[Status] IN (1,3,4,8,14,18,17,15,16,12,21,35)
+		COALESCE((CASE WHEN ISNULL(trt.PK_TRTSpecialInputsID,'') = '' 
+		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 		
+		0 AS MailStatus ,ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID
+		INTO #Exception_TRT
+		FROM STG.ExceptiontovalidAllowance ep WITH (NOLOCK) 
+		INNER JOIN pr.trtspecialinputs trt WITH (NOLOCK) ON ep.UniqueID = trt.PK_TRTSpecialInputsID 
+		INNER JOIN ComponentCountryMapping ccm WITH (NOLOCK) ON ccm.Fk_ComponentID = trt.FK_ComponentID 
+		WHERE ep.RowStatus = 1 AND trt.RowStatus = 1 AND ccm.Rowstatus = 1 and trt.Status in (1,3,4,8,9,13,14,12)
 
 	  --------- inserting data------------------
-	  INSERT INTO pr.BPSNSA_Log (PK_BPSNSAId, AssociateID, ShiftType, StartDate, EndDate,
-	    StartTime, EndTime, StartDateTime, EndDateTime, Amount, Grade, SetID, ProjectId,
-		RejectionReason, Fk_RejectedRoleID, RejectedBy, RejectedDate, Approvedby, 
-		Fk_ApprovedRoleID, ApprovedDate, Status, Logcreatedby, LogCreateddate, Createdby,
-		Createddate, Modifiedby, Modifieddate, Remarks, Rowstatus, MonthAmount, 
-		MonthlyWorkedDays, RoughAmount)
-	  SELECT NSA.PK_BPSNSAId, NSA.AssociateID, NSA.ShiftType, NSA.StartDate, NSA.EndDate,
-	    NSA.StartTime, NSA.EndTime, NSA.StartDateTime, NSA.EndDateTime, NSA.Amount,
-		NSA.Grade, NSA.SetID, NSA.ProjectId, NSA.RejectionReason, NSA.Fk_RejectedRoleID,
-		NSA.RejectedBy, NSA.RejectedDate, NSA.Approvedby, NSA.Fk_ApprovedRoleID, 
-		NSA.ApprovedDate,NSA.[Status], EPCreatedBy,GETDATE(), NSA.Createdby, 
-		NSA.Createddate, NSA.Modifiedby, NSA.Modifieddate, NSA.Remarks, 
-		NSA.Rowstatus, NSA.MonthAmount,NSA.MonthlyWorkedDays, NSA.RoughAmount
-	  FROM #Exception_NSA NSA     
-	
+	  INSERT INTO pr.trtspecialinputs_log (PK_TRTSpecialInputsID, Fk_ComponentTypeID,
+	    FK_ComponentID,AssociateID, ProjectID, Fk_CurrencyID, Amount, InvoiceNumber,
+		RewardName, ApproverID, Department, vertical, Funded, uploaderID,
+	    SpecialCaseReason, IsApprovalAttached, InputRemarks, FileUploadID,
+		FK_RejectedRoleID,RejectedBy, RejectionReason, OtherMailUploadID,
+		[Status], ApprovedBy, ApporvedDate, ApproverRoleID, LogCreatedBy, CreatedBy,
+	    LogCreateddate, Createddate, ModifiedBy, ModifiedDate, Remarks, Rowstatus)
+	  SELECT trt.PK_TRTSpecialInputsID, trt.Fk_ComponentTypeID, trt.FK_ComponentID,
+	    trt.AssociateID, trt.ProjectID, trt.Fk_CurrencyID, trt.Amount, trt.InvoiceNumber,
+		trt.RewardName, trt.ApproverID, trt.Department, trt.vertical, trt.Funded,
+		trt.uploaderID, trt.SpecialCaseReason, trt.IsApprovalAttached, trt.InputRemarks,
+		trt.FileUploadID, trt.FK_RejectedRoleID, trt.RejectedBy, trt.RejectionReason,
+		trt.OtherMailUploadID, trt.[Status], trt.ApprovedBy, trt.ApprovedDate,
+	    trt.ApproverRoleID, trt.EPCreatedby, trt.CreatedBy,@Currentdate, trt.Createddate,
+		trt.ModifiedBy, trt.ModifiedDate, trt.Remarks, trt.Rowstatus
+	  FROM #Exception_TRT trt	
 
-		DELETE FROM #Exception_NSA WHERE ISNULL(ExceptionRemarks,'')<>''	
-	  
-			UPDATE ESTP 
-		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN 14 ELSE 3 END,
+		DELETE FROM #Exception_TRT WHERE ISNULL(ExceptionRemarks,'')<>''	
+	
+	   UPDATE ESTP 
+		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN IIF( @CreatedRole = 8,13,14) ELSE IIF( @CreatedRole = 8,9,8) END,
 			ESTP.ModifiedBy = STP.EPCreatedBy,
-			ESTP.ModifiedDate = @Currentdate, 
+			ESTP.ModifiedDate = @Currentdate, 			
 			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
-			ESTP.RejectionReason = STP.RejectionReason, 
+			ESTP.RejectionReason = STP.EPRejectionReason, 
 			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedBy ELSE ESTP.ApprovedBy END, 
 			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
+			ESTP.ApproverRoleID = CASE WHEN STP.Approve_Reject = 'Approved'  THEN IIF( @CreatedRole = 8,8,3) ELSE ESTP.ApproverRoleID END,
 			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedBy ELSE ESTP.RejectedBy END, 
-			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN 3  END
-		  FROM PR.BPSNSA ESTP WITH (NOLOCK) 
-		  INNER JOIN #Exception_NSA STP WITH (NOLOCK) 
-			ON ESTP.PK_BPSNSAId = STP.PK_BPSNSAId 
+			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN IIF( @CreatedRole = 8,8,3)  END
+		  FROM PR.TRTSpecialInputs ESTP WITH (NOLOCK) 
+		  INNER JOIN #Exception_TRT STP WITH (NOLOCK) 
+			ON ESTP.PK_TRTSpecialInputsID = STP.PK_TRTSpecialInputsID 
 		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
-	 	 
-	 -----------------Update---------------- 
-	  UPDATE BPS SET BPS.RowStatus = 0, BPS.ModifiedBy = ESTP.EPCreatedBy, BPS.ModifiedDate = @Currentdate,
-		 BPS.TopUpReason_6 = CAST(ESTP.PK_BPSNSAId AS VARCHAR(20)) + '-' + ESTP.RejectionReason
-	  FROM PR.BPS_NSA BPS  
-	  INNER JOIN #Exception_NSA ESTP WITH (NOLOCK) 
-	    ON BPS.AssociateID = ESTP.AssociateID AND BPS.[Date] = ESTP.NSADate 
-		AND BPS.Fk_ComponentID = 39 AND BPS.ProjectID = ESTP.ProjectID	    
-	  WHERE  ESTP.RejectionReason='Rejected due to mismatch in Trutime and NSA request'
-
-      -----------------Update----------------
-	  DROP TABLE #Exception_NSA
-
-	END
-    -------------COMPONENT GROUP SELECTION----------------------
-	IF(@componentGroupId=11)
-	BEGIN
-	  -------------- Fetch data-----------
-	  INSERT INTO pr.BPSTransportAllowance_log (FK_BPStransportID, AssociateID, OfficeType,
-	    TravelType, StartDate, EndDate, StartTime, EndTime, StartDateTime, EndDateTime, ProjectID,
-		Amount, Grade, SetID, Approvedby, Fk_ApprovedRoleID, ApprovedDate, RejectedBy,
-		RejectedDate, RejectionReason, Fk_RejectedRoleID, Createdby, Createddate, Modifiedby,
-		Modifieddate, Remarks, Rowstatus,[Status], Logcreatedby, LogCreateddate, City)
-	  SELECT TA.PK_BPStransportID, TA.AssociateID, TA.OfficeType, TA.TravelType, TA.StartDate, 
-	    TA.EndDate, TA.StartTime, TA.EndTime, TA.StartDateTime, TA.EndDateTime, TA.ProjectID,
-		TA.Amount, TA.Grade, TA.SetID, TA.Approvedby, TA.Fk_ApprovedRoleID, TA.ApprovedDate,
-		TA.RejectedBy, TA.RejectedDate, TA.RejectionReason, TA.Fk_RejectedRoleID,
-		TA.Createdby, TA.Createddate, TA.Modifiedby, TA.Modifieddate, TA.Remarks,
-		TA.Rowstatus, TA.[Status], STP.CreatedBy, GETDATE(), TA.City	   
-	  FROM PR.BPSTransportAllowance TA INNER JOIN STG.ExceptiontovalidAllowance STP WITH (NOLOCK) 
-        ON TA.PK_BPStransportID = STP.UniqueID 
-      WHERE  TA.Rowstatus = 1 AND STP.RowStatus = 1 AND TA.[Status] IN (1,3,4,8,14,18,17,15,16,12)
-	  -----------------Update----------------
-      UPDATE BTP SET BTP.RowStatus = 0, BTP.ModifiedBy = STP.CreatedBy, BTP.ModifiedDate = GETDATE(),
-	    BTP.Remarks = STP.Remarks, BTP.RejectionReason = STP.RejectionReason, BTP.RejectedBy = STP.CreatedBy
-	  FROM PR.BPSTransportAllowance BTP WITH (NOLOCK) INNER JOIN STG.ExceptiontovalidAllowance STP WITH (NOLOCK) 
-        ON BTP.PK_BPStransportID = STP.UniqueID 
-      WHERE  BTP.Rowstatus = 1 AND STP.RowStatus = 1 AND BTP.[Status] IN (1,3,4,8,14,18,17,15,16,12)
 	 
+	  DROP TABLE #Exception_TRT
+
 	END

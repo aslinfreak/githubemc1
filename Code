@@ -1,73 +1,76 @@
-    ------------------------------------LocationCHK---------------------------------------------------
+ -----------------------------------------LEAVE CHECK--------------------------------------------------        
+       
+		  ;WITH cte AS
+	   (
+ SELECT DISTINCT STP.PK_BPSSDAID,ShiftType, STP.AssociateID,ProjectID,STP.Startdate,Starttime AS Starttime,Enddate,
+ Endtime AS Endtime,TransportEligibility,BillingDetails, STP.Grade,SetID, STP.CreatedBy,STP.CreatedDate,
+ pld.WF_Status,ROW_NUMBER() OVER (PARTITION BY ELD.Empl_ID,ELD.BGN_DT  ORDER BY ELD.ReceivedDateTime DESC) AS rn 
+	   FROM #BPSSDA STP WITH(NOLOCK)	
+	   INNER JOIN #STTEMP STT WITH(NOLOCK) ON STT.AssociateID=STP.AssociateID and convert(varchar,STP.startdate)=
+	   convert(varchar,STT.startdate)
+	   INNER JOIN CentralRepository.dbo.vw_CentralRepository_EAM_LeaveData ELD WITH (NOLOCK)
+	   ON STP.AssociateID=ELD.Empl_Id
+	   	inner join CentralRepository.dbo.vw_CentralRepository_EAM_perdayLeaveData PLD WITH (NOLOCK)
+	   on ELD.empl_id=PLD.emplid
+	   WHERE  STP.StartDate between ELD.BGN_DT and ELD.End_DT OR STP.STARTDATE=ELD.BGN_DT
+	   AND PLD.absence_date=CONVERT(DATE,STP.StartDate) AND PLD.ct_total_hrs <>0)
 
-		SELECT DISTINCT STP.PK_BPSSDAID, STP.ShiftType, STP.AssociateID, STP.StartDate,EndDate, StartTime, EndTime, 
-           STP.ProjectID,STP.TransportEligibility,STP.BillingDetails, STP.Grade, SetID, 
-		   'Not eligible, the transport allowance should be claimed separately in BPS Transport allowance component'
-		   AS  ExceptionRemarks,STP.CreatedBy,STP.CreatedDate, CH.City 
-          INTO #LocationChk     FROM #BPSSDA STP WITH(NOLOCK)          
-          INNER JOIN Centralrepository.dbo.vw_centralrepository_HCMlocation CH WITH (NOLOCK) ON 
-		  CH.HCMLocationCode = STP.Location 
-          where CH.City in (SELECT DISTINCT City FROM Policy.GradeAmountMaster
-		  WHERE FK_ComponentCountryMappingID = 35
-		  AND Rowstatus = 1) AND STP.IsActive='A' and STP.TransportEligibility like '%Yes%'
+SELECT DISTINCT PK_BPSSDAID,AssociateID,ShiftType,ProjectID,Startdate,Starttime AS Starttime,Enddate,Endtime 
+AS Endtime,TransportEligibility,BillingDetails, Grade,SetID, case when WF_Status='A' 
+then 'Associate is on leave as on claim date' else '' end as ExceptionReason, CreatedBy,CreatedDate
+       INTO #LEAVE  FROM cte
+WHERE rn = 1  
 
-		  INSERT INTO EXP.BPSSDA(ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
-		  TRansportEligibility,
-		  BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,CreatedDate,RowStatus,StartDateTime,EndDateTime)
+          INSERT INTO EXP.BPSSDA (ShiftType, AssociateID,StartDate,EndDate,StartTime,EndTime,StartDateTime,
+		  EndDateTime, ProjectID,TransportEligibility,BillingDetails,Grade,SetID,ExceptionRemarks,CreatedBy,
+		  CreatedDate,RowStatus)
+          SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+           CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1
+		   FROM #LEAVE  WITH (NOLOCK) WHERE ISNULL(ExceptionReason,'')<>'' 
+         
+          DELETE FROM #BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #LEAVE WITH(NOLOCK) 
+		  WHERE ISNULL(ExceptionReason,'')<>'')
 
-         Select ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,TransportEligibility,
-		 BillingDetails,Grade,SetID,ExceptionRemarks,CreatedBy,CreatedDate,1,
-         CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
-         CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime 
-         FROM #LocationChk WITH (nolock) where ExceptionRemarks<>''
-		        
-          DELETE FROM #BPSSDA WHERE PK_BPSSDAID  IN (SELECT PK_BPSSDAID FROM #LocationChk where ExceptionRemarks<>'')
+          DROP TABLE #LEAVE
 
-          drop table #LocationChk
-
-                 DECLARE @ProjectID TABLE(ProjectID VARCHAR(20),CustomerID VARCHAR(20))
-
-              INSERT INTO @ProjectID(ProjectID)
-              SELECT URM.ProjectID FROM UserRoleMapping URM WITH (NOLOCK)
-		
-              INNER JOIN ComponentRoleMapping CRM WITH (NOLOCK) ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID 
-			  INNER JOIN COMPONENTCOUNTRYMAPPING CCM WITH (NOLOCK) ON CCM.PK_COMPONENTCOUNTRYMAPPINGID=
-			  CRM.FK_COMPONENTCOUNTRYMAPPINGID
-			  INNER JOIN COMPONENTMASTER CM WITH (NOLOCK) ON CM.PK_ComponentID=CCM.FK_ComponentID
-              INNER JOIN #BPSSDA SDA WITH (NOLOCK) ON SDA.Createdby=URM.AssociateID  AND CRM.Rowstatus=1
-              WHERE CM.FK_ComponentGroupID=7 AND Fk_RoleID=11  AND URM.Rowstatus=1
-
-              UPDATE @ProjectID SET CustomerID=Customer_ID
-			  FROM Centralrepository.dbo.vw_centralrepository_Project WITH (NOLOCK)
-			  Where Project_ID=ProjectID
-
-              DECLARE @StagingProjectID TABLE(Pk_BPSSDAID INT,ProjectID VARCHAR(20),CustomerID VARCHAR(20))
-
-              INSERT INTO @StagingProjectID(Pk_BPSSDAID,ProjectID)
-              SELECT PK_BPSSDAID,ProjectID FROM #BPSSDA SDA WITH (NOLOCK)
-
-              UPDATE @StagingProjectID SET CustomerID=Customer_ID 
-			  FROM Centralrepository.dbo.vw_centralrepository_Project WITH (NOLOCK)
-			  Where Project_ID=ProjectID
-
-                               
-          SELECT DISTINCT STP.PK_BPSSDAID,ShiftType, STP.AssociateID,STP.StartDate,EndDate, StartTime, EndTime, 
-          STP.ProjectID, TRansportEligibility, BillingDetails,STP.Grade, SetID, 'Account and Project mismatch' 
-		  AS ExceptionReason, STP.CreatedBy,STP.CreatedDate   INTO #Mismatch
-          FROM #BPSSDA STP WITH(NOLOCK)  
-          INNER JOIN @StagingProjectID SP ON STP.PK_BPSSDAID=SP.PK_BPSSDAID
-          LEFT OUTER JOIN @ProjectID P ON (SP.CustomerID=P.CustomerID AND P.ProjectID=STP.ProjectID)
-          WHERE P.CustomerID IS NULL 
-           
-          INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
-		  EndDateTime,ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
+		  ----------------------Set id validations-----------------------------
+		  INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
+		  EndDateTime,ProjectID,  TransportEligibility, BillingDetails, Grade, SetID,ExceptionRemarks,CreatedBy,
 		  CreatedDate, RowStatus)
           SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
            CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
           CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
-           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, 
-          ExceptionReason,CreatedBy,CreatedDate,1 FROM #Mismatch WITH (NOLOCK) WHERE ISNULL(ExceptionReason,'')<>'' 
+        SM.ProjectID, TRansportEligibility, BillingDetails, Grade, SM.SetId, 
+		'Setid is not configured for this component',SM.CreatedBy,SM.CreatedDate,1
+		 FROM Policy.SetIdMaster SM WITH (NOLOCK)       
+		LEFT OUTER JOIN #BPSSDA A WITH (NOLOCK) on A.SetID=SM.SetId AND SM.FK_ComponentCountryMappingID=
+		@ComponentCountryMappingID and SM.Rowstatus=1  
+		WHERE isnull(SM.SetId,'')='' 
+		
+       DELETE  A FROM Policy.SetIdMaster SM WITH (NOLOCK)       
+		LEFT OUTER JOIN #BPSSDA A WITH (NOLOCK) on A.SetID=SM.SetId AND 
+		SM.FK_ComponentCountryMappingID=@ComponentCountryMappingID and SM.Rowstatus=1  
+		WHERE isnull(SM.SetId,'')=''  
+		     ------------------------InEligible ACcount check----------------------------------
+           INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
+		   EndDateTime,ProjectID, TransportEligibility, BillingDetails,Grade, SetID,ExceptionRemarks,CreatedBy,
+		   CreatedDate, RowStatus)      
          
-          DELETE FROM #BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #Mismatch WITH(NOLOCK))
+           SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+         CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+            B.ProjectID, TransportEligibility, BillingDetails,Grade, A.SetID,
+			'Ineligible Account' AS  ExceptionReason,
+			A.CreatedBy,A.CreatedDate,1 FROM #BPSSDA A WITH (NOLOCK) 
+               INNER JOIN @StagingProjectID B ON  A.Pk_BPSSDAID=B.Pk_BPSSDAID
+              LEFT OUTER JOIN Policy.AccountMaster AM WITH (NOLOCK) on AM.CustomerID=B.CustomerID  and AM.Rowstatus=1 
+			  AND AM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+              WHERE AM.CustomerID is null                 
 
-          DROP TABLE #Mismatch
+          DELETE A FROM #BPSSDA A
+          INNER JOIN @StagingProjectID B ON A.ProjectID=B.ProjectID and A.PK_BPSSDAID=B.Pk_BPSSDAID
+          LEFT OUTER JOIN Policy.AccountMaster AM WITH (NOLOCK) on AM.CustomerID=B.CustomerID  and AM.Rowstatus=1 
+		  AND AM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+          WHERE AM.CustomerID is null

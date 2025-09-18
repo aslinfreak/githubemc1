@@ -1,63 +1,1178 @@
-IF(@componentGroupId=5)
-	BEGIN
+ALTER PROCEDURE [dbo].[usp_StagingToMain_BPSSDA] (@FileUploadID VARCHAR(50))
+AS
+BEGIN TRANSACTION
+SET NOCOUNT ON  
+BEGIN TRY 
+BEGIN 
+DECLARE @ComponentCountryMappingID int
 
-	  SELECT trt.PK_TRTSpecialInputsID, trt.Fk_ComponentTypeID, trt.FK_ComponentID,
-	    trt.AssociateID, trt.ProjectID, trt.Fk_CurrencyID, trt.Amount, trt.InvoiceNumber,
-		trt.RewardName, trt.ApproverID, trt.Department, trt.vertical, trt.Funded,
-		trt.uploaderID, trt.SpecialCaseReason, trt.IsApprovalAttached, trt.InputRemarks,
-		trt.FileUploadID, trt.FK_RejectedRoleID, trt.RejectedBy, trt.RejectionReason,
-		trt.OtherMailUploadID, trt.[Status], trt.ApprovedBy, trt.ApprovedDate,
-	    trt.ApproverRoleID, ep.CreatedBy as EPCreatedby, trt.CreatedBy,@Currentdate as EPCreatedDAte,
-		trt.Createddate,		trt.ModifiedBy, trt.ModifiedDate, trt.Remarks, trt.Rowstatus,
-		ep.RejectionReason AS EPRejectionReason,Ep.Approve_Reject,
-		COALESCE((CASE WHEN (ISNULL(ep.RejectionReason,'') = '' AND ep.approve_Reject = 'Reject') 
-		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
-		+
-		COALESCE((CASE WHEN ISNULL(trt.PK_TRTSpecialInputsID,'') = '' 
-		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 		
-		0 AS MailStatus ,ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID
-		INTO #Exception_TRT
-		FROM STG.ExceptiontovalidAllowance ep WITH (NOLOCK) 
-		INNER JOIN pr.trtspecialinputs trt WITH (NOLOCK) ON ep.UniqueID = trt.PK_TRTSpecialInputsID 
-		INNER JOIN ComponentCountryMapping ccm WITH (NOLOCK) ON ccm.Fk_ComponentID = trt.FK_ComponentID 
-		WHERE ep.RowStatus = 1 AND trt.RowStatus = 1 AND ccm.Rowstatus = 1 and trt.Status in (1,3,4,8,9,13,14,12)
+ DECLARE @6DAENDDate date =(SELECT Cast(KeyValue AS DATE) FROM SPaykeys 
+WHERE FK_ComponentID=36 AND KeyCode='6DA'AND KeyDescription='End Date for BPS 6DA')
 
-	  --------- inserting data------------------
-	  INSERT INTO pr.trtspecialinputs_log (PK_TRTSpecialInputsID, Fk_ComponentTypeID,
-	    FK_ComponentID,AssociateID, ProjectID, Fk_CurrencyID, Amount, InvoiceNumber,
-		RewardName, ApproverID, Department, vertical, Funded, uploaderID,
-	    SpecialCaseReason, IsApprovalAttached, InputRemarks, FileUploadID,
-		FK_RejectedRoleID,RejectedBy, RejectionReason, OtherMailUploadID,
-		[Status], ApprovedBy, ApporvedDate, ApproverRoleID, LogCreatedBy, CreatedBy,
-	    LogCreateddate, Createddate, ModifiedBy, ModifiedDate, Remarks, Rowstatus)
-	  SELECT trt.PK_TRTSpecialInputsID, trt.Fk_ComponentTypeID, trt.FK_ComponentID,
-	    trt.AssociateID, trt.ProjectID, trt.Fk_CurrencyID, trt.Amount, trt.InvoiceNumber,
-		trt.RewardName, trt.ApproverID, trt.Department, trt.vertical, trt.Funded,
-		trt.uploaderID, trt.SpecialCaseReason, trt.IsApprovalAttached, trt.InputRemarks,
-		trt.FileUploadID, trt.FK_RejectedRoleID, trt.RejectedBy, trt.RejectionReason,
-		trt.OtherMailUploadID, trt.[Status], trt.ApprovedBy, trt.ApprovedDate,
-	    trt.ApproverRoleID, trt.EPCreatedby, trt.CreatedBy,@Currentdate, trt.Createddate,
-		trt.ModifiedBy, trt.ModifiedDate, trt.Remarks, trt.Rowstatus
-	  FROM #Exception_TRT trt	
+Select @ComponentCountrymappingID = Pk_ComponentCountryMappingID from ComponentCountryMapping CCM With (nolock)
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentID=CCM.FK_ComponentID
+INNER JOIN ComponentGroupMaster STP WITH (NOLOCK) ON  CM.RowStatus=1 AND CM.FK_ComponentGroupID = 7
+where CCM.Fk_ComponentCountryID=1 and CCM.Rowstatus=1  
 
-		DELETE FROM #Exception_TRT WHERE ISNULL(ExceptionRemarks,'')<>''	
+declare @HCMStartDate date,
+	@EffectiveDate date -- V1.0
+
+		-- Start v1.0
+		select @EffectiveDate =KeyValue 
+		from dbo.SPaykeys where FK_ComponentID in (36) and KeyCode='6DAEffective'
+		-- End v1.0
+
+        UPDATE ESTP SET Rowstatus=0 FROM EXP.BPSSDA ESTP WITH (NOLOCK) INNER JOIN STG.BPSSDA STP WITH (NOLOCK) ON 
+		ESTP.AssociateID=STP.AssociateID 
+        WHERE STP.ShiftType=ESTP.ShiftType AND Convert(VARCHAR,ESTP.Startdate)=Convert(VARCHAR,STP.Startdate) and 
+		STP.Rowstatus=1 AND ESTP.RowStatus=1
+              
+     ----------------------------------------------------MANDATORY COLOUM CHECK--------------------------------
+
+          SELECT STP.Pk_BPSSDAID,ShiftType,STP.AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+		  TransportEligibility,BillingDetails,CSM.FK_ComponentID AS ComponentID, '' AS Grade,'' AS BU ,'' AS Location,
+          COALESCE((CASE WHEN STM.ShiftTypeName IS NULL  THEN 'Invalid ShiftType,' ELSE NULL END), '') 
+          +   
+          COALESCE((CASE WHEN CSM.FK_ShiftTypeID IS NULL THEN 'Component- Shift type mismatch' ELSE '' END), '')
+          +   
+          COALESCE((CASE WHEN LEN(STP.AssociateID) not in (6,7) OR ISNUMERIC(STP.AssociateID)=0  
+		  THEN 'AssociateID is InValid,' ELSE NULL END), '')
+          +     
+        COALESCE((CASE WHEN ISNULL(STP.AssociateId,'')='' THEN 'AssociateID is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.ProjectId,'')='' THEN 'ProjectID is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN LEN(STP.ProjectId) <> 10 OR ISNUMERIC(STP.ProjectId)=0  THEN 'ProjectID is InValid,' 
+		  ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.Startdate,'')='' THEN 'Startdate is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.Enddate,'')='' THEN 'Enddate is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.StartTime,'')='' THEN 'StartTime is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.EndTime,'')='' THEN 'EndTime is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.TransportEligibility,'')='' THEN 'TransportEligibility is Mandatory,' 
+		  ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.BillingDetails,'')='' THEN 'BillingDetails is Mandatory,'
+		  ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISDATE(Startdate)<>1 AND ISNULL(STP.Enddate,'')<>''  
+		  THEN 'Invalid start date format.Valid format is MM/DD/YYYY,'  ELSE NULL END), '')
+          +                                                  
+          COALESCE((CASE WHEN ISDATE(Enddate)<>1 AND ISNULL(STP.Enddate,'')<>''   
+		  THEN 'Invalid end date format.Valid format is MM/DD/YYYY,'  ELSE NULL END), '') 
+          +
+          COALESCE((CASE WHEN (ISDATE(STARTDATE)=1 AND STARTDATE > CONVERT(DATE, DATEADD(DAY, -(DAY(GETDATE())), 
+		  GETDATE())))	  OR(ISDATE(Enddate)=1 
+		  AND Enddate > CONVERT(DATE,DATEADD(mm, DATEDIFF(mm, 0, GETDATE()), 0)))
+		  THEN 'Claim cannot be Raised for Future Dates,' ELSE NULL END), '') 
+          +                                               
+          COALESCE((CASE WHEN (ISDATE(StartDate+' '+ StartTime)<>1 AND ISDATE(Startdate)=1) OR (LEN(StartTime)>5 AND 
+		  ISDATE(Startdate)=1) or isnull(Starttime,'')='' 
+				THEN 'Invalid start time format. Valid format is HH:MM,' ELSE NULL END),'')
+		  +
+          COALESCE((CASE WHEN (ISDATE(STP.StartDate+' '+ StartTime)=1 AND ISDATE(STP.Startdate)=1 AND 
+		  ISDATE(EndDate+' '+ EndTime)=1 AND ISDATE(EndDate)=1)
+          AND((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,STP.Startdate)+' '
+		  +CONVERT(VARCHAR,Starttime))))%5)<>0
+		  OR((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,EndDate)+' '+CONVERT(VARCHAR,EndTime))))%5)<>0 )) 
+                THEN 'Time should be in multiples of 5 minutes (10:00, 10:05),' ELSE NULL END), '')
+          +
+
+          COALESCE((CASE WHEN  ISDATE(Startdate)=1 AND AD.DATEOFJOINING>CONVERT(DATE,StartDate)    
+                            THEN 'Associate''s DOJ should be lesser than claim date,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN (ISDATE(EndDate+' '+ EndTime)<>1 AND ISDATE(EndDate)=1) OR (LEN(EndTime)>5 AND 
+		  ISDATE(EndDate)=1) or  isnull(Endtime,'')=''
+                              THEN 'Invalid end time format. Valid format is HH:MM,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN STARTDATE=ENDDATE AND STARTTIME=ENDTIME
+							THEN 'StartDateTime and EndDateTime is Equal' ELSE '' END), '') 
+		   +
+          COALESCE((CASE WHEN STARTTIME like '%AM%' OR STARTTIME like '%PM%' OR ENDTIME like '%AM%' OR 
+		  ENDTIME like '%PM%'  THEN 'Invalid time format. Valid format is HH:MM,' ELSE '' END), '') 
+		  +
+	   COALESCE(( CASE WHEN CAST(StartDate AS DATE) > @6DAENDDate THEN 
+	  '6th Day Allowance ceased to exist from '+FORMAT (@6DAENDDate , 'dd-MMM-yyyy')+
+	  '. Please refer to new policy on Discretionary Incentive.' ELSE NULL END),'')
+	   +COALESCE(CASE WHEN DATEPART(DW,StartDate) IN (2,3,4,5,6) AND CSM.FK_ShiftTypeID<>2 THEN ' Normal shift should claim 6DA between Sat - Sun '  END,'')
+       +COALESCE(CASE WHEN DATEPART(DW,StartDate) IN (1,7) AND CSM.FK_ShiftTypeID<>1 THEN ' Rotational shift should claim 6DA between Mon- Fri '  END,'') 
+		  AS ExceptionReason,STP.CreatedBy,STP.CreatedDate
+          INTO  #MANDATORY        
+       FROM STG.BPSSDA STP WITH (NOLOCK) 
+          LEFT OUTER JOIN ShiftTypeMaster STM WITH (NOLOCK) ON STP.ShiftType=STM.ShiftTypeName 
+		  AND STM.Rowstatus=1 AND
+		  PK_ShiftTypeID in (1,2) 
+          LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH (NOLOCK) ON 
+		  STP.AssociateID=AD.Associate_ID 
+          LEFT OUTER JOIN ComponentShiftMapping CSM WITH(NOLOCK) ON CSM.FK_ComponentID=36  AND 
+		  CSM.FK_ShiftTypeID=STM.PK_ShiftTypeID AND CSM.RowStatus=1
+         WHERE STP.RowStatus=1   
+
+		--------- Comp OFF Check ----------------------
+	   UPDATE A SET ExceptionReason = 
+	   'Comp off processed for the same date. Hence 6th Day Allowance cannot be processed'
+	   FROM #MANDATORY A WITH (NOLOCK) 	   
+	   INNER JOIN CentralRepository.dbo.vw_CentralRepository_EAM_IND_Comp_Off CF ON CF.EMPLID = A.AssociateID 
+	   WHERE CF.HOLIDAY_WORKED_DT = A.StartDate AND ISNULL(ExceptionReason, '') = ''
+
+       INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime,StartDateTime,
+	   EndDateTime,ProjectID,TransportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
+	   CreatedDate,RowStatus)
+        SELECT ShiftType, AssociateID, CONVERT(VARCHAR,StartDate), CONVERT(VARCHAR,EndDate), StartTime, EndTime, 
+        NULL AS StartDateTime,NULL AS EndDateTime,
+        ProjectID, TRansportEligibility, BillingDetails,Grade,BU,ExceptionReason,CreatedBy,CreatedDate,1 
+        FROM #MANDATORY WITH (NOLOCK) WHERE ExceptionReason<>'' 
+
+        DELETE FROM STG.BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #MANDATORY WITH(NOLOCK) 
+		WHERE ExceptionReason<>'')
+          
+        DROP TABLE #MANDATORY
+
+		SELECT STP.Pk_BPSSDAID,ShiftType,STP.AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+		TransportEligibility,BillingDetails,'' AS Grade,'' AS BU,'' AS Location,
+		   
+		    COALESCE((CASE WHEN (ISDATE(EndDate+' '+ EndTime)=1 AND ISDATE(EndDate)=1 
+                AND CONVERT(DATETIME,(EndDate+' '+ EndTime))<CONVERT(DATETIME,(STP.StartDate+' '+ StartTime))
+                AND ISDATE(STP.StartDate+' '+ StartTime)=1 AND ISDATE(STP.Startdate)=1  ) 
+                    THEN 'End Time Should be greater than Start Time,' ELSE NULL END), '') 
+			+
+          COALESCE((CASE WHEN DATEDIFF(Mi,CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)
+		  +' '+CONVERT(VARCHAR,Starttime)))
+		  ,CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))))<120
+          THEN 'Minimum Eligibility Period is 2hrs' ELSE '' END), '')
+		  +
+          COALESCE((CASE WHEN (ISDATE(STP.StartDate+' '+ StartTime)=1 AND ISDATE(STP.Startdate)=1 AND 
+		  ISDATE(EndDate+' '+ EndTime)=1 AND ISDATE(EndDate)=1 AND 
+          DATEDIFF(mi,CONVERT(DATETIME,(CONVERT(VARCHAR,STP.StartDate)+' '+CONVERT(VARCHAR,StartTime))),
+		  CONVERT(DATETIME,(CONVERT(VARCHAR,EndDate)+' '+CONVERT(VARCHAR,EndTime)))) >1440)
+          THEN 'Difference Between StartTime and EndTime should not exceed 24 hours, 'ELSE NULL END),'')
+          AS ExceptionReason,STP.CreatedBy,STP.CreatedDate
+          INTO  #datetimecheck        
+       FROM STG.BPSSDA STP WITH (NOLOCK) 
+          LEFT OUTER JOIN ShiftTypeMaster STM WITH (NOLOCK) ON STP.ShiftType=STM.ShiftTypeName 
+		  AND STM.Rowstatus=1 AND
+		  PK_ShiftTypeID in (1,2) 
+          LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH (NOLOCK) ON
+		  STP.AssociateID=AD.Associate_ID 
+          LEFT OUTER JOIN ComponentShiftMapping CSM WITH(NOLOCK) ON CSM.FK_ComponentID=36  AND 
+		  CSM.FK_ShiftTypeID=STM.PK_ShiftTypeID AND CSM.RowStatus=1
+       WHERE STP.RowStatus=1   
+
+       INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime,StartDateTime,
+	   EndDateTime, ProjectID,  TransportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
+	   CreatedDate, RowStatus)
+          SELECT ShiftType, AssociateID, CONVERT(VARCHAR,StartDate), CONVERT(VARCHAR,EndDate), StartTime, EndTime, 
+          NULL AS StartDateTime,NULL AS EndDateTime,
+         ProjectID, TRansportEligibility, BillingDetails,Grade,BU,ExceptionReason,CreatedBy,CreatedDate,1 
+          FROM #datetimecheck WITH (NOLOCK) WHERE ExceptionReason<>'' 
+
+          DELETE FROM STG.BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #datetimecheck WITH(NOLOCK) 
+		  WHERE ExceptionReason<>'')
+          
+          DROP TABLE #datetimecheck
+          
+       ------------------------------------------------------ASSOCIATE'S DATA ON THE DATE OF CLAIM--------------
+
+          SELECT distinct B.EMPLID ,B.EMPL_RCD ,B.EFFDT ,B.EFFSEQ ,B.ACTION ,B.ACTION_REASON,B.ACTION_DT,
+		  B.EMPL_STATUS, B.DEPTID ,B.JOBCODE ,B.LOCATION ,                  
+           B.COMPANY,B.HR_STATUS,B.BUSINESS_UNIT,B.SUPERVISOR_ID,B.PER_ORG  into  #Temp
+          FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock) 
+          INNER JOIN Stg.BPSSDA STP  with (nolock) on B.EMPLID=convert(varchar,STP.AssociateID)
+          WHERE b.emplid=convert(varchar,STP.AssociateID) AND B.EFFSEQ= (SELECT MAX(B_B.EFFSEQ) 
+		  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock) 
+		  WHERE B.EMPLID = B_B.EMPLID 
+          AND B_B.action <> 'INA' AND B.EMPL_RCD = B_B.EMPL_RCD   AND B_B.EFFDT = B.EFFDT)
+
+       SELECT distinct STP.Pk_BPSSDAID,B.EMPLID AS AssociateID,b.LOCATION AS LOCATION,B.BUSINESS_UNIT AS BU,
+	   HL.Country_ID AS CountryID ,b.JOBCODE AS Grade,
+          B.DEPTID AS DepartmentId,B.PER_ORG AS EmplType,B.EMPL_STATUS AS EmplStatus,STP.Startdate,B.EFFDT AS EFFDT,
+		  UPPER(LTRIM(RTRIM(HL.CITY))) AS CITY -- V1.0
+         INTO #STTEMP FROM #Temp B with (nolock)   
+        INNER JOIN Stg.BPSSDA STP  with (nolock) on B.EMPLID=convert(varchar,STP.AssociateID)
+       LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) ON
+	   HL.HCMLocationCode=B.LOCATION 
+        WHERE B.EFFDT = ( SELECT MAX(B_A.EFFDT) FROM
+		CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock) WHERE B.EMPLID = B_A.EMPLID
+        AND B.EMPL_RCD=B_A.EMPL_RCD   and B_A.action <> 'INA'   AND B_A.EFFDT<= convert(date,STP.StartDate))  
+        AND B.HR_STATUS = 'A' AND (B.EMPL_STATUS IN ('A','L','P','W') OR (B.EMPL_STATUS = 'S'AND B.ACTION <> 'OGA')) 
+		AND b.action <> 'INA' 
+        UNION ALL
+       SELECT STP.Pk_BPSSDAID, A.EMPLID ,A.LOCATION ,A.BUSINESS_UNIT,HL.Country_ID,A.JOBCODE ,
+          A.DEPTID ,A.PER_ORG,A.EMPL_STATUS,STP.Startdate,A.EFFDT,
+		  UPPER(LTRIM(RTRIM(HL.CITY))) AS CITY  -- V1.0
+		  FROM #Temp A with (nolock) 
+         INNER JOIN Stg.BPSSDA STP  with (nolock) on A.EMPLID=convert(varchar,STP.AssociateID)
+         LEFT OUTER join  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) ON
+		 HL.HCMLocationCode=A.LOCATION 
+        WHERE  A.EFFDT = ( SELECT MAX(B_A.EFFDT) 
+		FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A 
+		with (nolock) WHERE A.EMPLID = B_A.EMPLID  AND B_A.EFFDT<= convert(date,STP.StartDate))   
+        AND A.EMPL_RCD = ( SELECT MAX(C_A.EMPL_RCD)
+		FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference C_A
+		with (nolock) WHERE C_A.EMPLID = A.EMPLID 
+        and C_A.action <> 'INA'   AND C_A.EFFDT = A.EFFDT)   AND A.HR_STATUS = 'I'   
+        AND NOT EXISTS ( SELECT 'X'  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock)
+		WHERE A.EMPLID = B.EMPLID  
+        AND B.EFFDT = ( SELECT MAX(B_A.EFFDT)  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A 
+		WHERE B.EMPLID = B_A.EMPLID   AND B.EMPL_RCD=B_A.EMPL_RCD   
+		AND b.action <> 'INA'   AND B_A.EFFDT<= convert(date,STP.StartDate))  AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)  
+		FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock) 
+        WHERE B.EMPLID = B_B.EMPLID   AND B.EMPL_RCD = B_B.EMPL_RCD            
+     and b.action <> 'INA' AND B_B.EFFDT = B.EFFDT)    
+     AND B.HR_STATUS = 'A' AND (B.EMPL_STATUS IN ('A','L','P','W') OR (B.EMPL_STATUS = 'S' AND B.ACTION <> 'OGA'))
+		)
+
+       DROP TABLE #Temp
+          
+           INSERT INTO EXP.BPSSDA(ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,StartDateTime,
+		   EndDateTime,  ProjectID,TRansportEligibility,BillingDetails,Grade,SetID,ExceptionRemarks,CreatedBy,
+		   CreatedDate,RowStatus)
+       
+          Select ShiftType, AssociateID, cONVERT(VARCHAR,StartDate), cONVERT(VARCHAR,EndDate), StartTime, EndTime,
+           CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+           ProjectID,  TRansportEligibility, BillingDetails,'' Grade,'' BU,'Associate Details not available in CRS' 
+		   AS ExceptionReason,STP.CreatedBy,STP.CreatedDate,1 FROM STG.BPSSDA STP WITH (NOLOCK)
+           WHERE ASSOCIATEID NOT IN (SELECT DISTINCT ASSOCIATEID FROM #STTEMP)
+
+          DELETE FROM STG.BPSSDA WHERE AssociateID NOT IN (SELECT DISTINCT ASSOCIATEID FROM #STTEMP)
+          
+---------------------------------------------------BASIC VALIDATIONS -----------------------------------------
+          
+          SELECT DISTINCT STP.Pk_BPSSDAID,ShiftType,STP.AssociateID,STP.StartDate,EndDate,StartTime,EndTime,
+		  ProjectID, TransportEligibility, BillingDetails,STT.Grade,STT.BU SetID,STT.Location,AD.Isactive,
+		  STT.EmplStatus, COALESCE((CASE WHEN AD.IsActive = 'T' and (DATEDIFF(DD,AD.EffDt ,GETDATE()) > 60)  
+		  THEN 'Associate’s termination date is greater than 60 days. Special pay can’t be processed,'
+		  ELSE NULL END), '')             
+          +
+		  COALESCE((CASE WHEN STT.EmplStatus <> 'A' and STT.EmplStatus = 'T' and 
+		  (DATEDIFF(DD,STT.EFFDT,CONVERT(DATE,STP.Startdate)) > 0)
+		  THEN 'AssociateID is InActive' ELSE NULL END), '') 
+	      +
+          COALESCE((CASE WHEN (AD.COMPANY IS NULL AND LEN(STP.AssociateID) in (6,7)) 
+            THEN 'Associate''s Company is Unavailable,' ELSE NULL END), '')  
+          +
+          COALESCE((CASE WHEN (AD.BUSINESS_UNIT IS NULL AND LEN(STP.AssociateID) in (6,7)) 
+                         THEN 'Associate SetId is Unavailable,' ELSE NULL END), '')    
+          +
+          COALESCE((CASE WHEN ISDATE(STP.Startdate)=1 AND 
+          (CONVERT(DATE,STP.StartDate)<=CONVERT(DATE,(DATEADD(M,-6,CONVERT(DATE,CONVERT(VARCHAR,YEAR(GETDATE()))+'-'
+          +CONVERT(VARCHAR,MONTH(GETDATE()))+'-'+'16')))))  
+          THEN 'Allowance claim date exceeds Six months,' ELSE NULL END), '')                                   
+          +
+          COALESCE((CASE WHEN  UPPER(STT.BU) NOT LIKE '%IND%'
+          THEN 'Associate Should belong to India as on claim date,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN (STT.EmplType='EMP') THEN NULL ELSE 'Associate is a contractor,' END), '')
+              
+           AS ExceptionReason,
+          STP.CreatedBy, STP.CreatedDate,STT.CITY ----v1.0
+          INTO #BPSSDA 
+          FROM STG.BPSSDA STP WITH(NOLOCK)      
+          LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
+		  AD.Associate_ID=STP.AssociateID 
+          LEFT OUTER JOIN #STTEMP STT WITH(NOLOCK) ON STT.AssociateID=STP.AssociateID
+		  and convert(varchar,STP.startdate)=
+		  convert(varchar,STT.startdate)
+			WHERE STP.RowStatus=1  
+      
+          INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, ProjectID,  
+		  TRansportEligibility, BillingDetails, Grade, SetID, 
+          ExceptionRemarks,CreatedBy,CreatedDate,RowStatus,StartDateTime,EndDateTime)
+
+          SELECT ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, 
+           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID,ExceptionReason,CreatedBy,CreatedDate,1,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime 
+		  FROM #BPSSDA WITH (NOLOCK)
+		  WHERE ISNULL(ExceptionReason,'')<>'' 
+         
+          DELETE FROM #BPSSDA WHERE ExceptionReason<>''
+
+		      ------------------------------------LocationCHK---------------------------------------------------
+
+		SELECT DISTINCT STP.PK_BPSSDAID, STP.ShiftType, STP.AssociateID, STP.StartDate,EndDate, StartTime, EndTime, 
+           STP.ProjectID,STP.TransportEligibility,STP.BillingDetails, STP.Grade, SetID, 
+		   'Not eligible, the transport allowance should be claimed separately in BPS Transport allowance component'
+		   AS  ExceptionRemarks,STP.CreatedBy,STP.CreatedDate, CH.City 
+          INTO #LocationChk     FROM #BPSSDA STP WITH(NOLOCK)          
+          INNER JOIN Centralrepository.dbo.vw_centralrepository_HCMlocation CH WITH (NOLOCK) ON 
+		  CH.HCMLocationCode = STP.Location 
+          where CH.City in (SELECT DISTINCT City FROM Policy.GradeAmountMaster
+		  WHERE FK_ComponentCountryMappingID = 35
+		  AND Rowstatus = 1) AND STP.IsActive='A' and STP.TransportEligibility like '%Yes%'
+
+		  INSERT INTO EXP.BPSSDA(ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+		  TRansportEligibility,
+		  BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,CreatedDate,RowStatus,StartDateTime,EndDateTime)
+
+         Select ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,TransportEligibility,
+		 BillingDetails,Grade,SetID,ExceptionRemarks,CreatedBy,CreatedDate,1,
+         CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+         CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime 
+         FROM #LocationChk WITH (nolock) where ExceptionRemarks<>''
+		        
+          DELETE FROM #BPSSDA WHERE PK_BPSSDAID  IN (SELECT PK_BPSSDAID FROM #LocationChk where ExceptionRemarks<>'')
+
+          drop table #LocationChk
+
+                 DECLARE @ProjectID TABLE(ProjectID VARCHAR(20),CustomerID VARCHAR(20))
+
+              INSERT INTO @ProjectID(ProjectID)
+              SELECT URM.ProjectID FROM UserRoleMapping URM WITH (NOLOCK)
+		
+              INNER JOIN ComponentRoleMapping CRM WITH (NOLOCK) ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID 
+			  INNER JOIN COMPONENTCOUNTRYMAPPING CCM WITH (NOLOCK) ON CCM.PK_COMPONENTCOUNTRYMAPPINGID=
+			  CRM.FK_COMPONENTCOUNTRYMAPPINGID
+			  INNER JOIN COMPONENTMASTER CM WITH (NOLOCK) ON CM.PK_ComponentID=CCM.FK_ComponentID
+              INNER JOIN #BPSSDA SDA WITH (NOLOCK) ON SDA.Createdby=URM.AssociateID  AND CRM.Rowstatus=1
+              WHERE CM.FK_ComponentGroupID=7 AND Fk_RoleID=11  AND URM.Rowstatus=1
+
+              UPDATE @ProjectID SET CustomerID=Customer_ID
+			  FROM Centralrepository.dbo.vw_centralrepository_Project WITH (NOLOCK)
+			  Where Project_ID=ProjectID
+
+              DECLARE @StagingProjectID TABLE(Pk_BPSSDAID INT,ProjectID VARCHAR(20),CustomerID VARCHAR(20))
+
+              INSERT INTO @StagingProjectID(Pk_BPSSDAID,ProjectID)
+              SELECT PK_BPSSDAID,ProjectID FROM #BPSSDA SDA WITH (NOLOCK)
+
+              UPDATE @StagingProjectID SET CustomerID=Customer_ID 
+			  FROM Centralrepository.dbo.vw_centralrepository_Project WITH (NOLOCK)
+			  Where Project_ID=ProjectID
+
+                               
+          SELECT DISTINCT STP.PK_BPSSDAID,ShiftType, STP.AssociateID,STP.StartDate,EndDate, StartTime, EndTime, 
+          STP.ProjectID, TRansportEligibility, BillingDetails,STP.Grade, SetID, 'Account and Project mismatch' 
+		  AS ExceptionReason, STP.CreatedBy,STP.CreatedDate   INTO #Mismatch
+          FROM #BPSSDA STP WITH(NOLOCK)  
+          INNER JOIN @StagingProjectID SP ON STP.PK_BPSSDAID=SP.PK_BPSSDAID
+          LEFT OUTER JOIN @ProjectID P ON (SP.CustomerID=P.CustomerID AND P.ProjectID=STP.ProjectID)
+          WHERE P.CustomerID IS NULL 
+           
+          INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
+		  EndDateTime,ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
+		  CreatedDate, RowStatus)
+          SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+           CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, 
+          ExceptionReason,CreatedBy,CreatedDate,1 FROM #Mismatch WITH (NOLOCK) WHERE ISNULL(ExceptionReason,'')<>'' 
+         
+          DELETE FROM #BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #Mismatch WITH(NOLOCK))
+
+          DROP TABLE #Mismatch
+          
+          -----------------------------------------LEAVE CHECK--------------------------------------------------        
+       
+		  ;WITH cte AS
+	   (
+ SELECT DISTINCT STP.PK_BPSSDAID,ShiftType, STP.AssociateID,ProjectID,STP.Startdate,Starttime AS Starttime,Enddate,
+ Endtime AS Endtime,TransportEligibility,BillingDetails, STP.Grade,SetID, STP.CreatedBy,STP.CreatedDate,
+ pld.WF_Status,ROW_NUMBER() OVER (PARTITION BY ELD.Empl_ID,ELD.BGN_DT  ORDER BY ELD.ReceivedDateTime DESC) AS rn 
+	   FROM #BPSSDA STP WITH(NOLOCK)	
+	   INNER JOIN #STTEMP STT WITH(NOLOCK) ON STT.AssociateID=STP.AssociateID and convert(varchar,STP.startdate)=
+	   convert(varchar,STT.startdate)
+	   INNER JOIN CentralRepository.dbo.vw_CentralRepository_EAM_LeaveData ELD WITH (NOLOCK)
+	   ON STP.AssociateID=ELD.Empl_Id
+	   	inner join CentralRepository.dbo.vw_CentralRepository_EAM_perdayLeaveData PLD WITH (NOLOCK)
+	   on ELD.empl_id=PLD.emplid
+	   WHERE  STP.StartDate between ELD.BGN_DT and ELD.End_DT OR STP.STARTDATE=ELD.BGN_DT
+	   AND PLD.absence_date=CONVERT(DATE,STP.StartDate) AND PLD.ct_total_hrs <>0)
+
+SELECT DISTINCT PK_BPSSDAID,AssociateID,ShiftType,ProjectID,Startdate,Starttime AS Starttime,Enddate,Endtime 
+AS Endtime,TransportEligibility,BillingDetails, Grade,SetID, case when WF_Status='A' 
+then 'Associate is on leave as on claim date' else '' end as ExceptionReason, CreatedBy,CreatedDate
+       INTO #LEAVE  FROM cte
+WHERE rn = 1  
+
+          INSERT INTO EXP.BPSSDA (ShiftType, AssociateID,StartDate,EndDate,StartTime,EndTime,StartDateTime,
+		  EndDateTime, ProjectID,TransportEligibility,BillingDetails,Grade,SetID,ExceptionRemarks,CreatedBy,
+		  CreatedDate,RowStatus)
+          SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+           CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1
+		   FROM #LEAVE  WITH (NOLOCK) WHERE ISNULL(ExceptionReason,'')<>'' 
+         
+          DELETE FROM #BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #LEAVE WITH(NOLOCK) 
+		  WHERE ISNULL(ExceptionReason,'')<>'')
+
+          DROP TABLE #LEAVE
+
+		  ----------------------Set id validations-----------------------------
+		  INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
+		  EndDateTime,ProjectID,  TransportEligibility, BillingDetails, Grade, SetID,ExceptionRemarks,CreatedBy,
+		  CreatedDate, RowStatus)
+          SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+           CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+        SM.ProjectID, TRansportEligibility, BillingDetails, Grade, SM.SetId, 
+		'Setid is not configured for this component',SM.CreatedBy,SM.CreatedDate,1
+		 FROM Policy.SetIdMaster SM WITH (NOLOCK)       
+		LEFT OUTER JOIN #BPSSDA A WITH (NOLOCK) on A.SetID=SM.SetId AND SM.FK_ComponentCountryMappingID=
+		@ComponentCountryMappingID and SM.Rowstatus=1  
+		WHERE isnull(SM.SetId,'')='' 
+		
+       DELETE  A FROM Policy.SetIdMaster SM WITH (NOLOCK)       
+		LEFT OUTER JOIN #BPSSDA A WITH (NOLOCK) on A.SetID=SM.SetId AND 
+		SM.FK_ComponentCountryMappingID=@ComponentCountryMappingID and SM.Rowstatus=1  
+		WHERE isnull(SM.SetId,'')=''  
+		     ------------------------InEligible ACcount check----------------------------------
+           INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
+		   EndDateTime,ProjectID, TransportEligibility, BillingDetails,Grade, SetID,ExceptionRemarks,CreatedBy,
+		   CreatedDate, RowStatus)      
+         
+           SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+         CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+            B.ProjectID, TransportEligibility, BillingDetails,Grade, A.SetID,
+			'Ineligible Account' AS  ExceptionReason,
+			A.CreatedBy,A.CreatedDate,1 FROM #BPSSDA A WITH (NOLOCK) 
+               INNER JOIN @StagingProjectID B ON  A.Pk_BPSSDAID=B.Pk_BPSSDAID
+              LEFT OUTER JOIN Policy.AccountMaster AM WITH (NOLOCK) on AM.CustomerID=B.CustomerID  and AM.Rowstatus=1 
+			  AND AM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+              WHERE AM.CustomerID is null                 
+
+          DELETE A FROM #BPSSDA A
+          INNER JOIN @StagingProjectID B ON A.ProjectID=B.ProjectID and A.PK_BPSSDAID=B.Pk_BPSSDAID
+          LEFT OUTER JOIN Policy.AccountMaster AM WITH (NOLOCK) on AM.CustomerID=B.CustomerID  and AM.Rowstatus=1 
+		  AND AM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+          WHERE AM.CustomerID is null
+           ---------------------------------------------Ineligible Department -----------------------------------
+
+              INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
+			  EndDateTime, ProjectID, TransportEligibility, BillingDetails,Grade, SetID,ExceptionRemarks,CreatedBy,
+			  CreatedDate, RowStatus)
+         
+           SELECT ShiftType,A.AssociateID,CONVERT(VARCHAR,A.Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+              CONVERT(DATETIME,(CONVERT(VARCHAR,A.Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+            ProjectID,TransportEligibility, BillingDetails,A.Grade, A.SetID,
+			'Ineligible Department' AS ExceptionReason,
+			A.CreatedBy,A.CreatedDate,1 FROM #BPSSDA A WITH (NOLOCK) 
+               INNER JOIN #STTEMP B WITH (NOLOCK) ON A.Pk_BPSSDAID=B.Pk_BPSSDAID
+              LEFT OUTER JOIN Policy.DepartmentMaster DM WITH (NOLOCK) on DM.DepartmentID=B.DepartmentID  and 
+			  DM.Rowstatus=1  AND DM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+              WHERE DM.DepartmentID is null 
+               
+          DELETE A FROM #BPSSDA A  INNER JOIN #STTEMP B ON A.Pk_BPSSDAID=B.Pk_BPSSDAID
+          LEFT OUTER JOIN Policy.DepartmentMaster DM WITH (NOLOCK) on DM.DepartmentID=B.DepartmentID 
+		  and DM.Rowstatus=1  AND DM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+          WHERE DM.DepartmentID is null
+
+          DROP TABLE #STTEMP
+
+------------------------------------------DUPLICATE DATA CHECK IN THE SAME UPLOAD--------------------------------
+         
+          SELECT ShiftType,AssociateID,ProjectID,StartDate,EndDate,StartTime,EndTime
+          INTO #DUPLICATES FROM #BPSSDA WITH(NOLOCK)
+          GROUP BY ShiftType,AssociateID,ProjectID,StartDate,EndDate,StartTime,EndTime
+          HAVING COUNT(AssociateID)>1
+
+          INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
+		  EndDateTime,ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
+		  CreatedDate, RowStatus)
+
+          SELECT STP.ShiftType, STP.AssociateID,CONVERT(VARCHAR,STP.Startdate),CONVERT(VARCHAR,STP.Enddate),
+		  STP.Starttime,STP.Endtime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,STP.Startdate)+' '+CONVERT(VARCHAR,STP.Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,STP.Enddate)+' '+CONVERT(VARCHAR,STP.Endtime))) AS EndDateTime,
+           STP.ProjectID, TRansportEligibility, BillingDetails, Grade, SetID,'Duplicate Entries' AS  ExceptionReason,
+		   CreatedBy,CreatedDate,1   FROM #BPSSDA STP WITH(NOLOCK)
+          INNER JOIN #DUPLICATES DP WITH(NOLOCK) ON DP.AssociateID=STP.AssociateID and DP.ProjectId=STP.ProjectId and
+		  DP.ShiftType=STP.ShiftType AND DP.Startdate=STP.Startdate AND DP.Starttime=STP.Starttime AND 
+		  DP.Enddate=STP.Enddate AND DP.Endtime=STP.Endtime
+
+          DELETE STP  FROM #BPSSDA STP 
+          INNER JOIN #DUPLICATES DP WITH(NOLOCK) ON DP.AssociateID=STP.AssociateID and DP.ShiftType=STP.ShiftType AND
+		  DP.ProjectID=STP.ProjectID AND DP.StartDate=STP.StartDate AND DP.StartTime=STP.StartTime 
+		  AND DP.EndDate=STP.EndDate and DP.EndTime=STP.EndTime
+          
+          DROP TABLE #DUPLICATES 
+
+			--------------CHECK WHETHER UPLOADED ASSOCIATES BELONG TO THE PROJECTS ON THE ALLOWANCE DATE---------
+
+       SELECT DISTINCT Pk_BPSSDAID,ShiftType, AssociateID,CONVERT(VARCHAR,Startdate) Startdate,
+	   CONVERT(VARCHAR,Enddate)
+	   Enddate,Starttime,Endtime, ProjectID,  TransportEligibility, BillingDetails, SSTM.Grade, SetID,
+		   CASE WHEN EmplStatus='T' 
+		   THEN 'Associate is not active in the organization for the allowance requested date'
+		   ELSE 'Associate should be tagged to the project as on claim date' END ExceptionReason,
+		   SSTM.CreatedBy,CreatedDate
+          INTO #NONPROJ     FROM #BPSSDA SSTM WITH(NOLOCK)
+          LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ALLOCATION CAL WITH(NOLOCK) ON 
+		  CAL.Project_ID=SSTM.ProjectID
+          AND CAL.Associate_ID=SSTM.AssociateID AND ((CONVERT(DATE,SSTM.StartDate) 
+		  BETWEEN CONVERT(DATE,CAL.Allocation_Start_Date) AND CONVERT(DATE,CAL.Allocation_End_Date)) 
+          OR (CONVERT(DATE,SSTM.EndDate) BETWEEN CONVERT(DATE,CAL.Allocation_Start_Date) AND 
+		  CONVERT(DATE,CAL.Allocation_End_Date)))
+          WHERE CAL.Associate_ID IS NULL 
+
+		  INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate,EndDate,StartTime, EndTime, StartDateTime,
+		  EndDateTime, ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
+		  CreatedDate, RowStatus)
+          SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+           CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1
+		   FROM #NONPROJ WITH (NOLOCK) 
+          WHERE ISNULL(ExceptionReason,'')<>'' 
+
+          DELETE FROM STG.BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #NONPROJ) 
+          DELETE FROM #BPSSDA WHERE PK_BPSSDAID IN ( SELECT PK_BPSSDAID FROM #NONPROJ) 
+
+          DROP TABLE #NONPROJ  
+          
+					--------------------------------------CREATING TEMP TABLE FOR THE VALID DATA--------------
+
+          CREATE TABLE #VALIDDATA
+          (PK_BPSSDAID INT,ShiftType VARCHAR(50),AssociateID INT,StartDate DATE ,StartTime VARCHAR(20),StartDateTime
+		  DATETIME, EndDate DATE,EndTime VARCHAR(20),EndDateTime DATETIME,NSADate date,ProjectID VARCHAR(100),
+		  TransportEligibility varchar(10),BillingDetails varchar(100),Grade VARCHAR(100),SetId VARCHAR(20),
+		  Amount Money,ExceptionReason VARCHAR(8000),Status INT,CreatedBy INT,CreatedDate DATETIME,
+		  MinEligibleDate Datetime,MaxEligibleDate Datetime, EffectiveDate Date,DApproverID INT
+		  ,GAmount money,FAmount money,City Varchar(20))----v1.0
+
+				------------------------------INSERTING DATA INTO THE CREATED TABLES----------------------
+
+       INSERT INTO #VALIDDATA(PK_BPSSDAID,ShiftType,AssociateID,StartDate,StartTime,
+	   StartDateTime,EndDate,EndTime,Status,EndDateTime,NSADate,ProjectID,TransportEligibility,
+	   BillingDetails,Grade,SetId,CreatedBy,CreatedDate,MinEligibleDate,
+	   MaxEligibleDate, ExceptionReason,EffectiveDate,City)----v1.0
+
+        SELECT  PK_BPSSDAID,ShiftType,AssociateID,StartDate,StartTime,CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)
+		+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime, EndDate,EndTime,'',
+		CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+
+		CONVERT(VARCHAR,Endtime))) AS EndDateTime,cast(Startdate as date), 
+		SD.ProjectId,TransportEligibility,BillingDetails,AD.Job_Family Grade,
+		SetId,SD.CreatedBy,SD.CreatedDate,
+        DATEADD (D,-5,CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '
+		+CONVERT(VARCHAR,Endtime)))) AS MinEligibleDate,
+        DATEADD (D,5,CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '
+		+CONVERT(VARCHAR,Starttime)))) AS MaxEligibleDate,
+        COALESCE((CASE WHEN AP.PROJECTID IS NULL THEN 'Project not configured for 6TH Day Allowance, ' ELSE '' END),
+		'')
+        +
+        COALESCE((CASE WHEN STARTDATE=ENDDATE AND STARTTIME=ENDTIME THEN 'StartDateTime and EndDateTime is Equal'
+		ELSE '' END), '')     AS ExceptionReason,
+			--start v1.0
+			CASE WHEN StartDate < @EffectiveDate OR City IN ('NOIDA') THEN '1900-01-01'
+			ELSE @EffectiveDate
+			END,City
+			-- End V1.0
+
+          FROM #BPSSDA SD WITH(NOLOCK)
+          LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation AD WITH(NOLOCK) 
+		  ON AD.JobCode=SD.Grade
+          AND AD.Bussiness_unit=SD.SetID
+          LEFT OUTER JOIN Approval_MonthlyYearlyApprovals AP WITH(NOLOCK) ON AP.ProjectID=SD.ProjectID AND 
+		  AP.ROWSTATUS=1 and AP.FK_ComponentID=36  
+
+         INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, ProjectID,
+		 TRansportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,CreatedDate,RowStatus)
+          SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+          ProjectID, TransportEligibility, BillingDetails, Grade, SetID,ExceptionReason,CreatedBy,CreatedDate,1 
+		  FROM #VALIDDATA WITH (NOLOCK) WHERE ISNULL(ExceptionReason,'')<>'' 
+
+          DELETE FROM #ValidData WHERE ISNULL(ExceptionReason,'')<>'' 
+
+			-------------------CHECK WHETHER ANY 6TH DAY DATA DOESNT HAVE 6 DAYS GAP----------------------------
+
+    UPDATE #ValidData SET ExceptionReason='Difference between the allowance data uploaded for this 
+	associate and the current data is less than 5 days'
+    WHERE PK_BPSSDAID IN (SELECT B.PK_BPSSDAID   FROM #ValidData A WITH(NOLOCK) 
+    INNER JOIN #ValidData B WITH(NOLOCK) ON B.PK_BPSSDAID<>A.PK_BPSSDAID
+    WHERE A.AssociateID=B.AssociateID AND (A.StartDateTime BETWEEN B.StartDateTime AND B.MaxEligibleDate)
+    AND B.AssociateID=A.AssociateID)
+
+    INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime,
+	StartDateTime,EndDateTime,ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,
+	CreatedBy,CreatedDate,RowStatus)
+    SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate,101),CONVERT(VARCHAR,Enddate,101),Starttime,Endtime,
+    CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+    CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+    ProjectID, TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1 
+	FROM #VALIDDATA WITH (NOLOCK) 
+        WHERE ISNULL(ExceptionReason,'')<>'' 
+
+    DELETE FROM #ValidData WHERE ISNULL(ExceptionReason,'')<>'' 
+
+-------------------------------CHECK WHETHER ANY 6TH DAY DATA DOESNT HAVE 6 DAYS GAP--------------------------------
+
+    UPDATE #ValidData SET ExceptionReason=
+    (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID=B.ProjectID
+		THEN 'Difference between the allowance data uploaded for the associate and '+ 
+		'the current claim date is less than 5 days' 
+		WHEN B.STATUS=5  AND A.ProjectID=B.ProjectID
+		THEN 'Difference between the allowance data processed for the associate and '+ 
+		'the current claim date is less than 5 days' 
+		WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID <> B.ProjectID
+		THEN 'Data already uploaded in another project with less than 5 days gap'
+		WHEN B.STATUS=5  AND A.ProjectID <> B.ProjectID
+		THEN 'Data already processed in another project with less than 5 days gap' END)
+    FROM #ValidData A WITH(NOLOCK) 
+    INNER JOIN PR.BPSSDA B WITH(NOLOCK) ON A.AssociateID=B.AssociateID 
+    WHERE ((A.StartDate BETWEEN B.StartDate AND DATEADD(DD,5,B.StartDate)) AND B.RowStatus=1) OR 
+	(DATEDIFF(dd,A.StartDate,B.StartDate) < 6 and DATEDIFF(dd,A.StartDate,B.StartDate) >-6 
+	AND B.RowStatus=1) AND A.StartDate <> B.StartDate
+
+	--IT
+	UPDATE #ValidData SET ExceptionReason=
+	(CASE WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID=B.ProjectID
+		THEN 'Data already uploaded for IT 6th DA with less than 5 days gap' 
+		WHEN B.Status =5 AND A.ProjectID=B.ProjectID
+		THEN 'Data already processed for IT 6th DA with less than 5 days gap' 
+		WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID <> B.ProjectID
+		THEN 'Data already uploaded in another project with less than 5 days gap'
+		WHEN B.STATUS=5  AND A.ProjectID <> B.ProjectID
+		THEN 'Data already processed in another project with less than 5 days gap' END)
+	FROM #ValidData A WITH(NOLOCK) 
+	INNER JOIN PR.ITShiftAllowance B WITH(NOLOCK) ON A.AssociateID=B.AssociateID AND B.Fk_ComponentID=50
+	WHERE ((A.StartDate BETWEEN B.StartDate AND DATEADD(DD,5,B.StartDate)) AND B.RowStatus=1) OR 
+	(DATEDIFF(dd,A.StartDate,B.StartDate) <=5 and DATEDIFF(dd,A.StartDate,B.StartDate) >=-5 
+	AND B.RowStatus=1) AND A.StartDate <> B.StartDate
+
+	--CIS
+	UPDATE #ValidData SET ExceptionReason=
+	(CASE WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID=B.ProjectID
+		THEN 'Data already uploaded for CIS 6th DA with less than 5 days gap' 
+		WHEN B.Status =5 AND A.ProjectID=B.ProjectID
+		THEN 'Data already processed for CIS 6th DA with less than 5 days gap' 
+		WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID <> B.ProjectID
+		THEN 'Data already uploaded in another project with less than 5 days gap'
+		WHEN B.STATUS=5  AND A.ProjectID <> B.ProjectID
+		THEN 'Data already processed in another project with less than 5 days gap' END)
+	FROM #ValidData A WITH(NOLOCK) 
+	INNER JOIN PR.ShiftTimePayout B WITH(NOLOCK) ON A.AssociateID=B.AssociateID AND B.Fk_ComponentID=4
+	WHERE ((A.StartDate BETWEEN B.StartDate AND DATEADD(DD,5,B.StartDate)) AND B.RowStatus=1) OR 
+	(DATEDIFF(dd,A.StartDate,B.StartDate) <=5 and DATEDIFF(dd,A.StartDate,B.StartDate) >=-5 
+	AND B.RowStatus=1) AND A.StartDate <> B.StartDate
+
+	--ADM
+	UPDATE #ValidData SET ExceptionReason=
+	(CASE WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID=B.ProjectID
+		THEN 'Data already uploaded for ADM 6th DA with less than 5 days gap' 
+		WHEN B.Status =5 AND A.ProjectID=B.ProjectID
+		THEN 'Data already processed for ADM 6th DA with less than 5 days gap' 
+		WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID <> B.ProjectID
+		THEN 'Data already uploaded in another project with less than 5 days gap'
+		WHEN B.STATUS=5  AND A.ProjectID <> B.ProjectID
+		THEN 'Data already processed in another project with less than 5 days gap' END)
+	FROM #ValidData A WITH(NOLOCK) 
+	INNER JOIN PR.ADMShiftAllowance B WITH(NOLOCK) ON A.AssociateID=B.AssociateID AND B.Fk_ComponentID=170
+	WHERE ((A.StartDate BETWEEN B.StartDate AND DATEADD(DD,5,B.StartDate)) AND B.RowStatus=1) OR 
+	(DATEDIFF(dd,A.StartDate,B.StartDate) <=5 and DATEDIFF(dd,A.StartDate,B.StartDate) >=-5 
+	 AND B.RowStatus=1) AND A.StartDate <> B.StartDate
+
+	 ---------------DUPLICATE CHECK ACCROSS BU --------------------------------
+
+	   UPDATE A SET A.ExceptionReason=(CASE 
+	   WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID=B.ProjectID
+	   THEN 'Data was already uploaded for Same date' 
+	   WHEN B.STATUS=5  AND A.ProjectID=B.ProjectID THEN 'Data was already processed for Same date' 
+	   WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> A.ProjectID
+	   THEN 'Allowance has already been uploaded under another project' 
+	   WHEN B.Status =5 AND B.ProjectID <> A.ProjectID
+	   THEN 'Allowance has already been processed under another project' END)
+	   FROM #ValidData A WITH(NOLOCK) 
+	   INNER JOIN PR.BPSSDA B WITH(NOLOCK) ON A.AssociateID=B.AssociateID 
+	   WHERE A.startdate = B.startdate and B.rowstatus = 1
+     
+	  --IT
+	   UPDATE A SET A.ExceptionReason=
+	  (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID=B.ProjectID
+	   THEN 'Allowance has already been uploaded for the same day under IT component' 
+	   WHEN B.STATUS=5  AND A.ProjectID=B.ProjectID THEN 'Allowance already processed in IT component' 
+	   WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> A.ProjectID
+	   THEN 'Allowance has already been uploaded under another project' 
+	   WHEN B.Status =5 AND B.ProjectID <> A.ProjectID
+	   THEN 'Allowance has already been processed under another project' END)
+	   FROM #ValidData A WITH(NOLOCK) 
+	   INNER JOIN PR.ITShiftAllowance B WITH(NOLOCK) ON A.AssociateID=B.AssociateID AND B.Fk_ComponentID=50 
+	   WHERE A.startdate = B.startdate
+	   and B.rowstatus = 1
+
+	   --CIS
+	   UPDATE A SET A.ExceptionReason=(CASE 
+	   WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID=B.ProjectID
+	   THEN 'Allowance has already been uploaded for the same day under CIS component' 
+	   WHEN B.STATUS=5  AND A.ProjectID=B.ProjectID THEN 'Allowance already processed in CIS component' 
+	   WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> A.ProjectID
+	   THEN 'Allowance has already been uploaded under another project' 
+	   WHEN B.Status =5 AND B.ProjectID <> A.ProjectID
+	   THEN 'Allowance has already been processed under another project' END)
+	   FROM #ValidData A WITH(NOLOCK) 
+	   INNER JOIN PR.ShiftTimePayout B WITH(NOLOCK) ON A.AssociateID=B.AssociateID AND B.Fk_ComponentID=4 
+	   WHERE A.startdate = B.startdate and B.rowstatus = 1
+
+	   --ADM
+	   UPDATE A SET A.ExceptionReason=(CASE 
+	   WHEN B.Status in (1,4,12,21,15,34,35) AND A.ProjectID=B.ProjectID
+	   THEN 'Allowance has already been uploaded for the same day under ADM component' 
+	   WHEN B.STATUS=5  AND A.ProjectID=B.ProjectID THEN 'Allowance already processed in ADM component' 
+	   WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> A.ProjectID
+	   THEN 'Allowance has already been uploaded under another project' 
+	   WHEN B.Status =5 AND B.ProjectID <> A.ProjectID
+	   THEN 'Allowance has already been processed under another project' END)
+	   FROM #ValidData A WITH(NOLOCK) 
+	   INNER JOIN PR.ADMShiftAllowance B WITH(NOLOCK) ON A.AssociateID=B.AssociateID AND B.Fk_ComponentID=170
+	   WHERE A.startdate = B.startdate and B.rowstatus = 1
+
+-------------------------------------------INSERT DATA INTO  EXCEPTION TABLE-----------------------------------------
+    INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, 
+	StartDateTime,EndDateTime,ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID,
+	ExceptionRemarks,CreatedBy,CreatedDate,RowStatus)
+    SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate,101)as Startdate,CONVERT(VARCHAR,Enddate,101)as Enddate,
+	Starttime,Endtime,CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+    CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+    ProjectID, TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1
+	FROM #VALIDDATA WITH (NOLOCK) 
+    WHERE ISNULL(ExceptionReason,'')<>'' 
+		 
+	DELETE FROM #ValidData WHERE ISNULL(ExceptionReason,'')<>'' 
+          
+ --   UPDATE  #ValidData SET ExceptionReason=
+	--ISNULL(ExceptionReason,'')+'Rotational shift should claim 6DA between Mon- Fri'
+ --   WHERE DATEPART(DW,StartDate) IN (1,7) AND ShiftType not like 'Normal'
+
+ --   UPDATE #ValidData SET ExceptionReason=ISNULL(ExceptionReason,'')
+	--+'Normal shift should claim 6DA between Sat - Sun '
+ --   WHERE DATEPART(DW,StartDate) IN (2,3,4,5,6) AND ShiftType not like 'Rotational'     
+		  
+-----------------------------------------------------Amount Calculations-------------------------------------
+    CREATE TABLE #UptoShiftHour(ID INT IDENTITY(1,1),UptoShiftHour Float,
+	SixAllowanceEffDate DATE)--v1.0
+    INSERT INTO #UptoShiftHour
+    SELECT  DISTINCT Convert(float,UptoShiftHour) as UptoShiftHour,SixDayAllowanceEffDate  -- v1.0
+	FROM Policy.GradeAmountMaster GAM with (NOLOCK) 
+	INNER JOIN ComponentCountryMapping CCM with (nolock) ON GAM.FK_ComponentCountryMappingID=
+	CCM.PK_ComponentCountryMappingID
+	WHERE CCM.FK_ComponentID=36 and CCM.FK_ComponentCountryID=1 and CCM.ROwStatus=1 AND GAM.RowStatus=1 
+	ORDER BY UptoShiftHour
+       
+	DECLARE @TravelAmount money
+
+    Select @TravelAmount=TravelType from Policy.GradeAmountMaster NOLOCK
+	WHERE FK_ComponentCountryMappingID=@ComponentCountryMappingID AND RowStatus=1 
+	AND SixDayAllowanceEffDate  = @EffectiveDate -- v1.0
+	--Start v1.0
+    Select Distinct PK_BPSSDAID,AssociateId,ShiftType,ProjectId,Grade,StartDate,Enddate,StartTime,EndTime,SD.SetId,
+	StartDateTime,EndDateTime,SD.CreatedBy,SD.CreatedDate,
+    SD.BillingDetails,SD.TransportEligibility,
+
+        (CASE WHEN (DATEDIFF(mi,SD.STARTDATETIME,SD.ENDDATETIME) BETWEEN 0 AND ((SELECT distinct UptoShiftHour
+		FROM #UptoShiftHour WHERE ID in (1,2) AND SixAllowanceEffDate=SD.EffectiveDate)*60)) 
+		and (DATEDIFF(MINUTE,SD.STARTDATETIME,SD.ENDDATETIME) >=30)  AND GM.GradeLevelId IS NOT NULL
+		THEN (SELECT GAM.FixedAmount FROM Policy.GradeAmountMaster GAM WITH(NOLOCK) 
+        WHERE GAM.RowStatus=1 AND GAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND 
+		GAM.UptoShiftHour =(SELECT UptoShiftHour FROM #UptoShiftHour WHERE ID in (1,2) AND 
+		SixAllowanceEffDate=SD.EffectiveDate) 
+        AND GAM.GradeLevelId=SD.Grade AND GAM.SixDayAllowanceEffDate= SD.EffectiveDate GROUP BY GAM.FixedAmount)  
+          WHEN 
+ 		DATEDIFF(mi,SD.STARTDATETIME,SD.ENDDATETIME)>((SELECT distinct UptoShiftHour FROM #UptoShiftHour
+		WHERE ID in(1,2) AND SixAllowanceEffDate=SD.EffectiveDate)*60) AND GM.GradeLevelId IS NOT NULL THEN
+		(SELECT GAM.FixedAmount FROM Policy.GradeAmountMaster GAM WITH(NOLOCK) 
+       WHERE GAM.RowStatus=1 AND GAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND GAM.UptoShiftHour =
+		(SELECT UptoShiftHour FROM #UptoShiftHour WHERE ID in (3,4) AND SixAllowanceEffDate=SD.EffectiveDate) 
+        AND GAM.GradeLevelId=SD.Grade AND GAM.SixDayAllowanceEffDate= SD.EffectiveDate GROUP BY GAM.FixedAmount) 
+        ELSE NULL  END ) AS Amount,
+        COALESCE((CASE WHEN (DATEDIFF(MINUTE,SD.STARTDATETIME,SD.ENDDATETIME) < 120 AND GM.GradeLevelId IS NOT NULL) 
+                THEN 'Associate should be in office for atleast 2 Hours for 6DA,' ELSE NULL END), '') --BM01APR2021
+        AS ExceptionReason
+        INTO #GRADECHECK FROM #ValidData SD WITH(NOLOCK)
+        LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation AD WITH(NOLOCK)
+		ON AD.Job_Family=SD.Grade
+        AND AD.Bussiness_unit=SD.SetId
+        LEFT OUTER JOIN Policy.GradeMaster GM WITH(NOLOCK) ON GM.GradeLevelId=AD.Job_Family
+		AND GM.RowStatus=1 and GM.FK_ComponentID=36
+
+		--END v1.0
+    DROP TABLE #UPTOSHIFTHOUR                
+               
+    Update VD Set VD.Amount=GC.Amount from #GRADECHECK GC
+     INNER JOIN #VALIDDATA VD ON GC.PK_BPSSDAID=VD.PK_BPSSDAID
+     DROP TABLE #GRADECHECK 
+
+    Update #VALIDDATA set ExceptionReason='Amount is not configured for this grade' WHERE isnull(Amount,'')=''
+
+    UPDATE  #VALIDDATA SET ExceptionReason=ISNULL(ExceptionReason,'')+'Invalid TravelTypeAmount' 
+    WHERE TransportEligibility ='Yes' and ISNULL(@TravelAmount,'')=''
+
+   Update #VALIDDATA set Amount=@TravelAmount+Amount WHERE TransportEligibility ='Yes'
+   and ISNULL(@TravelAmount,'')<>''
+
+    INSERT INTO EXP.BPSSDA(AssociateID,ShiftType,Grade,ProjectID, StartDate, StartTime, 
+    EndDate, EndTime,SetID,BillingDetails,TransportEligibility,ExceptionRemarks,CreatedBy, CreatedDate,RowStatus)
+    SELECT AssociateID,ShiftType,Grade,ProjectID,cONVERT(VARCHAR,Startdate),Starttime,
+	cONVERT(VARCHAR,Enddate),Endtime,
+    SetId,BillingDetails,TransportEligibility,ExceptionReason,CreatedBy,CreatedDate,1 
+	FROM #VALIDDATA WHERE isnull(ExceptionReason,'')<>'' 
+
+    DELETE FROM #VALIDDATA WHERE  isnull(ExceptionReason,'')<>''
+
+			---------------------------------GENERAL VALIDATION----------------------------------------
+        CREATE TABLE #PROJ(ComponentID INT,ProjectID VARCHAR(20),ProjectStartdate DATETIME,MINEXPIRYDATE DATETIME,
+		VerificationStatus INT)
+
+        INSERT INTO #PROJ(ComponentID,ProjectID,ProjectStartdate,MINEXPIRYDATE,VerificationStatus)
+        SELECT DISTINCT AP.Fk_ComponentID,AP.ProjectID,CP.Project_Start_Date,MIN(COL),AP.VerificationStatus
+        FROM  Approval_MonthlyYearlyApprovals AP WITH(NOLOCK) 
+		INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON AP.ProjectID =VD.ProjectID AND AP.FK_ComponentID=36
+        INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project] CP WITH(NOLOCK)
+		ON ISNUMERIC(CP.Project_ID)=1
+		AND  CP.Project_ID=AP.ProjectID 
+        CROSS APPLY (SELECT AP.ValidTo UNION ALL SELECT CP.Project_End_Date) A(COL)
+        WHERE AP.RowStatus=1 
+        GROUP BY AP.ProjectID,CP.Project_End_Date,AP.FK_ComponentID,CP.Project_Start_Date,AP.VerificationStatus
+
+        UPDATE VD SET VD.ExceptionReason='Allowance claim date does not lie within the project validity dates'
+        FROM  #VALIDDATA VD WITH (NOLOCK) 
+        INNER JOIN #PROJ P WITH (NOLOCK) ON P.ComponentID=36 AND VD.ProjectID=P.ProjectID 
+        WHERE  ((StartDate NOT BETWEEN P.ProjectStartdate AND P.MINEXPIRYDATE)
+		OR (EndDate NOT BETWEEN P.ProjectStartdate AND P.MINEXPIRYDATE))   OR P.VerificationStatus=1
+
+    INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, 
+    ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID,  ExceptionRemarks,CreatedBy,CreatedDate,
+	RowStatus)
+    SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+    ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1
+    FROM #VALIDDATA WITH (NOLOCK) WHERE ISNULL(ExceptionReason,'')<>'' 
+
+    DELETE FROM #ValidData WHERE ISNULL(ExceptionReason,'')<>''          
+
+       
+ --  Update A Set ExceptionReason= CASE WHEN B.Status=5 
+ --  THEN 'Datetime overlap with Processed BPS Night Shift Allowances'
+ --   ELSE 'Datetime overlap with uploaded BPS Night Shift Allowances' END
+ --   FROM #VALIDDATA A WITH(NOLOCK) 
+ --   INNER JOIN PR.BPSNSA B WITH(NOLOCK) ON A.Associateid=B.AssociateID
+ --   WHERE A.AssociateID=B.AssociateID AND ((A.StartDateTime BETWEEN B.StartDateTime AND B.EndDateTime) 
+ --   OR (A.EndDateTime BETWEEN B.StartDateTime AND B.EndDateTime)) AND NOT (A.StartDateTime=B.StartDateTime and
+	--A.EndDatetime=B.EndDatetime)  And B.Rowstatus=1 
+
+ --   INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime,  StartDateTime,
+	--EndDateTime,  ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID,  ExceptionRemarks,CreatedBy,
+	--CreatedDate,RowStatus)
+ --   SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+ --   CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+ --   CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+ --   ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1
+ --       FROM #VALIDDATA WITH (NOLOCK) WHERE ISNULL(ExceptionReason,'')<>'' 
+
+ --   DELETE FROM #ValidData WHERE ISNULL(ExceptionReason,'')<>'' 
+
+				---------------------------------Already uploaded check----------------------------------
+  		Update A Set ExceptionReason= CASE WHEN B.Status=5 
+		THEN 'Datetime overlap with Processed BPS Sixth Day Allowances'
+          ELSE 'Datetime overlap with uploaded BPS Sixth Day Allowances' END
+          FROM #VALIDDATA A WITH(NOLOCK) 
+          INNER JOIN PR.BPSSDA B WITH(NOLOCK) ON A.Associateid=B.AssociateID
+        WHERE A.AssociateID=B.AssociateID AND  ((A.StartDateTime BETWEEN B.StartDateTime AND B.EndDateTime) 
+          OR (A.EndDateTime BETWEEN B.StartDateTime AND B.EndDateTime)) and B.ROWSTATUS=1
+		  AND B.Status Not in (2,3,8,9,18,17,23,24,36)
+
+          INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime,  StartDateTime,
+		  EndDateTime, ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID,  ExceptionRemarks,CreatedBy,
+		  CreatedDate,RowStatus)
+          SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
+           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1
+              FROM #VALIDDATA WITH (NOLOCK) WHERE ISNULL(ExceptionReason,'')<>'' 
+         
+          DELETE FROM #ValidData WHERE ISNULL(ExceptionReason,'')<>''  
+
+-------------------DUPLICATE CHECK WITH THE PROCESSED DATA FOR OTHER COMPONENTS TIME OVERLAP------------------------
+			Select 
+			A.AssociateID,
+			A.Amount as newAmount,PST.Amount as PRAmount,A.CreatedBy as LoginID,A.NSAdate as newNSADate,
+			PST.NSADate as NSADate
+			INTO #ProcessedDataCheck1CI
+			FROM #VALIDDATA A WITH(NOLOCK) 
+			INNER JOIN PR.BPSNSA PST WITH(NOLOCK) ON A.AssociateID=PST.AssociateID 
+			WHERE A.AssociateID=PST.AssociateID AND
+			(((PST.StartDateTime BETWEEN A.StartDateTime and A.EndDateTime)OR 
+			(PST.EndDateTime BETWEEN A.StartDateTime and A.EndDateTime)
+			OR (A.StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) OR
+			(A.EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) OR (PST.StartDate=A.StartDate)) AND 
+			((A.StartTime<>PST.StartTime AND A.EndTime=PST.EndTime) OR
+			(A.StartTime=PST.StartTime AND A.EndTime<>PST.EndTime) OR 
+			(A.StartTime<>PST.StartTime AND A.EndTime<>PST.EndTime))) 
+			 AND PST.RowStatus=1 AND PST.Status Not in (2,3,5,8,9,18,17,23,24,36)
+
+			select case when PRAmount>newAmount then newNSADate else NSADate end AS PkID,
+			case when PRAmount>newAmount then 'Valid' else 'Process' end AS TableCheck,LoginID,AssociateID
+			into #PkIDtblCI
+			from #ProcessedDataCheck1CI WITH(NOLOCK)
+					   
+			insert into PR.BPSNSA_Log(PK_BPSNSAId,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,
+			StartDateTime,EndDateTime,Amount,Grade,SetID,ProjectId,RejectionReason,Fk_RejectedRoleID,
+			RejectedBy,RejectedDate,ApprovedBy,Fk_ApprovedRoleID,ApprovedDate,Status,
+			LogCreatedby,LogCreatedDate,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Remarks,Rowstatus,
+			HCMSchedule,NSADate)
+			select PK_BPSNSAId,PD.AssociateID,Shifttype,Startdate,Enddate,Starttime,Endtime,
+			StartDateTime,EndDateTime,Amount,Grade,SetID,ProjectId,RejectionReason,Fk_RejectedRoleID,
+			RejectedBy,RejectedDate,ApprovedBy,Fk_ApprovedRoleID,ApprovedDate,Status,
+			PD.CreatedBy,getdate(),Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,
+			HCMSchedule,NSADate
+			FROM PR.BPSNSA PD WITH(NOLOCK) 
+			INNER JOIN #PkIDtblCI PTB WITH(NOLOCK) on PD.NSADate=PTB.PkID and pd.AssociateID=PTB.AssociateID
+			where PTB.TableCheck='Process' and PD.RowStatus=1
+						
+			INSERT INTO EXP.BPSNSA(AssociateID,ShiftType, ProjectID, StartDate, StartTime, 
+			EndDate, EndTime, Exceptionremarks, CreatedBy, CreatedDate,RowStatus,HCMSchedule,NSADAte)
+			SELECT PD.AssociateID,ShiftType,ProjectID,Startdate,Starttime,Enddate,Endtime,
+			'Allowance with higher amount processed as per policy',CreatedBy,getdate(),1
+			,HCMSchedule,NSADate
+			FROM PR.BPSNSA PD WITH(NOLOCK) 
+			INNER JOIN #PkIDtblCI PTB WITH(NOLOCK) on PD.NSADate=PTB.PkID  and pd.AssociateID=PTB.AssociateID
+			where PTB.TableCheck='Process' and PD.RowStatus=1
+
+			Update PD set PD.RowStatus=0,ModifiedBy=PTB.LoginID,ModifiedDate=getdate()
+			FROM PR.BPSNSA PD WITH(NOLOCK) 
+			INNER JOIN #PkIDtblCI PTB WITH(NOLOCK) on PD.NSADate=PTB.PkID AND PD.AssociateID=PTB.AssociateID
+			where PTB.TableCheck='Process' and PD.RowStatus=1 
+
+			INSERT INTO EXP.BPSSDA (AssociateID,ShiftType, ProjectID, StartDate, StartTime, 
+			EndDate, EndTime, Exceptionremarks, CreatedBy, CreatedDate,RowStatus,NSADAte)
+			SELECT VD.AssociateID,ShiftType,ProjectID,Startdate,Starttime,Enddate,Endtime,
+			'Overlapping allowance with higher amount available in valid tab',CreatedBy,getdate(),1,
+			NSADate
+			FROM #VALIDDATA VD WITH(NOLOCK) 
+			INNER JOIN #PkIDtblCI PTB WITH(NOLOCK) on VD.NSADate=PTB.PkID and vd.AssociateID=ptb.AssociateID
+			where PTB.TableCheck='Valid' 
+
+			Update PD set PD.RowStatus=0,ModifiedBy=PTB.LoginID,ModifiedDate=getdate()
+			FROM PR.BPSSDA PD WITH(NOLOCK) 
+			INNER JOIN #PkIDtblCI PTB WITH(NOLOCK) on PD.NSADate=PTB.PkID AND PD.AssociateID=PTB.AssociateID
+			where PTB.TableCheck='Valid' and PD.RowStatus=1 
+
+			DELETE VD
+			FROM #VALIDDATA VD WITH(NOLOCK) 
+			INNER JOIN #PkIDtblCI PTB WITH(NOLOCK) on VD.NSADate=PTB.PkID AND VD.AssociateID=PTB.AssociateID
+			where PTB.TableCheck='Valid'
+
+	Declare @maxcountcheckbps int
+			Select-- A.PK_BPS_NSAID as newPkID,PST.Pk_BPSSDAID as PRPkID,
+			A.AssociateID,
+			36 as PTComponentID,
+			A.Amount as newAmount,PST.Amount as PRAmount,
+			A.NSAdate as newNSADate,PST.NSADate as NSADate
+			INTO #ProcessedDataCheck3CI
+			FROM #VALIDDATA A WITH(NOLOCK) 
+			INNER JOIN PR.BPSNSA PST WITH(NOLOCK) ON A.AssociateID=PST.AssociateID 			
+			WHERE A.AssociateID=PST.AssociateID AND ((A.StartDatetime=PST.StartDatetime)----same date and time
+			AND (A.EndDatetime=PST.EndDatetime))
+			AND PST.RowStatus=1 AND PST.Status Not in (2,3,5,8,9,18,17,23,24,36) 
+
+			SELECT @maxcountcheckbps=COUNT(DISTINCT A.PTComponentID)
+			FROM #ProcessedDataCheck3CI A WITH(NOLOCK)
+
+			IF(@maxcountcheckbps =2)
+			BEGIN
+
+				INSERT INTO EXP.BPSNSA (AssociateID, ShiftType,
+			ProjectID, StartDate, StartTime, 
+			EndDate, EndTime, ExceptionRemarks,
+			CreatedBy, CreatedDate,RowStatus,NSADate)
+			SELECT Distinct VD.AssociateID, ShiftType,ProjectID,Startdate,Starttime,
+			Enddate,Endtime,'Allowances with higher amount processed as per policy',
+			CreatedBy,getdate(),1,VD.NSADate
+				FROM #VALIDDATA VD WITH(NOLOCK) 
+				INNER JOIN #ProcessedDataCheck3CI PDC WITH(NOLOCK) on VD.NSADate=PDC.newNSADate
+
+				Delete VD from #VALIDDATA VD
+				INNER JOIN #ProcessedDataCheck3CI PDC on VD.NSADate=PDC.newNSADate 
+			END
+
+	Select A.PK_BPSSDAID as newPkID,PST.PK_BPSNSAId as PRPkID,
+	A.AssociateID,
+	A.Amount as newAmount,PST.Amount as PRAmount,A.NSAdate as newNSADate,
+			PST.NSADate as NSADate
+			INTO #ProcessedDataCheck4CI
+			FROM #VALIDDATA A WITH(NOLOCK) 
+			INNER JOIN PR.BPSNSA PST WITH(NOLOCK) ON A.AssociateID=PST.AssociateID 
+			WHERE A.AssociateID=PST.AssociateID AND
+			(((PST.StartDateTime BETWEEN A.StartDateTime and A.EndDateTime)OR
+			(PST.EndDateTime BETWEEN A.StartDateTime and A.EndDateTime)
+			OR (A.StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) OR 
+			(A.EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) OR (PST.StartDate=A.StartDate)) AND 
+			((A.StartTime<>PST.StartTime AND A.EndTime=PST.EndTime) OR 
+			(A.StartTime=PST.StartTime AND A.EndTime<>PST.EndTime) OR 
+			(A.StartTime<>PST.StartTime AND A.EndTime<>PST.EndTime))) 
+			AND PST.RowStatus=1 AND PST.Status=5
+
+			select newPkID,newNSADate,case when PRAmount>newAmount then 'Process' else 'Valid' end AS higherAmount,AssociateID
+			into #PkIDtbl4CI
+			from #ProcessedDataCheck4CI WITH(NOLOCK)
+
+			INSERT INTO EXP.BPSSDA(AssociateID,ShiftType, ProjectID, StartDate, StartTime, 
+			EndDate, EndTime, Exceptionremarks, CreatedBy, CreatedDate,RowStatus,NSADate)
+			SELECT VD.AssociateID,ShiftType,ProjectID,Startdate,Starttime,Enddate,Endtime,
+			CASE WHEN PTB.higherAmount='Process' then 'Overlapping allowance with higher amount processed previously'
+			else 'Overlapping allowance processed previously'  end 
+			,CreatedBy,Getdate(),1,NSADate
+			FROM #VALIDDATA VD WITH(NOLOCK) 
+			INNER JOIN #PkIDtbl4CI PTB WITH(NOLOCK) on VD.NSADate=PTB.newNSADate
+			AND PTB.AssociateID=VD.AssociateID
+
+			DELETE VD
+			FROM #VALIDDATA VD WITH(NOLOCK) 
+			INNER JOIN #PkIDtbl4CI PTB WITH(NOLOCK) on VD.NSADate=PTB.newNSADate AND PTB.AssociateID=VD.AssociateID
+									
+DROP TABLE #ProcessedDataCheck1CI
+
+DROP TABLE #PkIDtblCI
+
+DROP TABLE #ProcessedDataCheck3CI
+
+DROP TABLE #ProcessedDataCheck4CI
+
+DROP TABLE #PkIDtbl4CI
+                
+----------------------------------INSERTING DATA TO PROCESSING TABLE------------------------
+
+	 update SD set SD.status=34
+	  from #VALIDDATA SD	
+	  inner join CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM With(nolock) on
+	  PM.Project_ID = SD.ProjectID and PM.PROJECT_MANAGER = SD.AssociateID
+
+	  ---------------------------------D+ check CODE-----------------------------------------
+	--Insertion into temp table
+			select distinct AssociateID ,dense_RANK() OVER (ORDER BY AssociateID desc) AS rn1 
+			into #temp1 
+			from #VALIDDATA where (Status=34)
+	    
+			; WITH Shift_CTE(Associate_id,Supervisor_ID,Jobcode,ApproverName,ID,rn1) AS  
+            (  
+            SELECT Associate_id, a.Supervisor_ID,Jobcode, a.Associate_FirstName+a.Associate_LastName AS ApproverName,
+			0 AS EmployeeLevel, rn1 
+            from centralrepository.dbo.vw_CentralRepository_Associate_Details a WITH(NOLOCK) inner join
+            #temp1 b on Associate_id=b.AssociateID  
+            UNION ALL  
+            SELECT e.Associate_id, e.Supervisor_ID, e.Jobcode,e.Associate_FirstName+e.Associate_LastName AS ApproverName,
+			ID + 1 AS S_ID, rn1   
+			FROM centralrepository.dbo.vw_CentralRepository_Associate_Details e WITH(NOLOCK) 
+			INNER JOIN Shift_CTE c ON e.Associate_id = c.Supervisor_ID AND 
+			CAST(LEFT((e.Jobcode),2)AS INT) > 35 AND ID < 50)
+			 
+			SELECT Associate_id, Supervisor_ID, Jobcode,ApproverName,ID, rn1 INTO #temp2 FROM Shift_CTE  c ORDER BY rn1, ID
 	
-	   UPDATE ESTP 
-		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN IIF( @CreatedRole = 8,13,14) ELSE IIF( @CreatedRole = 8,9,8) END,
-			ESTP.ModifiedBy = STP.EPCreatedBy,
-			ESTP.ModifiedDate = @Currentdate, 			
-			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
-			ESTP.RejectionReason = STP.EPRejectionReason, 
-			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedBy ELSE ESTP.ApprovedBy END, 
-			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
-			ESTP.ApproverRoleID = CASE WHEN STP.Approve_Reject = 'Approved'  THEN IIF( @CreatedRole = 8,8,3) ELSE ESTP.ApproverRoleID END,
-			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedBy ELSE ESTP.RejectedBy END, 
-			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN IIF( @CreatedRole = 8,8,3)  END
-		  FROM PR.TRTSpecialInputs ESTP WITH (NOLOCK) 
-		  INNER JOIN #Exception_TRT STP WITH (NOLOCK) 
-			ON ESTP.PK_TRTSpecialInputsID = STP.PK_TRTSpecialInputsID 
-		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
-	 
-	  DROP TABLE #Exception_TRT
+			INSERT INTO #temp2 
+			SELECT A.Associate_id, A.Supervisor_ID, A.Jobcode, A.Associate_FirstName+A.Associate_LastName AS ApproverName,
+			(SELECT MAX(T.ID) + 1 FROM  #temp2 T WHERE  T.rn1 = b.rn1) AS EmployeeLevel, b.rn1   
+            FROM centralrepository.dbo.vw_CentralRepository_Associate_Details A WITH(NOLOCK) INNER JOIN #temp2 b ON 
+			A.Associate_id=b.Supervisor_ID AND CAST(LEFT((A.Jobcode),2)AS INT) <= 35 AND --D+ 
+			b.ID = (SELECT MAX(T.ID) FROM  #temp2 T WHERE  T.rn1 = b.rn1)
 
-	END
+			SELECT T1.Associate_id, T1.Supervisor_ID AS SupervisorID, T2.Associate_id AS ApproverID,T2.ApproverName 
+			INTO #shift FROM #temp2 T1 INNER JOIN #temp2 T2 ON T1.rn1 = T2.rn1 WHERE T1.ID = 0 AND 
+			T1.ID <> T2.ID AND CAST(LEFT((T2.Jobcode),2)AS INT) <= 35
+	
+			Select distinct TP.AssociateID,
+			A.ApproverID AS Approverid,a.ApproverName INTO #Twoway 
+			FROM #temp1 TP LEFT OUTER JOIN #shift a ON TP.Associateid = a.Associate_id 
+
+			 SELECT ApproverId,
+			LTRIM(RTRIM(ApproverName)) as ApproverName,AssociateID into #final
+		    FROM #Twoway
+		    group by Approverid,ApproverName,AssociateID
+
+			update #final set Approverid=Null, ApproverName=Null where Approverid=AssociateID
+
+			UPDATE A SET A.DApproverID=F.Approverid FROM #VALIDDATA A INNER JOIN #final F
+			ON A.AssociateID=F.AssociateID
+
+			Update D set D.ExceptionReason='D+ approver is not mapped for actioning the records.'+ 
+			'Please contact your Reporting Manager/HRSS Team.' from #VALIDDATA D INNER JOIN #final F
+			ON D.AssociateID=F.AssociateID WHERE ISNULL(F.Approverid,'')=''
+
+			INSERT INTO EXP.BPSSDA(AssociateID,ShiftType, ProjectID, StartDate, StartTime, 
+			EndDate, EndTime, Exceptionremarks, CreatedBy, CreatedDate,RowStatus,NSADate)  
+			SELECT Distinct VD.AssociateID,ShiftType,ProjectID,Startdate,Starttime,Enddate,  
+			Endtime,'D+ approver is not mapped for actioning the records.'+ 
+			'Please contact your Reporting Manager/HRSS Team.',CreatedBy,  
+			CreatedDate,1 , NSADate FROM #VALIDDATA VD WHERE ExceptionReason<>'' 
+
+			DELETE FROM #VALIDDATA WHERE ExceptionReason<>''      
+
+			Delete A from  stg.BPSSDA A  
+			LEFT OUTER JOIN #VALIDDATA  B ON A.Pk_BPSSDAID=B.PK_BPSSDAID
+			where B.PK_BPSSDAID is null  
+
+	 ---------------------------------D+ check CODE-----------------------------------------
+	 -----------------------Project Based GradeAmount
+	 	Declare @OwaFlag INT=0
+		select @OwaFlag=keyvalue from SPaykeys where KeyCode='OWA Flag'
+
+		UPDATE NSA set NSA.GAmount=(CASE WHEN 
+			(((DATEDIFF(mi,StartDateTime,EndDateTime) BETWEEN 0 AND 270) AND NSA.City NOT IN ('Noida')) OR
+			((DATEDIFF(mi,StartDateTime,EndDateTime) BETWEEN 0 AND 240) AND NSA.City IN ('Noida'))) 
+			then MinAmount
+		else MaxAmount end)
+		FROM #VALIDDATA NSA 
+		inner JOIN CentralRepository.dbo.vw_CentralRepository_Designation AD WITH(NOLOCK)    
+		ON AD.Job_Family=nsa.Grade
+		inner join Policy.ProjectGradeAmountMaster pgm on pgm.FK_ComponentCountryMappingID=33
+		and ad.Job_Family=pgm.GradeLevelId and nsa.ProjectID=pgm.ProjectID
+		INNER JOIN PR.APACProject PP ON PP.ProjectID=pgm.ProjectID AND PP.Rowstatus=1
+		AND pgm.FK_ComponentCountryMappingID=PP.Fk_ComponentCountryMappingID
+		where pgm.effectivedate=(select max(effectivedate)from Policy.ProjectGradeAmountMaster gam where gam.effectivedate<=nsa.startdate
+		and gam.GradeLevelId=pgm.GradeLevelId and FK_ComponentCountryMappingID=33 and gam.ProjectID=pgm.ProjectID)
+		and @OwaFlag=1
+
+		update #VALIDDATA set FAmount=Amount+isnull(GAmount,0)
+	  
+    INSERT INTO PR.BPSSDA(AssociateID, ShiftType,StartDate, StartTime,StartDateTime,
+    EndDate, EndTime,EndDateTime,Grade,ProjectID,Amount,TRansportEligibility,BillingDetails,Status,SetId,
+    CreatedBy, CreatedDate,RowStatus,NSADate,D_Id,SDA_OCA_Amount,SDA_OCA_Amount2)
+    SELECT AssociateID, ShiftType,StartDate, StartTime,StartDateTime,
+    EndDate, EndTime,EndDateTime,Grade,ProjectID,FAmount,TRansportEligibility,BillingDetails, 
+	(CASE WHEN ((isnull(Status,'')='') or status=1) then 1
+	else Status end),SetId, CreatedBy, getdate(),1,cast(StartDate as datetime),DApproverID,
+	Amount,GAmount
+    FROM #VALIDDATA WITH(NOLOCK)
+
+UPDATE SANDataMaster SET IsProcessed=1, ModifiedDate = GETDATE() WHERE FileUploadId=@FileUploadID AND IsProcessed=0
+
+DROP TABLE #VALIDDATA
+DROP TABLE #BPSSDA
+DROP TABLE #PROJ
+EXEC [Trunc].[usp_TruncateTable] 'STG.BPSSDA'
+
+END
+COMMIT TRANSACTION
+	END TRY
+	BEGIN CATCH
+	
+	ROLLBACK TRANSACTION
+	
+	     DECLARE @ERROR_ID  VARCHAR(8000)    
+          DECLARE @ERROR_MSG  VARCHAR(8000)        
+          DECLARE @ERROR_SEVERITY  VARCHAR(8000)    
+          DECLARE @ERROR_STATE  VARCHAR(100)        
+          DECLARE @ERROR_PROCEDURE  VARCHAR(8000)    
+          DECLARE @ERROR_LINE  VARCHAR(8000)    
+
+          SELECT    
+          @ERROR_ID= ERROR_NUMBER(),    
+          @ERROR_MSG= ERROR_MESSAGE(),    
+          @ERROR_SEVERITY=ERROR_SEVERITY(),    
+          @ERROR_STATE=ERROR_STATE(),    
+          @ERROR_PROCEDURE='usp_StagingToMain_BPSSDA',    
+          @ERROR_LINE = ERROR_LINE()    
+
+		EXEC [Trunc].[usp_TruncateTable] 'STG.BPSSDA'
+
+         INSERT INTO ExceptionLog(ErrorSource, ExceptionMessage, ExceptionStackTrace, 
+		 InnerException, ExceptionDateTime, CustomMessage)
+         VALUES('BPSShiftConsole',@ERROR_ID+@ERROR_MSG,@ERROR_SEVERITY,@ERROR_STATE,
+		 GETDATE(),@ERROR_PROCEDURE)          
+
+         RAISERROR(@ERROR_ID,@ERROR_SEVERITY,@ERROR_STATE,@ERROR_MSG);	
+	END CATCH

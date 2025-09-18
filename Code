@@ -1,84 +1,62 @@
-------------------------------------------------MANDATORY COLOUM CHECK--------------------------------
+		--------- Comp OFF Check ----------------------
+UPDATE A SET ExceptionReason = 
+	   'Comp off processed for the same date. Hence 6th Day Allowance cannot be processed'
+	   FROM #MANDATORY A WITH (NOLOCK) 	   
+	   INNER JOIN CentralRepository.dbo.vw_CentralRepository_EAM_IND_Comp_Off CF ON CF.EMPLID = A.AssociateID 
+	   WHERE CF.HOLIDAY_WORKED_DT = A.StartDate AND ISNULL(ExceptionReason, '') = ''
 
-          SELECT STP.Pk_BPSSDAID,ShiftType,STP.AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
-		  TransportEligibility,BillingDetails,CSM.FK_ComponentID AS ComponentID, '' AS Grade,'' AS BU ,'' AS Location,
-          COALESCE((CASE WHEN STM.ShiftTypeName IS NULL  THEN 'Invalid ShiftType,' ELSE NULL END), '') 
-          +   
-          COALESCE((CASE WHEN CSM.FK_ShiftTypeID IS NULL THEN 'Component- Shift type mismatch' ELSE '' END), '')
-          +   
-          COALESCE((CASE WHEN LEN(STP.AssociateID) not in (6,7) OR ISNUMERIC(STP.AssociateID)=0  
-		  THEN 'AssociateID is InValid,' ELSE NULL END), '')
-          +     
-        COALESCE((CASE WHEN ISNULL(STP.AssociateId,'')='' THEN 'AssociateID is Mandatory,' ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN ISNULL(STP.ProjectId,'')='' THEN 'ProjectID is Mandatory,' ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN LEN(STP.ProjectId) <> 10 OR ISNUMERIC(STP.ProjectId)=0  THEN 'ProjectID is InValid,' 
-		  ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN ISNULL(STP.Startdate,'')='' THEN 'Startdate is Mandatory,' ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN ISNULL(STP.Enddate,'')='' THEN 'Enddate is Mandatory,' ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN ISNULL(STP.StartTime,'')='' THEN 'StartTime is Mandatory,' ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN ISNULL(STP.EndTime,'')='' THEN 'EndTime is Mandatory,' ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN ISNULL(STP.TransportEligibility,'')='' THEN 'TransportEligibility is Mandatory,' 
-		  ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN ISNULL(STP.BillingDetails,'')='' THEN 'BillingDetails is Mandatory,'
-		  ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN ISDATE(Startdate)<>1 AND ISNULL(STP.Enddate,'')<>''  
-		  THEN 'Invalid start date format.Valid format is MM/DD/YYYY,'  ELSE NULL END), '')
-          +                                                  
-          COALESCE((CASE WHEN ISDATE(Enddate)<>1 AND ISNULL(STP.Enddate,'')<>''   
-		  THEN 'Invalid end date format.Valid format is MM/DD/YYYY,'  ELSE NULL END), '') 
-          +
-          COALESCE((CASE WHEN (ISDATE(STARTDATE)=1 AND STARTDATE > CONVERT(DATE, DATEADD(DAY, -(DAY(GETDATE())), 
-		  GETDATE())))	  OR(ISDATE(Enddate)=1 
-		  AND Enddate > CONVERT(DATE,DATEADD(mm, DATEDIFF(mm, 0, GETDATE()), 0)))
-		  THEN 'Claim cannot be Raised for Future Dates,' ELSE NULL END), '') 
-          +                                               
-          COALESCE((CASE WHEN (ISDATE(StartDate+' '+ StartTime)<>1 AND ISDATE(Startdate)=1) OR (LEN(StartTime)>5 AND 
-		  ISDATE(Startdate)=1) or isnull(Starttime,'')='' 
-				THEN 'Invalid start time format. Valid format is HH:MM,' ELSE NULL END),'')
+       INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime,StartDateTime,
+	   EndDateTime,ProjectID,TransportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
+	   CreatedDate,RowStatus)
+        SELECT ShiftType, AssociateID, CONVERT(VARCHAR,StartDate), CONVERT(VARCHAR,EndDate), StartTime, EndTime, 
+        NULL AS StartDateTime,NULL AS EndDateTime,
+        ProjectID, TRansportEligibility, BillingDetails,Grade,BU,ExceptionReason,CreatedBy,CreatedDate,1 
+        FROM #MANDATORY WITH (NOLOCK) WHERE ExceptionReason<>'' 
+
+        DELETE FROM STG.BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #MANDATORY WITH(NOLOCK) 
+		WHERE ExceptionReason<>'')
+          
+        DROP TABLE #MANDATORY
+
+		SELECT STP.Pk_BPSSDAID,ShiftType,STP.AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+		TransportEligibility,BillingDetails,'' AS Grade,'' AS BU,'' AS Location,
+		   
+		    COALESCE((CASE WHEN (ISDATE(EndDate+' '+ EndTime)=1 AND ISDATE(EndDate)=1 
+                AND CONVERT(DATETIME,(EndDate+' '+ EndTime))<CONVERT(DATETIME,(STP.StartDate+' '+ StartTime))
+                AND ISDATE(STP.StartDate+' '+ StartTime)=1 AND ISDATE(STP.Startdate)=1  ) 
+                    THEN 'End Time Should be greater than Start Time,' ELSE NULL END), '') 
+			+
+          COALESCE((CASE WHEN DATEDIFF(Mi,CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)
+		  +' '+CONVERT(VARCHAR,Starttime)))
+		  ,CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))))<120
+          THEN 'Minimum Eligibility Period is 2hrs' ELSE '' END), '')
 		  +
           COALESCE((CASE WHEN (ISDATE(STP.StartDate+' '+ StartTime)=1 AND ISDATE(STP.Startdate)=1 AND 
-		  ISDATE(EndDate+' '+ EndTime)=1 AND ISDATE(EndDate)=1)
-          AND((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,STP.Startdate)+' '
-		  +CONVERT(VARCHAR,Starttime))))%5)<>0
-		  OR((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,EndDate)+' '+CONVERT(VARCHAR,EndTime))))%5)<>0 )) 
-                THEN 'Time should be in multiples of 5 minutes (10:00, 10:05),' ELSE NULL END), '')
-          +
-
-          COALESCE((CASE WHEN  ISDATE(Startdate)=1 AND AD.DATEOFJOINING>CONVERT(DATE,StartDate)    
-                            THEN 'Associate''s DOJ should be lesser than claim date,' ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN (ISDATE(EndDate+' '+ EndTime)<>1 AND ISDATE(EndDate)=1) OR (LEN(EndTime)>5 AND 
-		  ISDATE(EndDate)=1) or  isnull(Endtime,'')=''
-                              THEN 'Invalid end time format. Valid format is HH:MM,' ELSE NULL END), '')
-          +
-          COALESCE((CASE WHEN STARTDATE=ENDDATE AND STARTTIME=ENDTIME
-							THEN 'StartDateTime and EndDateTime is Equal' ELSE '' END), '') 
-		   +
-          COALESCE((CASE WHEN STARTTIME like '%AM%' OR STARTTIME like '%PM%' OR ENDTIME like '%AM%' OR 
-		  ENDTIME like '%PM%'  THEN 'Invalid time format. Valid format is HH:MM,' ELSE '' END), '') 
-		  +
-	   COALESCE(( CASE WHEN CAST(StartDate AS DATE) > @6DAENDDate THEN 
-	  '6th Day Allowance ceased to exist from '+FORMAT (@6DAENDDate , 'dd-MMM-yyyy')+
-	  '. Please refer to new policy on Discretionary Incentive.' ELSE NULL END),'')
-	   +COALESCE(CASE WHEN DATEPART(DW,StartDate) IN (2,3,4,5,6) AND CSM.FK_ShiftTypeID<>2 THEN ' Normal shift should claim 6DA between Sat - Sun '  END,'')
-       +COALESCE(CASE WHEN DATEPART(DW,StartDate) IN (1,7) AND CSM.FK_ShiftTypeID<>1 THEN ' Rotational shift should claim 6DA between Mon- Fri '  END,'') 
-		  AS ExceptionReason,STP.CreatedBy,STP.CreatedDate
-          INTO  #MANDATORY        
+		  ISDATE(EndDate+' '+ EndTime)=1 AND ISDATE(EndDate)=1 AND 
+          DATEDIFF(mi,CONVERT(DATETIME,(CONVERT(VARCHAR,STP.StartDate)+' '+CONVERT(VARCHAR,StartTime))),
+		  CONVERT(DATETIME,(CONVERT(VARCHAR,EndDate)+' '+CONVERT(VARCHAR,EndTime)))) >1440)
+          THEN 'Difference Between StartTime and EndTime should not exceed 24 hours, 'ELSE NULL END),'')
+          AS ExceptionReason,STP.CreatedBy,STP.CreatedDate
+          INTO  #datetimecheck        
        FROM STG.BPSSDA STP WITH (NOLOCK) 
           LEFT OUTER JOIN ShiftTypeMaster STM WITH (NOLOCK) ON STP.ShiftType=STM.ShiftTypeName 
 		  AND STM.Rowstatus=1 AND
 		  PK_ShiftTypeID in (1,2) 
-          LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH (NOLOCK) ON 
+          LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH (NOLOCK) ON
 		  STP.AssociateID=AD.Associate_ID 
           LEFT OUTER JOIN ComponentShiftMapping CSM WITH(NOLOCK) ON CSM.FK_ComponentID=36  AND 
 		  CSM.FK_ShiftTypeID=STM.PK_ShiftTypeID AND CSM.RowStatus=1
-         WHERE STP.RowStatus=1   
+       WHERE STP.RowStatus=1   
+
+       INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime,StartDateTime,
+	   EndDateTime, ProjectID,  TransportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
+	   CreatedDate, RowStatus)
+          SELECT ShiftType, AssociateID, CONVERT(VARCHAR,StartDate), CONVERT(VARCHAR,EndDate), StartTime, EndTime, 
+          NULL AS StartDateTime,NULL AS EndDateTime,
+         ProjectID, TRansportEligibility, BillingDetails,Grade,BU,ExceptionReason,CreatedBy,CreatedDate,1 
+          FROM #datetimecheck WITH (NOLOCK) WHERE ExceptionReason<>'' 
+
+          DELETE FROM STG.BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #datetimecheck WITH(NOLOCK) 
+		  WHERE ExceptionReason<>'')
+          
+          DROP TABLE #datetimecheck

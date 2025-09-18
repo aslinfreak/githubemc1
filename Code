@@ -1,28 +1,84 @@
-ALTER PROCEDURE [dbo].[usp_StagingToMain_BPSSDA] (@FileUploadID VARCHAR(50))
-AS
-BEGIN TRANSACTION
-SET NOCOUNT ON  
-BEGIN TRY 
-BEGIN 
-DECLARE @ComponentCountryMappingID int
+------------------------------------------------MANDATORY COLOUM CHECK--------------------------------
 
- DECLARE @6DAENDDate date =(SELECT Cast(KeyValue AS DATE) FROM SPaykeys 
-WHERE FK_ComponentID=36 AND KeyCode='6DA'AND KeyDescription='End Date for BPS 6DA')
+          SELECT STP.Pk_BPSSDAID,ShiftType,STP.AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+		  TransportEligibility,BillingDetails,CSM.FK_ComponentID AS ComponentID, '' AS Grade,'' AS BU ,'' AS Location,
+          COALESCE((CASE WHEN STM.ShiftTypeName IS NULL  THEN 'Invalid ShiftType,' ELSE NULL END), '') 
+          +   
+          COALESCE((CASE WHEN CSM.FK_ShiftTypeID IS NULL THEN 'Component- Shift type mismatch' ELSE '' END), '')
+          +   
+          COALESCE((CASE WHEN LEN(STP.AssociateID) not in (6,7) OR ISNUMERIC(STP.AssociateID)=0  
+		  THEN 'AssociateID is InValid,' ELSE NULL END), '')
+          +     
+        COALESCE((CASE WHEN ISNULL(STP.AssociateId,'')='' THEN 'AssociateID is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.ProjectId,'')='' THEN 'ProjectID is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN LEN(STP.ProjectId) <> 10 OR ISNUMERIC(STP.ProjectId)=0  THEN 'ProjectID is InValid,' 
+		  ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.Startdate,'')='' THEN 'Startdate is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.Enddate,'')='' THEN 'Enddate is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.StartTime,'')='' THEN 'StartTime is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.EndTime,'')='' THEN 'EndTime is Mandatory,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.TransportEligibility,'')='' THEN 'TransportEligibility is Mandatory,' 
+		  ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISNULL(STP.BillingDetails,'')='' THEN 'BillingDetails is Mandatory,'
+		  ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN ISDATE(Startdate)<>1 AND ISNULL(STP.Enddate,'')<>''  
+		  THEN 'Invalid start date format.Valid format is MM/DD/YYYY,'  ELSE NULL END), '')
+          +                                                  
+          COALESCE((CASE WHEN ISDATE(Enddate)<>1 AND ISNULL(STP.Enddate,'')<>''   
+		  THEN 'Invalid end date format.Valid format is MM/DD/YYYY,'  ELSE NULL END), '') 
+          +
+          COALESCE((CASE WHEN (ISDATE(STARTDATE)=1 AND STARTDATE > CONVERT(DATE, DATEADD(DAY, -(DAY(GETDATE())), 
+		  GETDATE())))	  OR(ISDATE(Enddate)=1 
+		  AND Enddate > CONVERT(DATE,DATEADD(mm, DATEDIFF(mm, 0, GETDATE()), 0)))
+		  THEN 'Claim cannot be Raised for Future Dates,' ELSE NULL END), '') 
+          +                                               
+          COALESCE((CASE WHEN (ISDATE(StartDate+' '+ StartTime)<>1 AND ISDATE(Startdate)=1) OR (LEN(StartTime)>5 AND 
+		  ISDATE(Startdate)=1) or isnull(Starttime,'')='' 
+				THEN 'Invalid start time format. Valid format is HH:MM,' ELSE NULL END),'')
+		  +
+          COALESCE((CASE WHEN (ISDATE(STP.StartDate+' '+ StartTime)=1 AND ISDATE(STP.Startdate)=1 AND 
+		  ISDATE(EndDate+' '+ EndTime)=1 AND ISDATE(EndDate)=1)
+          AND((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,STP.Startdate)+' '
+		  +CONVERT(VARCHAR,Starttime))))%5)<>0
+		  OR((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,EndDate)+' '+CONVERT(VARCHAR,EndTime))))%5)<>0 )) 
+                THEN 'Time should be in multiples of 5 minutes (10:00, 10:05),' ELSE NULL END), '')
+          +
 
-Select @ComponentCountrymappingID = Pk_ComponentCountryMappingID from ComponentCountryMapping CCM With (nolock)
-INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentID=CCM.FK_ComponentID
-INNER JOIN ComponentGroupMaster STP WITH (NOLOCK) ON  CM.RowStatus=1 AND CM.FK_ComponentGroupID = 7
-where CCM.Fk_ComponentCountryID=1 and CCM.Rowstatus=1  
-
-declare @HCMStartDate date,
-	@EffectiveDate date -- V1.0
-
-		-- Start v1.0
-		select @EffectiveDate =KeyValue 
-		from dbo.SPaykeys where FK_ComponentID in (36) and KeyCode='6DAEffective'
-		-- End v1.0
-
-        UPDATE ESTP SET Rowstatus=0 FROM EXP.BPSSDA ESTP WITH (NOLOCK) INNER JOIN STG.BPSSDA STP WITH (NOLOCK) ON 
-		ESTP.AssociateID=STP.AssociateID 
-        WHERE STP.ShiftType=ESTP.ShiftType AND Convert(VARCHAR,ESTP.Startdate)=Convert(VARCHAR,STP.Startdate) and 
-		STP.Rowstatus=1 AND ESTP.RowStatus=1
+          COALESCE((CASE WHEN  ISDATE(Startdate)=1 AND AD.DATEOFJOINING>CONVERT(DATE,StartDate)    
+                            THEN 'Associate''s DOJ should be lesser than claim date,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN (ISDATE(EndDate+' '+ EndTime)<>1 AND ISDATE(EndDate)=1) OR (LEN(EndTime)>5 AND 
+		  ISDATE(EndDate)=1) or  isnull(Endtime,'')=''
+                              THEN 'Invalid end time format. Valid format is HH:MM,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN STARTDATE=ENDDATE AND STARTTIME=ENDTIME
+							THEN 'StartDateTime and EndDateTime is Equal' ELSE '' END), '') 
+		   +
+          COALESCE((CASE WHEN STARTTIME like '%AM%' OR STARTTIME like '%PM%' OR ENDTIME like '%AM%' OR 
+		  ENDTIME like '%PM%'  THEN 'Invalid time format. Valid format is HH:MM,' ELSE '' END), '') 
+		  +
+	   COALESCE(( CASE WHEN CAST(StartDate AS DATE) > @6DAENDDate THEN 
+	  '6th Day Allowance ceased to exist from '+FORMAT (@6DAENDDate , 'dd-MMM-yyyy')+
+	  '. Please refer to new policy on Discretionary Incentive.' ELSE NULL END),'')
+	   +COALESCE(CASE WHEN DATEPART(DW,StartDate) IN (2,3,4,5,6) AND CSM.FK_ShiftTypeID<>2 THEN ' Normal shift should claim 6DA between Sat - Sun '  END,'')
+       +COALESCE(CASE WHEN DATEPART(DW,StartDate) IN (1,7) AND CSM.FK_ShiftTypeID<>1 THEN ' Rotational shift should claim 6DA between Mon- Fri '  END,'') 
+		  AS ExceptionReason,STP.CreatedBy,STP.CreatedDate
+          INTO  #MANDATORY        
+       FROM STG.BPSSDA STP WITH (NOLOCK) 
+          LEFT OUTER JOIN ShiftTypeMaster STM WITH (NOLOCK) ON STP.ShiftType=STM.ShiftTypeName 
+		  AND STM.Rowstatus=1 AND
+		  PK_ShiftTypeID in (1,2) 
+          LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH (NOLOCK) ON 
+		  STP.AssociateID=AD.Associate_ID 
+          LEFT OUTER JOIN ComponentShiftMapping CSM WITH(NOLOCK) ON CSM.FK_ComponentID=36  AND 
+		  CSM.FK_ShiftTypeID=STM.PK_ShiftTypeID AND CSM.RowStatus=1
+         WHERE STP.RowStatus=1   

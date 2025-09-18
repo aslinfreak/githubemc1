@@ -1,65 +1,51 @@
-------------------------------------------------------ASSOCIATE'S DATA ON THE DATE OF CLAIM--------------
-
-          SELECT distinct B.EMPLID ,B.EMPL_RCD ,B.EFFDT ,B.EFFSEQ ,B.ACTION ,B.ACTION_REASON,B.ACTION_DT,
-		  B.EMPL_STATUS, B.DEPTID ,B.JOBCODE ,B.LOCATION ,                  
-           B.COMPANY,B.HR_STATUS,B.BUSINESS_UNIT,B.SUPERVISOR_ID,B.PER_ORG  into  #Temp
-          FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock) 
-          INNER JOIN Stg.BPSSDA STP  with (nolock) on B.EMPLID=convert(varchar,STP.AssociateID)
-          WHERE b.emplid=convert(varchar,STP.AssociateID) AND B.EFFSEQ= (SELECT MAX(B_B.EFFSEQ) 
-		  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock) 
-		  WHERE B.EMPLID = B_B.EMPLID 
-          AND B_B.action <> 'INA' AND B.EMPL_RCD = B_B.EMPL_RCD   AND B_B.EFFDT = B.EFFDT)
-
-       SELECT distinct STP.Pk_BPSSDAID,B.EMPLID AS AssociateID,b.LOCATION AS LOCATION,B.BUSINESS_UNIT AS BU,
-	   HL.Country_ID AS CountryID ,b.JOBCODE AS Grade,
-          B.DEPTID AS DepartmentId,B.PER_ORG AS EmplType,B.EMPL_STATUS AS EmplStatus,STP.Startdate,B.EFFDT AS EFFDT,
-		  UPPER(LTRIM(RTRIM(HL.CITY))) AS CITY -- V1.0
-         INTO #STTEMP FROM #Temp B with (nolock)   
-        INNER JOIN Stg.BPSSDA STP  with (nolock) on B.EMPLID=convert(varchar,STP.AssociateID)
-       LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) ON
-	   HL.HCMLocationCode=B.LOCATION 
-        WHERE B.EFFDT = ( SELECT MAX(B_A.EFFDT) FROM
-		CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock) WHERE B.EMPLID = B_A.EMPLID
-        AND B.EMPL_RCD=B_A.EMPL_RCD   and B_A.action <> 'INA'   AND B_A.EFFDT<= convert(date,STP.StartDate))  
-        AND B.HR_STATUS = 'A' AND (B.EMPL_STATUS IN ('A','L','P','W') OR (B.EMPL_STATUS = 'S'AND B.ACTION <> 'OGA')) 
-		AND b.action <> 'INA' 
-        UNION ALL
-       SELECT STP.Pk_BPSSDAID, A.EMPLID ,A.LOCATION ,A.BUSINESS_UNIT,HL.Country_ID,A.JOBCODE ,
-          A.DEPTID ,A.PER_ORG,A.EMPL_STATUS,STP.Startdate,A.EFFDT,
-		  UPPER(LTRIM(RTRIM(HL.CITY))) AS CITY  -- V1.0
-		  FROM #Temp A with (nolock) 
-         INNER JOIN Stg.BPSSDA STP  with (nolock) on A.EMPLID=convert(varchar,STP.AssociateID)
-         LEFT OUTER join  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) ON
-		 HL.HCMLocationCode=A.LOCATION 
-        WHERE  A.EFFDT = ( SELECT MAX(B_A.EFFDT) 
-		FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A 
-		with (nolock) WHERE A.EMPLID = B_A.EMPLID  AND B_A.EFFDT<= convert(date,STP.StartDate))   
-        AND A.EMPL_RCD = ( SELECT MAX(C_A.EMPL_RCD)
-		FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference C_A
-		with (nolock) WHERE C_A.EMPLID = A.EMPLID 
-        and C_A.action <> 'INA'   AND C_A.EFFDT = A.EFFDT)   AND A.HR_STATUS = 'I'   
-        AND NOT EXISTS ( SELECT 'X'  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock)
-		WHERE A.EMPLID = B.EMPLID  
-        AND B.EFFDT = ( SELECT MAX(B_A.EFFDT)  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A 
-		WHERE B.EMPLID = B_A.EMPLID   AND B.EMPL_RCD=B_A.EMPL_RCD   
-		AND b.action <> 'INA'   AND B_A.EFFDT<= convert(date,STP.StartDate))  AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)  
-		FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock) 
-        WHERE B.EMPLID = B_B.EMPLID   AND B.EMPL_RCD = B_B.EMPL_RCD            
-     and b.action <> 'INA' AND B_B.EFFDT = B.EFFDT)    
-     AND B.HR_STATUS = 'A' AND (B.EMPL_STATUS IN ('A','L','P','W') OR (B.EMPL_STATUS = 'S' AND B.ACTION <> 'OGA'))
-		)
-
-       DROP TABLE #Temp
+--------BASIC VALIDATIONS -----------------------------------------
           
-           INSERT INTO EXP.BPSSDA(ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,StartDateTime,
-		   EndDateTime,  ProjectID,TRansportEligibility,BillingDetails,Grade,SetID,ExceptionRemarks,CreatedBy,
-		   CreatedDate,RowStatus)
-       
-          Select ShiftType, AssociateID, cONVERT(VARCHAR,StartDate), cONVERT(VARCHAR,EndDate), StartTime, EndTime,
-           CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
-          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
-           ProjectID,  TRansportEligibility, BillingDetails,'' Grade,'' BU,'Associate Details not available in CRS' 
-		   AS ExceptionReason,STP.CreatedBy,STP.CreatedDate,1 FROM STG.BPSSDA STP WITH (NOLOCK)
-           WHERE ASSOCIATEID NOT IN (SELECT DISTINCT ASSOCIATEID FROM #STTEMP)
+          SELECT DISTINCT STP.Pk_BPSSDAID,ShiftType,STP.AssociateID,STP.StartDate,EndDate,StartTime,EndTime,
+		  ProjectID, TransportEligibility, BillingDetails,STT.Grade,STT.BU SetID,STT.Location,AD.Isactive,
+		  STT.EmplStatus, COALESCE((CASE WHEN AD.IsActive = 'T' and (DATEDIFF(DD,AD.EffDt ,GETDATE()) > 60)  
+		  THEN 'Associate’s termination date is greater than 60 days. Special pay can’t be processed,'
+		  ELSE NULL END), '')             
+          +
+		  COALESCE((CASE WHEN STT.EmplStatus <> 'A' and STT.EmplStatus = 'T' and 
+		  (DATEDIFF(DD,STT.EFFDT,CONVERT(DATE,STP.Startdate)) > 0)
+		  THEN 'AssociateID is InActive' ELSE NULL END), '') 
+	      +
+          COALESCE((CASE WHEN (AD.COMPANY IS NULL AND LEN(STP.AssociateID) in (6,7)) 
+            THEN 'Associate''s Company is Unavailable,' ELSE NULL END), '')  
+          +
+          COALESCE((CASE WHEN (AD.BUSINESS_UNIT IS NULL AND LEN(STP.AssociateID) in (6,7)) 
+                         THEN 'Associate SetId is Unavailable,' ELSE NULL END), '')    
+          +
+          COALESCE((CASE WHEN ISDATE(STP.Startdate)=1 AND 
+          (CONVERT(DATE,STP.StartDate)<=CONVERT(DATE,(DATEADD(M,-6,CONVERT(DATE,CONVERT(VARCHAR,YEAR(GETDATE()))+'-'
+          +CONVERT(VARCHAR,MONTH(GETDATE()))+'-'+'16')))))  
+          THEN 'Allowance claim date exceeds Six months,' ELSE NULL END), '')                                   
+          +
+          COALESCE((CASE WHEN  UPPER(STT.BU) NOT LIKE '%IND%'
+          THEN 'Associate Should belong to India as on claim date,' ELSE NULL END), '')
+          +
+          COALESCE((CASE WHEN (STT.EmplType='EMP') THEN NULL ELSE 'Associate is a contractor,' END), '')
+              
+           AS ExceptionReason,
+          STP.CreatedBy, STP.CreatedDate,STT.CITY ----v1.0
+          INTO #BPSSDA 
+          FROM STG.BPSSDA STP WITH(NOLOCK)      
+          LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
+		  AD.Associate_ID=STP.AssociateID 
+          LEFT OUTER JOIN #STTEMP STT WITH(NOLOCK) ON STT.AssociateID=STP.AssociateID
+		  and convert(varchar,STP.startdate)=
+		  convert(varchar,STT.startdate)
+			WHERE STP.RowStatus=1  
+      
+          INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, ProjectID,  
+		  TRansportEligibility, BillingDetails, Grade, SetID, 
+          ExceptionRemarks,CreatedBy,CreatedDate,RowStatus,StartDateTime,EndDateTime)
 
-          DELETE FROM STG.BPSSDA WHERE AssociateID NOT IN (SELECT DISTINCT ASSOCIATEID FROM #STTEMP)
+          SELECT ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, 
+           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID,ExceptionReason,CreatedBy,CreatedDate,1,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
+          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime 
+		  FROM #BPSSDA WITH (NOLOCK)
+		  WHERE ISNULL(ExceptionReason,'')<>'' 
+         
+          DELETE FROM #BPSSDA WHERE ExceptionReason<>''

@@ -1,85 +1,72 @@
- ---------------------------------------------Ineligible Department -----------------------------------
+	IF(@componentGroupId = 12)
+	BEGIN
+	  
+		SELECT ESTP.PK_ITShiftAllowanceID,ESTP.AssociateID,ESTP.Fk_ComponentID,ESTP.Fk_ShifttypeID,ESTP.ProjectID,
+			ESTP.Startdate, ESTP.Starttime, ESTP.Startdatetime, ESTP.Enddate, ESTP.Endtime, ESTP.Enddatetime,
+			ESTP.Amount, ESTP.Grade, ESTP.SpecialCaseReason, ESTP.inputremarks, ESTP.RejectionReason,
+			ESTP.Fk_RejectedRoleID, ESTP.RejectedBy, ESTP.[Status], ESTP.SetID, ESTP.ApprovedBy,
+			ESTP.TransportEligibility,ESTP.ApprovedDate, ESTP.Createdby, ESTP.Createddate, ESTP.Modifiedby,
+			ESTP.Modifieddate,	ESTP.RowStatus, ESTP.NSADate, 
+			STP.CreatedBy AS EPCreatedby, @Currentdate AS EPCreateddate, STP.UniqueID,
+			STP.RejectionReason AS EPRejectionReason, 
+			STP.Approve_Reject, STP.ModifiedBy AS EPModifiedBy, STP.ModifiedDate AS EPModifiedDate, 
+		COALESCE((CASE WHEN (ISNULL(STP.RejectionReason,'') = '' AND STP.approve_Reject = 'Reject') 
+		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
+		+
+		COALESCE((CASE WHEN ISNULL(ESTP.PK_ITShiftAllowanceID,'') = '' 
+		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 		
+		NULL AS Remarks,  0 AS MailStatus 
+		INTO #Exception_IT
+		FROM STG.ExceptiontovalidAllowance STP WITH (NOLOCK) 
+			INNER JOIN pr.ITShiftAllowance ESTP WITH (NOLOCK) ON STP.UniqueID = ESTP.PK_ITShiftAllowanceID 			
+			WHERE ESTP.RowStatus = 1 AND STP.RowStatus = 1 AND 
+			(ESTP.[Status] IN (1,3,4,8,14,12,15,35) OR (ESTP.Status = 21 AND @CutoffDate < @Currentdate)) AND 
+			STP.FK_ComponentGroupID = @componentGroupId 
+			
 
-              INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
-			  EndDateTime, ProjectID, TransportEligibility, BillingDetails,Grade, SetID,ExceptionRemarks,CreatedBy,
-			  CreatedDate, RowStatus)
-         
-           SELECT ShiftType,A.AssociateID,CONVERT(VARCHAR,A.Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
-              CONVERT(DATETIME,(CONVERT(VARCHAR,A.Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
-          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
-            ProjectID,TransportEligibility, BillingDetails,A.Grade, A.SetID,
-			'Ineligible Department' AS ExceptionReason,
-			A.CreatedBy,A.CreatedDate,1 FROM #BPSSDA A WITH (NOLOCK) 
-               INNER JOIN #STTEMP B WITH (NOLOCK) ON A.Pk_BPSSDAID=B.Pk_BPSSDAID
-              LEFT OUTER JOIN Policy.DepartmentMaster DM WITH (NOLOCK) on DM.DepartmentID=B.DepartmentID  and 
-			  DM.Rowstatus=1  AND DM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
-              WHERE DM.DepartmentID is null 
-               
-          DELETE A FROM #BPSSDA A  INNER JOIN #STTEMP B ON A.Pk_BPSSDAID=B.Pk_BPSSDAID
-          LEFT OUTER JOIN Policy.DepartmentMaster DM WITH (NOLOCK) on DM.DepartmentID=B.DepartmentID 
-		  and DM.Rowstatus=1  AND DM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
-          WHERE DM.DepartmentID is null
+		--------- inserting data------------------
+	  INSERT INTO pr.Itshiftallowance_log (FK_ITShiftAllowanceID, AssociateID, Fk_ComponentID,
+	    Fk_ShifttypeID, ProjectID, Startdate, Starttime, Startdatetime, Enddate, Endtime,
+		Enddatetime, Amount, Grade, TransportEligibility, SpecialCaseReason, inputremarks, 
+		RejectReason, Fk_RejectedRoleID, RejectedBy, [Status], SetID, ApprovedBy, ApprovedDate,
+		Createdby, Createddate, Modifiedby, Modifieddate, Rowstatus, LogCreatedby, LogCreateddate)
+	  SELECT ESTP.PK_ITShiftAllowanceID, ESTP.AssociateID, ESTP.Fk_ComponentID, ESTP.FK_ShiftTypeID,
+		ESTP.ProjectID, ESTP.StartDate, ESTP.StartTime, ESTP.StartDateTime, ESTP.EndDate,
+	    ESTP.Endtime, ESTP.Enddatetime, ESTP.Amount, ESTP.Grade, ESTP.TransportEligibility,
+		ESTP.SpecialCaseReason, ESTP.inputremarks, ESTP.RejectionReason, ESTP.Fk_RejectedRoleID,
+		ESTP.RejectedBy, ESTP.[Status], ESTP.SetID, ESTP.ApprovedBy, ESTP.ApprovedDate, EPCreatedby,
+		ESTP.Createddate, EPModifiedby, ESTP.Modifieddate, ESTP.Rowstatus, EPCreatedby, @Currentdate
+	  FROM #Exception_IT ESTP
+		
+		
+		DELETE FROM #Exception_IT WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  	 -----------------Update----------------
+	  UPDATE ESTP 
+		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN 12 ELSE 3 END,
+			ESTP.ModifiedBy = STP.EPCreatedby,
+			ESTP.ModifiedDate = @Currentdate, 
+			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
+			ESTP.RejectionReason = STP.EPRejectionReason, 
+			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedby ELSE ESTP.ApprovedBy END, 
+			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
+			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedby ELSE ESTP.RejectedBy END, 
+			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN 3  END
+		  FROM PR.ITShiftAllowance ESTP WITH (NOLOCK) 
+		  INNER JOIN #Exception_IT STP WITH (NOLOCK) 
+			ON ESTP.PK_ITShiftAllowanceID = STP.PK_ITShiftAllowanceID 
+		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
 
-          DROP TABLE #STTEMP
+	
+		-----------------Update----------------
+	  UPDATE IT SET IT.RowStatus = 0, IT.ModifiedBy = ESTP.EPCreatedBy, IT.ModifiedDate = @Currentdate,
+	    IT.TopUpReason_6 = CAST(ESTP.PK_ITShiftAllowanceID AS VARCHAR(20)) + '-' + ESTP.EPRejectionReason
+	  FROM PR.IT_NSA IT 
+	  INNER JOIN #Exception_IT ESTP 
+	  WITH (NOLOCK) ON 
+				IT.AssociateID = ESTP.AssociateID AND IT.[Date] = ESTP.NSADate AND 
+				IT.Fk_ComponentID = ESTP.Fk_ComponentID AND IT.ProjectID = ESTP.ProjectID 
+	  WHERE ESTP.EPRejectionReason = 'Rejected due to mismatch in Trutime and NSA request'
+	
+	  	DROP TABLE #Exception_IT
 
-------------------------------------------DUPLICATE DATA CHECK IN THE SAME UPLOAD--------------------------------
-         
-          SELECT ShiftType,AssociateID,ProjectID,StartDate,EndDate,StartTime,EndTime
-          INTO #DUPLICATES FROM #BPSSDA WITH(NOLOCK)
-          GROUP BY ShiftType,AssociateID,ProjectID,StartDate,EndDate,StartTime,EndTime
-          HAVING COUNT(AssociateID)>1
-
-          INSERT INTO EXP.BPSSDA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime, StartDateTime,
-		  EndDateTime,ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
-		  CreatedDate, RowStatus)
-
-          SELECT STP.ShiftType, STP.AssociateID,CONVERT(VARCHAR,STP.Startdate),CONVERT(VARCHAR,STP.Enddate),
-		  STP.Starttime,STP.Endtime,
-          CONVERT(DATETIME,(CONVERT(VARCHAR,STP.Startdate)+' '+CONVERT(VARCHAR,STP.Starttime))) AS StartDateTime,
-          CONVERT(DATETIME,(CONVERT(VARCHAR,STP.Enddate)+' '+CONVERT(VARCHAR,STP.Endtime))) AS EndDateTime,
-           STP.ProjectID, TRansportEligibility, BillingDetails, Grade, SetID,'Duplicate Entries' AS  ExceptionReason,
-		   CreatedBy,CreatedDate,1   FROM #BPSSDA STP WITH(NOLOCK)
-          INNER JOIN #DUPLICATES DP WITH(NOLOCK) ON DP.AssociateID=STP.AssociateID and DP.ProjectId=STP.ProjectId and
-		  DP.ShiftType=STP.ShiftType AND DP.Startdate=STP.Startdate AND DP.Starttime=STP.Starttime AND 
-		  DP.Enddate=STP.Enddate AND DP.Endtime=STP.Endtime
-
-          DELETE STP  FROM #BPSSDA STP 
-          INNER JOIN #DUPLICATES DP WITH(NOLOCK) ON DP.AssociateID=STP.AssociateID and DP.ShiftType=STP.ShiftType AND
-		  DP.ProjectID=STP.ProjectID AND DP.StartDate=STP.StartDate AND DP.StartTime=STP.StartTime 
-		  AND DP.EndDate=STP.EndDate and DP.EndTime=STP.EndTime
-          
-          DROP TABLE #DUPLICATES 
-
-			--------------CHECK WHETHER UPLOADED ASSOCIATES BELONG TO THE PROJECTS ON THE ALLOWANCE DATE---------
-
-       SELECT DISTINCT Pk_BPSSDAID,ShiftType, AssociateID,CONVERT(VARCHAR,Startdate) Startdate,
-	   CONVERT(VARCHAR,Enddate)
-	   Enddate,Starttime,Endtime, ProjectID,  TransportEligibility, BillingDetails, SSTM.Grade, SetID,
-		   CASE WHEN EmplStatus='T' 
-		   THEN 'Associate is not active in the organization for the allowance requested date'
-		   ELSE 'Associate should be tagged to the project as on claim date' END ExceptionReason,
-		   SSTM.CreatedBy,CreatedDate
-          INTO #NONPROJ     FROM #BPSSDA SSTM WITH(NOLOCK)
-          LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ALLOCATION CAL WITH(NOLOCK) ON 
-		  CAL.Project_ID=SSTM.ProjectID
-          AND CAL.Associate_ID=SSTM.AssociateID AND ((CONVERT(DATE,SSTM.StartDate) 
-		  BETWEEN CONVERT(DATE,CAL.Allocation_Start_Date) AND CONVERT(DATE,CAL.Allocation_End_Date)) 
-          OR (CONVERT(DATE,SSTM.EndDate) BETWEEN CONVERT(DATE,CAL.Allocation_Start_Date) AND 
-		  CONVERT(DATE,CAL.Allocation_End_Date)))
-          WHERE CAL.Associate_ID IS NULL 
-
-		  INSERT INTO EXP.BPSSDA (ShiftType, AssociateID, StartDate,EndDate,StartTime, EndTime, StartDateTime,
-		  EndDateTime, ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionRemarks,CreatedBy,
-		  CreatedDate, RowStatus)
-          SELECT ShiftType, AssociateID,CONVERT(VARCHAR,Startdate),CONVERT(VARCHAR,Enddate),Starttime,Endtime,
-           CONVERT(DATETIME,(CONVERT(VARCHAR,Startdate)+' '+CONVERT(VARCHAR,Starttime))) AS StartDateTime,
-          CONVERT(DATETIME,(CONVERT(VARCHAR,Enddate)+' '+CONVERT(VARCHAR,Endtime))) AS EndDateTime,
-           ProjectID,  TRansportEligibility, BillingDetails, Grade, SetID, ExceptionReason,CreatedBy,CreatedDate,1
-		   FROM #NONPROJ WITH (NOLOCK) 
-          WHERE ISNULL(ExceptionReason,'')<>'' 
-
-          DELETE FROM STG.BPSSDA WHERE PK_BPSSDAID IN (SELECT PK_BPSSDAID FROM #NONPROJ) 
-          DELETE FROM #BPSSDA WHERE PK_BPSSDAID IN ( SELECT PK_BPSSDAID FROM #NONPROJ) 
-
-          DROP TABLE #NONPROJ  
-          
+	END

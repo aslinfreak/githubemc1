@@ -28,11 +28,16 @@ else {
                 grid_html += '<td style="text-align:left;" class="std3" title="' + data.Allowance + '">' + Allowance + '</td><td style="text-align:left;" class="std4">' + data.ShiftTypeName + '</td>';
                 grid_html += '<td style="text-align:center;" class="std5">' + data.StartDate + '</td><td class="std8">' + data.EndDate + '</td>';
                 grid_html += '<td style="text-align:center;" class="std11">' + data.StartTime + '</td><td class="std11">' + data.EndTime + '</td><td class="std8">' + data.HCMSchedule + '</td>';
-                //Aslin
+               //Aslin
                 if (CheckedFlag == 1) {
-                    grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + (data.RejectionReason || '') + '"/></td>';
+                    grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + (data.RejectionReason || '') + '"/></td>';
                 }
-           
+                else {
+
+                    grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejReason + '</td>';
+
+                }
+
                 if (CustomizeSA.indexOf("~4~") > -1) {
                     grid_html += '<td class="std2" style="text-align:center;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
                 }
@@ -42,12 +47,11 @@ else {
                 if (CustomizeSA.indexOf("~11~") > -1) {
                     grid_html += '<td class="std2" style="text-align:center;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
                 }
-                //Aslin
-                grid_html += '<td class="std10">' + data.Status + '</td>';
-
-                //Aslin
-                //if (CheckedFlag == 1) {
-                //    grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>';
+                if (CheckedFlag == 1) {
+                    
+                   grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" checked id=' + (i + 1) + ' /></td >';
+                   
+                    //grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>';
                     $('#PFSS_tblShiftAllowance tbody tr,#PFSS_tblShiftAllowance tbody tr,#PFSS_tblShiftAllowance tbody tr').each(function (i) {
                         if (($(this).find('td:nth-child(10) input').val()) == undefined) {
                             var val = $(this).find('td:nth-child(10)').attr('rejreason');
@@ -69,7 +73,119 @@ else {
                 else {
                     //grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td >';
                     grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejReason + '<td class="std10">' + data.Status + '</td></tr>';
-                }
+                }            
             });
 
             $('#PFSS_tblShiftAllowance').find('tbody').html('').html(grid_html);
+
+            //var heightdiff = 0;
+
+            //heightdiff = $("#pfss .viewport")[0].scrollHeight - $("#pfss .viewport").height();
+
+
+            //if (heightdiff > 0) {
+            //    $(".dataTableScroll .scrollbar").css("display", "block");
+            //}
+            //else {
+            //    $(".dataTableScroll .scrollbar").css("display", "none");
+            //}
+
+            //$('.dataTableScroll').tinyscrollbar({ sizethumb: 22 });
+        }
+        else {
+
+            $(".refPage").css('margin-top', '12px');
+            $("#middheight").css('height', '480px');
+            $("#PFSS_tblShiftAllowance").append("<tr class='even' id='NoData'><td colspan='10' class='text-center'>No data available</td></tr>");
+
+            $(".dataTableScroll .scrollbar").hide();
+
+        }
+    }
+    else {
+        if (msg.d.length > 0) {
+            $("#shiftDetails .refPage").css("display", "block");
+
+
+            var classname = '';
+            $.each(msg.d, function (i, data) {
+                if ((i % 2) == 0) {
+                    classname = 'even';
+                }
+                else {
+                    classname = 'odd';
+                }
+                var remarks = '';
+                if (data.Remarks != null) {
+                    remarks = (data.Remarks.length > 20) ? data.Remarks.substring(0, 20) + '...' : data.Remarks;
+                }
+                //var TravelAllowance = (data.TravelAllowance == "true") ? '<input type="checkbox" class="travelallow" disabled="disabled" checked="checked"/>' : '<input type="checkbox" class="travelallow" disabled="disabled" />';
+                var rejReason = '';
+                if (data.RejectionReason != null) {
+                    rejReason = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
+                }
+                
+                var Allowance = (data.Allowance.length > 20) ? data.Allowance.substring(0, 20) + '...' : data.Allowance;
+                grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
+                if (CheckedFlag == 1) {
+                    grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" checked id=' + (i + 1) + ' /></td >';
+                }
+                else {
+                    grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td >';
+                }
+                grid_html += '<td class="ref std2">' + data.AssociateID + '</td><td style="text-align:left;" class="std3" title="' + data.Allowance + '">' + Allowance + '</td><td style="text-align:left;" class="std4">' + data.ShiftTypeName + '</td>';
+                grid_html += '<td style="text-align:center;" class="std5">' + data.StartDate + '</td><td class="std8">' + data.EndDate + '</td>';
+                grid_html += '<td style="text-align:center;" class="std11">' + data.StartTime + '</td><td class="std11">' + data.EndTime + '</td><td class="std8">' + data.HCMSchedule + '</td>';
+                if (CheckedFlag == 1) {
+                    grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>' + '<td class="std10">' + data.Status + '</td></tr>';
+                    $('#PM_tblShiftAllowance tbody tr,#PFSS_tblShiftAllowance tbody tr,#PFSS_tblITShiftAllowance tbody tr').each(function (i) {
+                        if (($(this).find('td:nth-child(10) input').val()) == undefined) {
+                            var val = $(this).find('td:nth-child(10)').attr('rejreason');
+                            var off = $(this).offset();
+                            if (val == '') {
+                                $('.error_msg_remarks').show();
+                                $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />')
+                                $('.error_msg_remarks').css({ 'top': off.top + 15, 'left': off.left + 909 })
+                            }
+                            else {
+                               // aler('input fields')
+                                $(this).find('td:nth-child(10)').text('');
+                                $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />');
+                                $(this).find('td:nth-child(10) input').val(val);
+                            }
+                        }
+                    })
+                }
+                else {
+                    grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejReason + '<td class="std10">' + data.Status + '</td></tr>';
+                }
+               
+            });
+
+            $('#PFSS_tblShiftAllowance').find('tbody').html('').html(grid_html);
+
+            //var heightdiff = 0;
+
+            //heightdiff = $("#pfss .viewport")[0].scrollHeight - $("#pfss .viewport").height();
+
+
+            //if (heightdiff > 0) {
+            //    $(".dataTableScroll .scrollbar").css("display", "block");
+            //}
+            //else {
+            //    $(".dataTableScroll .scrollbar").css("display", "none");
+            //}
+
+            //$('.dataTableScroll').tinyscrollbar({ sizethumb: 22 });
+        }
+        else {
+
+            $(".refPage").css('margin-top', '12px');
+            $("#middheight").css('height', '480px');
+            $("#PFSS_tblShiftAllowance").append("<tr class='even' id='NoData'><td colspan='10' class='text-center'>No data available</td></tr>");
+
+            $(".dataTableScroll .scrollbar").hide();
+
+        }
+    }
+}

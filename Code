@@ -14,7 +14,6 @@ else {
                 if (data.Remarks != null) {
                     remarks = (data.Remarks.length > 20) ? data.Remarks.substring(0, 20) + '...' : data.Remarks;
                 }
-                //var TravelAllowance = (data.TravelAllowance == "true") ? '<input type="checkbox" class="travelallow" disabled="disabled" checked="checked"/>' : '<input type="checkbox" class="travelallow" disabled="disabled" />';
                 var rejReason = '';
                 if (data.RejectionReason != null) {
                     rejReason = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
@@ -28,7 +27,6 @@ else {
                 grid_html += '<td style="text-align:left;" class="std3" title="' + data.Allowance + '">' + Allowance + '</td><td style="text-align:left;" class="std4">' + data.ShiftTypeName + '</td>';
                 grid_html += '<td style="text-align:center;" class="std5">' + data.StartDate + '</td><td class="std8">' + data.EndDate + '</td>';
                 grid_html += '<td style="text-align:center;" class="std11">' + data.StartTime + '</td><td class="std11">' + data.EndTime + '</td><td class="std8">' + data.HCMSchedule + '</td>';
-               //Aslin
                 if (CheckedFlag == 1) {
                     grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + (data.RejectionReason || '') + '"/></td>';
                 }
@@ -39,19 +37,18 @@ else {
                 }
 
                 if (CustomizeSA.indexOf("~4~") > -1) {
-                    grid_html += '<td class="std2" style="text-align:center;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                    grid_html += '<td class="std2" style="text-align:center;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';
                 }
                 if (CustomizeSA.indexOf("~9~") > -1) {
-                    grid_html += '<td class="std2" style="text-align:center;" Amount="' + data.Amount + '">' + data.Amount + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                    grid_html += '<td class="std2" style="text-align:center;" Amount="' + data.Amount + '">' + data.Amount + '</td>';
                 }
                 if (CustomizeSA.indexOf("~11~") > -1) {
-                    grid_html += '<td class="std2" style="text-align:center;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                    grid_html += '<td class="std2" style="text-align:center;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';
                 }
                 if (CheckedFlag == 1) {
                     
                    grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" checked id=' + (i + 1) + ' /></td >';
                    
-                    //grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>';
                     $('#PFSS_tblShiftAllowance tbody tr,#PFSS_tblShiftAllowance tbody tr,#PFSS_tblShiftAllowance tbody tr').each(function (i) {
                         if (($(this).find('td:nth-child(10) input').val()) == undefined) {
                             var val = $(this).find('td:nth-child(10)').attr('rejreason');
@@ -62,7 +59,6 @@ else {
                                 $('.error_msg_remarks').css({ 'top': off.top + 15, 'left': off.left + 909 })
                             }
                             else {
-                                // aler('input fields')
                                 $(this).find('td:nth-child(10)').text('');
                                 $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />');
                                 $(this).find('td:nth-child(10) input').val(val);
@@ -71,26 +67,13 @@ else {
                     })
                 }
                 else {
-                    //grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td >';
                     grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejReason + '<td class="std10">' + data.Status + '</td></tr>';
                 }            
             });
 
             $('#PFSS_tblShiftAllowance').find('tbody').html('').html(grid_html);
 
-            //var heightdiff = 0;
-
-            //heightdiff = $("#pfss .viewport")[0].scrollHeight - $("#pfss .viewport").height();
-
-
-            //if (heightdiff > 0) {
-            //    $(".dataTableScroll .scrollbar").css("display", "block");
-            //}
-            //else {
-            //    $(".dataTableScroll .scrollbar").css("display", "none");
-            //}
-
-            //$('.dataTableScroll').tinyscrollbar({ sizethumb: 22 });
+           
         }
         else {
 
@@ -119,7 +102,6 @@ else {
                 if (data.Remarks != null) {
                     remarks = (data.Remarks.length > 20) ? data.Remarks.substring(0, 20) + '...' : data.Remarks;
                 }
-                //var TravelAllowance = (data.TravelAllowance == "true") ? '<input type="checkbox" class="travelallow" disabled="disabled" checked="checked"/>' : '<input type="checkbox" class="travelallow" disabled="disabled" />';
                 var rejReason = '';
                 if (data.RejectionReason != null) {
                     rejReason = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
@@ -148,7 +130,6 @@ else {
                                 $('.error_msg_remarks').css({ 'top': off.top + 15, 'left': off.left + 909 })
                             }
                             else {
-                               // aler('input fields')
                                 $(this).find('td:nth-child(10)').text('');
                                 $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />');
                                 $(this).find('td:nth-child(10) input').val(val);
@@ -164,19 +145,7 @@ else {
 
             $('#PFSS_tblShiftAllowance').find('tbody').html('').html(grid_html);
 
-            //var heightdiff = 0;
-
-            //heightdiff = $("#pfss .viewport")[0].scrollHeight - $("#pfss .viewport").height();
-
-
-            //if (heightdiff > 0) {
-            //    $(".dataTableScroll .scrollbar").css("display", "block");
-            //}
-            //else {
-            //    $(".dataTableScroll .scrollbar").css("display", "none");
-            //}
-
-            //$('.dataTableScroll').tinyscrollbar({ sizethumb: 22 });
+            
         }
         else {
 

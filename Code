@@ -1,159 +1,169 @@
-        <table class="existing_components_tbl_tab" cellpadding="0" cellspacing="0"
-            id="tbl_RenewGrid" style="width: 1150px;">
-            <thead>
-                <tr>
-                    <th width="113px">Approval Type
-                    </th>
-                    <th width="155px">Component Name
-                    </th>
-                    <th width="85px">Project ID
-                    </th>
-                    <th width="60px">Approved By
-                    </th>
-                    <th width="50px">Approval
-                    </th>
-                    <th width="50px">Other Documents
-                    </th>
-                    <th width="65px">Expiry Date
-                    </th>
-                    <th width="150px">Minimum Expiry Parameter
-                    </th>
-                    <th width="55px">Edit
-                    </th>
+ public static List<Dictionary<string, object>> FilterProjectDetailsForApproval(string projectId, int component)
+ {
+     List<Dictionary<string, object>> rows = new List<Dictionary<string, object>>();
+     try
+     {
 
-                </tr>
-            </thead>
-            <tbody id="tbl_RenewGridbody">
-            </tbody>
-        </table>
-    </div>
-</div>
-<div class="clear">
-</div>
+         ApprovalDetails objApprDetails = new ApprovalDetails()
+         {
+             ProjectId = projectId,
+             ComponentId = Convert.ToInt32(component)
+         };
+         DataTable gridUserDetails = UtilityBAL.GetProjectDetailsForApproval(objApprDetails).Tables[0];
+         Dictionary<string, object> row = null;
+         foreach (DataRow dr in gridUserDetails.Rows)
+         {
+             row = new Dictionary<string, object>();
+             foreach (DataColumn col in gridUserDetails.Columns)
+             {
+                 row.Add(col.ColumnName, dr[col]);
+             }
 
-                        <div class="editrenewApproval_wrap" style="display: none;">
-                            <div class="editveiwheader">
-                                <h3>Edit &nbsp;&nbsp;&nbsp;&nbsp; Project:
-                            <label>
-                            </label>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Component:
-                            <label>
-                            </label>
-                                </h3>
-                                <input name="backicon" type="button" id="backicon" class="backbtnicon"
-                                    value="&lt;&lt; Back" />
-                            </div>
-                            <div class="clear">
-                            </div>
-                            <div class="top_contwrap brd0 overhide">
-                                <ul class="ma_tabcomplist">
-                                    <li class="">
-                                        <label>
-                                            Approval Type</label>
-                                        <label id="lblApprovalType" style="width: 220px !important;">
-                                        </label>
-                                    </li>
-                                    <li class="">
-                                        <label>
-                                            Component</label>
-                                        <label id="lblComponentType" style="width: 250px !important;">
-                                        </label>
-                                    </li>
+             rows.Add(row);
+         }
+     }
+     catch (SystemException ex)
+     {
+         ErrorLogger logger = new ErrorLogger();
+         logger.LogError(ex);
+     }
 
-                                </ul>
-                                <div class="clear">
-                                </div>
-                                <h3 class="contheading mbtm7 w-100" style="max-width: 100%;">Project Information</h3>
-                                <ul class="ma_tabcomplist" id="ulprojectDetails">
-                                    <li class="">
-                                        <label>
-                                            Project ID</label>
-                                        <label>
-                                        </label>
-                                    </li>
-                                    <li class="">
-                                        <label>
-                                            Project End Date</label>
-                                        <label>
-                                        </label>
-                                    </li>
-                                    <li class="">
-                                        <label>
-                                            MSA/SOW End Date</label>
-                                        <input id="from_edittxt" type="text" class="txtbx_small" />
-                                        <img class="img_calendar spriteImage" id="from2_edit" style="--x: -2653px; --y: -1204px; width: 17px; height: 17px" />
-                                    </li>
-                                    <li class="">
-                                        <label>
-                                            Document Type <span class="red">*</span></label>
-                                        <div class="">
-                                            <input type="radio" class="styled" name="rad1" id="radappr1" />
-                                            <label for="ded1" class="w110" style="width: 110px !important">
-                                                Policy Approval</label>
-                                            <input type="radio" class="styled" name="rad1" id="radappr2" />
-                                            <label for="ded" class="w110" style="width: 110px !important">
-                                                Client Approval</label>
-                                        </div>
-                                    </li>
-                                    <li class="">
-                                        <label>
-                                            Others <span class="red">*</span></label>
-                                        <div class="flft marT5">
-                                            <asp:FileUpload class="txtbx_med flft txt lh25" ID="editOtherMail"
-                                                name="Appmail" runat="server" />
-                                            <div class="clear">
-                                            </div>
-                                        </div>
-                                    </li>
-                                </ul>
-                                <div class="clear">
-                                </div>
-                                <h3 class="contheading mbtm7 w-100" style="margin-top: 20px; max-width: 100%;">Approval Information</h3>
-                                <ul class="ma_tabcomplist" id="ulotherDetails">
-                                    <li class="">
-                                        <label>
-                                            Approval Mail <span class="red">*</span></label>
-                                        <div class="flft marT5">
-                                            <asp:FileUpload class="txtbx_med flft txt lh25" ID="editApprMail"
-                                                name="Appmail" runat="server" />
-                                        </div>
-                                    </li>
+     return rows;
+ }
+ #endregion FilterProjectDetailsForApproval
 
-                                    <li class="">
-                                        <label>
-                                            Valid From <span class="red">*</span></label>
-                                        <input id="vfrom_edittxt" type="text" class="txtbx_small"
-                                            oncopy="return false" onpaste="return false" />
-                                        <img class="img_calendar spriteImage" id="vfromedit" style="--x: -2653px; --y: -1204px; width: 17px; height: 17px" />
-                                    </li>
-                                    <li class="">
-                                        <label>
-                                            Approved By <span class="red">*</span></label>
+#region FetchEditRenewGridData
+  public static List<Dictionary<string, object>> FetchEditRenewGridData()
+  {
+      List<Dictionary<string, object>> rows = new List<Dictionary<string, object>>();
+      try
+      {
 
-                                        <input id="currappr_edit" type="text" class="txtbx_small" />
-                                    </li>
-                                    <li class="">
-                                        <label>
-                                            Valid To <span class="red">*</span></label>
-                                        <input id="to_edittxt" type="text" class="txtbx_small"
-                                            oncopy="return false" onpaste="return false" />
-                                        <img class="img_calendar spriteImage" id="to2_edit" style="--x: -2653px; --y: -1204px; width: 17px; height: 17px" />
-                                    </li>
+          ApprovalDetails objData = new ApprovalDetails()
+          {
+              ASSOCIATEID = Convert.ToInt32(HttpContext.Current.Session["UserId"].ToString()),
+              RoleID = HttpContext.Current.Session["RoleId"].ToString()
+          };
+          DataTable gridUserDetails = UtilityBAL.FetchEditRenewGridData(objData).Tables[0];
+          Dictionary<string, object> row = null;
+          foreach (DataRow dr in gridUserDetails.Rows)
+          {
+              row = new Dictionary<string, object>();
+              foreach (DataColumn col in gridUserDetails.Columns)
+              {
+                  row.Add(col.ColumnName, dr[col]);
+              }
 
-                                </ul>
-                            </div>
-                            <div class="clear">
-                            </div>
-                            <div class="btns  mtop20 flft">
-                                <p class="red post mleft20">
-                                    * All fields are Mandatory
-                                </p>
-                                <asp:Button BorderStyle="None" ID="UpdateApprovalwithProjects" Text="Update" runat="server"
-                                    class="update_btn mleft350 btn btn-primary"
-                                    Style="cursor: pointer; vertical-align: middle"
-                                    OnClientClick="return UpdateApprovalProjects();" OnClick="UpdateApprovalwithProjects_Click" />
-                                <input type="button" class="reset_btn mleft20 btn btn-secondary" value="Reset" />
-                            </div>
-                            <div class="clear">
-                            </div>
-                        </div>
+              rows.Add(row);
+          }
+      }
+      catch (SystemException ex)
+      {
+          ErrorLogger logger = new ErrorLogger();
+          logger.LogError(ex);
+      }
+
+      return rows;
+  }
+  #endregion FetchEditRenewGridData
+
+  #region FilterEditRenewGrid
+  public static List<Dictionary<string, object>> FilterEditRenewGrid(string componentId,
+      string approvaltype, string projectId)
+  {
+      List<Dictionary<string, object>> rows = new List<Dictionary<string, object>>();
+      try
+      {
+
+          ApprovalDetails objapprDetails = new ApprovalDetails()
+          {
+              ASSOCIATEID = Convert.ToInt32(HttpContext.Current.Session["UserId"].ToString()),
+              RoleID = HttpContext.Current.Session["RoleId"].ToString(),
+              ComponentId = Convert.ToInt16(componentId),
+              ApprovalType = Convert.ToInt16(approvaltype),
+              ProjectId = projectId
+          };
+          DataTable gridUserDetails = UtilityBAL.FilterEditRenewGrid(objapprDetails).Tables[0];
+          Dictionary<string, object> row = null;
+          foreach (DataRow dr in gridUserDetails.Rows)
+          {
+              row = new Dictionary<string, object>();
+              foreach (DataColumn col in gridUserDetails.Columns)
+              {
+                  row.Add(col.ColumnName, dr[col]);
+              }
+
+              rows.Add(row);
+          }
+      }
+      catch (SystemException ex)
+      {
+          ErrorLogger logger = new ErrorLogger();
+          logger.LogError(ex);
+      }
+
+      return rows;
+  }
+  #endregion FilterEditRenewGrid
+
+#region Page Load
+protected void Page_Load(object sender, EventArgs e)
+{
+    string versionkey = ConfigurationManager.AppSettings["Version"].ToString();
+    if (!this.IsPostBack)
+    {
+        this.hdnPostBackError.Value = "0";
+    }
+
+    string errorPopup = ConfigurationManager.AppSettings["ErrorPopUp"].ToString();
+    this.hdnSession.Value = errorPopup;
+
+    if (HttpContext.Current.Session["UserId"] != null)
+    {
+        this.userId = HttpContext.Current.Session["UserId"].ToString();
+    }
+    else
+    {
+        Response.Redirect("HTML/SessionTimeOut.htm?vs=" + versionkey);
+    }
+
+    string getUri = HttpContext.Current.Request.Url.AbsoluteUri;
+    ////Segements
+    Uri siteUri = new Uri(getUri);
+    string urlStr = string.Join("", siteUri.Segments);
+    urlStr = urlStr.Replace(ConfigurationManager.AppSettings["DASTSubstring"].ToString(), "");
+    urlStr = urlStr.Substring(1);
+    string pageListStr = HttpContext.Current.Session["PageUrlListSegments"].ToString();
+    if (!pageListStr.Contains(urlStr))
+    {
+        Response.Redirect("HTML/AccessDenied.htm?vs=" + versionkey);
+    }
+    else
+    {
+        if (HttpContext.Current.Session["UserRoles"] != null)
+        {
+            if (HttpContext.Current.Session["RoleId"] != null)
+            {
+                this.RoleID = HttpContext.Current.Session["RoleId"].ToString();
+            }
+            else
+            {
+                Response.Redirect("HTML/SessionTimeOut.htm?vs=" + versionkey);
+            }
+
+            string[] roles = HttpContext.Current.Session["UserRoles"].ToString().Split(',');
+            if (!roles.Contains(this.RoleID))
+            {
+                Response.Redirect("HTML/AccessDenied.htm?vs=" + versionkey);
+            }
+        }
+        else
+        {
+            Response.Redirect("HTML/SessionTimeOut.htm?vs=" + versionkey);
+        }
+    }
+
+    uploaddir = Path.Combine(Request.PhysicalApplicationPath, "ExcelFile");
+}
+
+#endregion Page Load

@@ -1,37 +1,3 @@
- public static List<Dictionary<string, object>> FilterProjectDetailsForApproval(string projectId, int component)
- {
-     List<Dictionary<string, object>> rows = new List<Dictionary<string, object>>();
-     try
-     {
-
-         ApprovalDetails objApprDetails = new ApprovalDetails()
-         {
-             ProjectId = projectId,
-             ComponentId = Convert.ToInt32(component)
-         };
-         DataTable gridUserDetails = UtilityBAL.GetProjectDetailsForApproval(objApprDetails).Tables[0];
-         Dictionary<string, object> row = null;
-         foreach (DataRow dr in gridUserDetails.Rows)
-         {
-             row = new Dictionary<string, object>();
-             foreach (DataColumn col in gridUserDetails.Columns)
-             {
-                 row.Add(col.ColumnName, dr[col]);
-             }
-
-             rows.Add(row);
-         }
-     }
-     catch (SystemException ex)
-     {
-         ErrorLogger logger = new ErrorLogger();
-         logger.LogError(ex);
-     }
-
-     return rows;
- }
- #endregion FilterProjectDetailsForApproval
-
 #region FetchEditRenewGridData
   public static List<Dictionary<string, object>> FetchEditRenewGridData()
   {

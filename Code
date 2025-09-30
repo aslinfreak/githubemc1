@@ -1,113 +1,142 @@
-function UpdateCheckProjects(projectId, validFrom, validTo, componentId) {
-    if (componentId == 4 || componentId == 5 || componentId == 6 || componentId == 50 || componentId == 51 || componentId == 52
-        || componentId == 170 || componentId == 171 || componentId == 172 || componentId == 175) {
-
-        var err = '';
-        var validationMsg = "";
-
-
-        var datastring = '{"projectId":"' + projectId + '", "validFrom":"' + validFrom + '","validTo":"' + validTo + '","componentId":' + parseInt(componentId) + '}';
-        $.ajax({
-            type: "post",
-            url: "ManageApproval.aspx/SaveFirstTimeValidation",
-            contentType: "application/json; charset=utf-8",
-            async: false,
-            data: datastring,
-            cache: false,
-            dataType: "json",
-            success: function (msg) {
-
-                validationMsg = msg.d;
-            },
-            error: function (xhr) {
-
-                errorpopup(document.getElementById("hdnSession").value);
-
-            }
-        });
-    }
-    return validationMsg;
-}
-function UpdateApprovalProjects() {
-
+function Editdetails() {
+    $("#progressBackgroundFilter").css('display', 'block');
+    $("#processMessage").css('display', 'block');
     $("#progressBackgroundFilter").show();
     $("#processMessage").show();
-    var error = '';
-    $('#tagerr').html('');
-    $('#tagsucc').html('');
-    var componentId = $('.editrenewApproval_wrap .top_contwrap ul:first-child').find('li:nth-child(2) label:nth-child(2)').attr('componentId');
-    var allowanceType = $('.editrenewApproval_wrap .top_contwrap ul:first-child').find('li:nth-child(2) label:nth-child(2)').text();
-    var approvalType = $('.editrenewApproval_wrap .top_contwrap ul:first-child').find('li:nth-child(1) label:nth-child(2)').attr('ApprovalTypeId');
-    var obj = $('.editrenewApproval_wrap #ulprojectDetails');
-    var projectId = obj.find('li:nth-child(1) label:nth-child(2)').text();
-    var AppUrl = $('#editApprMail').val();
+    $('#divFirstprojects .reset_btn').click();
+    $('#AppClear').click();
+    GetEditApprovalTypes();
+    $('#editrenewpage').show();
+    $('.editrenewApproval_wrap').hide();
+    $('.editMonthlyApproval_wrap').hide();
+    $('.editYearlyApproval_wrap').hide();
+    $('#divEditApprovalnonProjects').hide();
+    var projId = $('#editrenewsearch').find('li:nth-child(4) input[type=text]').val();
+    var approvaltype = $("#approvalstype").val();
+    var componentId = $("#EditComponent").val();
+    var oTable = $("#tbl_RenewGrid").dataTable();
+    oTable.fnDestroy();
+    var datastring = '{"componentId":"' + componentId + '","approvaltype":"' + approvaltype + '","projectId":"' + projId + '"}';
+    var table_data = '';
+    $.ajax({
+        type: "POST",
+        url: "ManageApproval.aspx/FilterEditRenewGrid",
+        contentType: "application/json; charset=utf-8",
+        async: true,
+        data: datastring,
+        cache: false,
+        dataType: "json",
+        success: function (msg) {
+            $.each(msg.d, function (i, data) {
+                var componentName = (data.ComponentName.length > 25) ? data.ComponentName.substring(0, 25) + '...' : data.ComponentName;
+                var ApprovalTypeName = (data.ApprovalTypeName.length > 17) ? data.ApprovalTypeName.substring(0, 17) + '...' : data.ApprovalTypeName;
+                table_data += '<tr RowNumber="' + data.RowNumber + '" pkey="' + data.PrimaryID + '" ValidTo="' + data.ValidTo + '" ApprovedBy="' + data.ApproverID + '" ApprovalTypeId="' + data.ApprovalTypeId + '" ComponentName="' + data.ComponentName + '" ValidFrom="' + data.ValidFrom + '" DocumentType="' + data.DocumentType + '" ComponentId="' + data.ComponentId + '" CurrentApprover="' + data.ApproverID + '" Monthname="' + data.Monthname + '" month="' + data.Month + '" Year="' + data.Year + '" >';
+                table_data += '<td style="text-align:left;text-indent:6px;" ApprovalType="' + data.ApprovalTypeName + '">' + ApprovalTypeName + '</td>';
+                table_data += '<td style="text-align:left;text-indent:6px;" compName="' + data.ComponentName + '">' + componentName + '</td>';
+                table_data += '<td ProjectEndDate="' + data.ProjectEndDate + '">' + data.ProjectID + '</td>';
+                table_data += '<td>' + data.ApproverID + '</td><td class="curpointer" ApprovalMailId="' + data.ApprovalMailUploadID + '">';
+                table_data += '<input type="button" id="' + data.ApprovalMailUploadID + '" class="mail_btn1 curpointer" /></td>';
+                if (data.OtherMailUploadID != null && data.OtherMailUploadID != "") {
+                    table_data += '<td class="curpointer" OtherMailId="' + data.OtherMailUploadID + '"><a ><img class="spriteImage" style="--x:-2201px;--y:-1414px;width:13px;height:13px" /></a></td>';
+                }
+                else {
+                    table_data += '<td></td>';
+                }
 
-    var obj1 = $('.editrenewApproval_wrap #ulotherDetails')
-    var validFrom = obj1.find('li:nth-child(2) input').val();
-    var validTo = obj1.find('li:nth-child(4) input').val();
-    var currappr = obj1.find('li:nth-child(3) input').val();
-    var projectEndDate = obj.find('li:nth-child(2) label:nth-child(2)').text();
-    if (componentId != 4 && componentId != 50) { //6th day allowance
-        var MSASOWDate = $('.editrenewApproval_wrap #ulprojectDetails').find('li:nth-child(3) input').val();
-        var docType = ($('#radappr1').prev('.radio').css('background-position-y') == '-25px') ? 1 : 2;
-        var otherUrl = $('#editOtherMail').val();
-        if (otherUrl == "") {
-            error += 'Please attach a file in others field,';
-        }
-    }
-    else {
-        var MSASOWDate = '';
-        var docType = -1;
-        var otherUrl = '';
-    }
-    if ((AppUrl == '' && ocm != 1) || validFrom == '' || validTo == '' || currappr == '') {
-        error += 'Please fill the mandatory fields' + ',';
-    }
-    else {
-        if (new Date(validFrom) > new Date(validTo)) {
-            error += 'From Date should not be greater than To Date' + ',';
-        }
-
-            if ((AppUrl.substr(AppUrl.length - 4) != '.msg') && ocm !=1 ){
-            error += 'Approval Mail should be in .msg format' + ',';
-        }
-
-        if (otherUrl != "") {
-            if (otherUrl.substr(otherUrl.length - 4) != '.msg' && otherUrl.substr(otherUrl.length - 4) != '.doc' && otherUrl.substr(otherUrl.length - 4) != 'docx' && otherUrl.substr(otherUrl.length - 4) != '.xls' && otherUrl.substr(otherUrl.length - 4) != 'xlsx') {
-                error += 'Other files should be mail or word or excel files' + ',';
+                table_data += '<td>' + data.ExpiryDate + '</td><td style="text-align:left;text-indent:6px;">' + data.MinimumExpiryParameter + '</td>';
+                table_data += '<td class="edit curpointer"><img class="spriteImage" style="--x:-2569px;--y:-929px;width:18px;height:20px"/></td></tr>';
+            });
+            $('#tbl_RenewGridbody').html(table_data);
+            var tbd = $('#tbl_RenewGrid').dataTable({
+                "fnInitComplete": function () {
+                    // custom scroll bars
+                    $('#divEditRenewGrid').find('.dataTables_scrollBody').jScrollPane({ verticalDragMinHeight: 8, verticalDragMaxHeight: 8, horizontalDragMinWidth: 82, horizontalDragMaxWidth: 82, autoReinitialise: true });
+                },
+                "sScrollY": "131px",
+                "sPaginationType": "full_numbers",
+                "bFilter": false,
+                "bRetrieve": true,
+                "bDestroy": false,
+                "cache": false,
+                "aoColumns": [{ "bSortable": false }, null, null, { "bSortable": false }, { "bSortable": false }, { "bSortable": false }, { "bSortable": false }, { "bSortable": false }, { "bSortable": false }]
+            });
+            $("#progressBackgroundFilter").hide();
+            $("#processMessage").hide();
+        },
+        error: function (xhr) {
+            errorpopup(document.getElementById("hdnSession").value);
+            if (xhr != undefined && xhr != null) {
+                PageMethods.LogAjaxError("ManageApproval", "FetchEditRenewGridData", xhr.responseText);
+                $("#progressBackgroundFilter").hide();
+                $("#processMessage").hide();
             }
         }
-        if (new Date(validTo) > new Date(projectEndDate)) {
-            error += " 'Valid to' date cannot exceed 'Project End date'" + ',';
-        }
-    }
-    var msg = saveDetailsValidation(projectId, currappr);
-    if (componentId == 50 || componentId == 51 || componentId == 52) {
-        if (new Date(projectEndDate) < new Date(validTo)) {
-
-            msg = " 'Valid to' date cannot exceed 'Project End date'";
-            errorpopup(msg);
-            return false;
-        }
-    }
-
-    error += msg;
-
-    if (error == '') {
-        $("input[id=hdnprojcomp]").val(componentId);
-        $("input[id=hdnprojproId]").val(projectId);
-        $("input[id=hdnMSASOWDate]").val(MSASOWDate);
-        $("input[id=hdndocType]").val(docType);
-        $("input[id=hdnprojValidFrom]").val(validFrom);
-        $("input[id=hdnprojValidTo]").val(validTo);
-        $("input[id=hdncurrappr]").val(currappr);
-        $("input[id=hdnCompName]").val(allowanceType);
-        $("input[id=hdnapptype]").val(approvalType);
-        return true;
-    }
-    else {
-        error = error.replace(/(^\s*,)|(,\s*$)/g, '');
-        errorpopup(error);
-        return false;
-    }
+    });
 }
+
+
+$(document).on('hover', '#tbl_RenewGridbody tr td:nth-child(1)', function () {
+    $(this).attr('title', ($(this).attr('ApprovalType')));
+});
+
+$(document).on('hover', '#tbl_RenewGridbody tr td:nth-child(2)', function () {
+    $(this).attr('title', ($(this).attr('compName')));
+});
+
+$(document).on('click', '#tbl_RenewGridbody tr td:nth-child(5)', function () {
+    var fileUploadId = $(this).attr('ApprovalMailId');
+    if (fileUploadId != '') {
+        window.location = 'Download.aspx?fileUploadId=' + fileUploadId;
+    }
+});
+
+$(document).on('click', '#tbl_RenewGridbody tr td:nth-child(6) a', function () {
+    var fileUploadId = $(this).parent().attr('OtherMailId');
+    if (fileUploadId != '') {
+        window.location = 'Download.aspx?fileUploadId=' + fileUploadId;
+    }
+});
+
+$(document).on('click', '#tbl_RenewGridbody tr td:nth-child(9) img', function () {
+
+
+$(document).on('click', '#tbl_RenewGridbody tr td:nth-child(11) a', function () {
+
+    if ($(this).parent().parent().attr('ApprovalTypeId') == 1) { //Pre-Approval with Projects
+
+        $('.editrenewApproval_wrap .editveiwheader h3').attr('pkey', $.trim($(this).parent().parent().attr('pkey'))).text('Edit Project/Component <' + $(this).parent().parent().find('td:nth-child(2)').text() + '/ ' + $(this).parent().parent().attr('ComponentName') + '>');
+        var DocumentType = $(this).parent().parent().attr('DocumentType');
+        var obj1 = $('.editrenewApproval_wrap .top_contwrap ul:first-child');
+        obj1.find('li:nth-child(1) label:nth-child(2)').text($.trim($(this).parent().parent().find('td:nth-child(1)').text()));
+        obj1.find('li:nth-child(2) label:nth-child(2)').text($.trim($(this).parent().parent().attr('ComponentName'))).attr('componentId', $(this).parent().parent().attr('ComponentId'));
+        var obj2 = $('.editrenewApproval_wrap #ulprojectDetails');
+        obj2.find('li:nth-child(1) label:nth-child(2)').text($.trim($(this).parent().parent().find('td:nth-child(2)').text()));
+        obj2.find('li:nth-child(2) label:nth-child(2)').text($.trim($(this).parent().parent().find('td:nth-child(2)').attr('ProjectEndDate')));
+        var obj3 = $('.editrenewApproval_wrap #ulotherDetails');
+
+        obj3.find('li:nth-child(2) input').val($.trim($(this).parent().parent().attr('ValidFrom')));
+        obj3.find('li:nth-child(4) input').val($.trim($(this).parent().parent().find('td:nth-child(7)').text()));
+        obj3.find('li:nth-child(5) select').html('<option value="-1">--Select Approver--</option>');
+        var currentApprover = $.trim($(this).parent().parent().attr('CurrentApprover'));
+        //var baseApprover = $.trim($(this).parent().parent().attr('BaseApprover'));
+        if (DocumentType == 1) {
+            $('#radappr1').attr('checked', 'checked');
+            $('#radappr2').removeAttr('checked');
+            $('#radappr1').prev('.radio').css('background-position', '0px -25px')
+            $('#radappr2').prev('.radio').css('background-position', '0px 0px')
+        }
+        else if (DocumentType == 2) {
+            $('#radappr2').attr('checked', 'checked');
+            $('#radappr1').removeAttr('checked');
+            $('#radappr2').prev('.radio').css('background-position', '0px -25px')
+            $('#radappr1').prev('.radio').css('background-position', '0px 0px')
+        }
+
+
+        $('.editrenewApproval_wrap').show();
+        $('.editrenewmain_wrap').hide();
+    }
+    else if ($(this).parent().parent().attr('ApprovalTypeId') == 2) {  //Pre-Approval without Projects
+
+    }
+});

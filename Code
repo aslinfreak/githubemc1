@@ -11,10 +11,7 @@ function UpdateApprovalProjects() {
     var obj = $('.editrenewApproval_wrap #ulprojectDetails');
     var projectId = obj.find('li:nth-child(1) label:nth-child(2)').text();
     var AppUrl = $('#editApprMail').val();
-    //Aslin
-    //var existingMailId = $('#<%=hdnApprovalMailId.ClientID%>').val();
-
-    var obj1 = $('.editrenewApproval_wrap #ulotherDetails')
+   var obj1 = $('.editrenewApproval_wrap #ulotherDetails')
     var validFrom = obj1.find('li:nth-child(2) input').val();
     var validTo = obj1.find('li:nth-child(4) input').val();
     var currappr = obj1.find('li:nth-child(3) input').val();
@@ -32,8 +29,6 @@ function UpdateApprovalProjects() {
         var docType = -1;
         var otherUrl = '';
     }
-    //Aslin
-    //&& existingMailId == ''
     if ((AppUrl == '' && ocm != 1 ) || validFrom == '' || validTo == '' || currappr == '') {
         error += 'Please fill the mandatory fields' + ',';
     }

@@ -1,489 +1,229 @@
-USE [OneC_SPay]
-GO
---/****** Object:  StoredProcedure [dbo].[usp_GetAccessibleProjectID]    Script Date: 07-10-2025 15:42:30 ******/
---SET ANSI_NULLS ON
---GO
---SET QUOTED_IDENTIFIER ON
---GO
----- =======================================================================================================  
----- Author     : CHITRA A(316271)  
----- Create date: NOV 26, 2013  
----- Description: To get the project ID by passing LoginID 
----- Modified By: CHITRA A(316271)  
----- Modified date: Aug 5, 2015  
----- Description: ComponentGroupID in ComponentRolemapping for fetching ProjectID  
----- ======================================================================================================  
---ALTER PROCEDURE [dbo].[usp_GetAccessibleProjectID]
---(
-Declare
-@loginId INT=175715,
-@RoleID INT=6,
-@ComponentId int=4,
-@CountryID int=1
---)
---AS
---SET NOCOUNT ON
---BEGIN
---BEGIN TRY
-------Declare temp table ----------
-CREATE TABLE #PROJ(ProjectID VARCHAR(20),MINVALUE DATETIME,CUSTOMERID VARCHAR(10))
+    if (componentGroupId == 2) {
+        $("#refDetails").show();
+        $("#OutreachDetails").hide();
+        $("#shiftDetails").hide();
+        $("#itshiftDetails").hide();
+        $("#CBADetails").hide();
+        $("#trtDetails").hide();
+        $("#BPSShiftDetails").hide();
+        $("#SixthDayDetails").hide();
+        $("#BPSTransportAllowance").hide();
+        $("#GymDetails").hide();
+        $("#DisAlwDetails").hide();
+        $("#SbiAlwDetails").hide();
+        $("#DBOAlwDetails").hide();
+        $("#NSA2AlwDetails").hide();
+        $('#tblReferral').find('tbody').html('');
+        $('#tblReferral').css('display', 'table');
+        $('#tblReferral_wrapper').css('display', 'block');
+        $('#tblReferralHead').css('display', 'block');
+        $('#tblReferralHead_wrapper').css('display', 'block');
+        $('#refDetails .dataTableScroll').css('display', 'block');
+        $('#PM_tblShiftAllowance').css('display', 'none');
+        $('#PM_tblShiftAllowance_wrapper').css('display', 'none');
+        $('#PFSS_tblShiftAllowance').css('display', 'none');
+        $('#PFSS_tblShiftAllowance_wrapper').css('display', 'none');
+        $('#PM_tblShiftAllowanceHead').css('display', 'none');
+        $('#PM_tblShiftAllowanceHead_wrapper').css('display', 'none');
+        $('#PM_tblITShiftAllowanceHead').css('display', 'none');
+        $('#PM_tblITShiftAllowanceHead_wrapper').css('display', 'none');
+        $('#PFSS_tblShiftAllowanceHead').css('display', 'none');
+        $('#PFSS_tblShiftAllowanceHead_wrapper').css('display', 'none');
+        $("#Noticepay .refPage").css("display", "none");
+        $("#Joiningbonus .refPage").css("display", "none");
+        $('#tblJoining').css('display', 'none');
+        $('#tblNoticepay').css('display', 'none');
+        $('#GymDetails .dataTableScroll').css('display', 'none');
+        $('#refDetails .dataTableScroll').css('display', 'block');
+        $('#refDetails .viewport').css('overflow', 'scroll');
+        $("#customize").show();
+        $('#Noticepay').css('display', 'none');
+        $('#Joiningbonus').css('display', 'none');
+        $('#refDetails .dataTableScroll').css('display', 'block');
+        //$("#disLabel").css("margin-left", "450px");
+        $("#ulRecord li").css("width", "");
+        $("#ulRecord li").addClass("mleft50");
+        $('#disLabel').css('margin-left', '345px');
+        $('#customize').css('left', '326px');
+        //getTotalPages();
+        $("#NoData").remove();
+        if (CustomizeRB != '~1~2~3~4~5~6~7~8~9~10') {
+            var htmldata = '';
+            if (CheckedFlag == 1) {
+                htmldata += '<tr><th class="td1"><input type="checkbox" checked id="chkReferral" /></th>';
+            }
+            else {
+                htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
+            }
+            //htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
+            htmldata += ' <th id="Th5" class="sort td2" column="ReferrorAssociateID">Referrer ID </th>';
+            htmldata += ' <th class="sort td3" column="RefereeAssociateID">Referee ID </th>';
+            htmldata += ' <th class="sort td4" column="RefereeBGstatus">Referee  <br />BG status</th>';
+            htmldata += ' <th class="sort td5" column="Amount">Amount </th>';
+            htmldata += ' <th column="SpecialCaseReason" class="td6">Special Case <br />Reason</th>';
+            htmldata += ' <th column="SpecialCaseMail" class="td7">Special Case Mail</th>';
+            htmldata += ' <th class="sort td8" column="Status">Status</th>';
+            htmldata += ' <th column="Remarks" class="td9">Rejection/Resubmit Remarks </th>';
+            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
+            htmldata += ' <th class="sort td8" column="SetId">SetId </th>';
 
-------Declare temp table ----------
-CREATE TABLE #PROJECT1(PK_Project INT IDENTITY(1,1) PRIMARY KEY, Project_ID VARCHAR(15))
+            if (CustomizeRB.indexOf("~11~") > -1) {
+                htmldata += ' <th class="td3" column="UploaderID">Uploader ID</th>'
+            }
+            if (CustomizeRB.indexOf("~12~") > -1) {
+                htmldata += ' <th class="td9" column="RefereeDOJ">RefereeDOJ</th>'
+            }
+            htmldata += ' <th class="td10">View</th></tr>';
 
-------Declare temp table ----------
-  CREATE TABLE #Supervisor_Details 
-    (PK_ID INT IDENTITY(1,1) PRIMARY KEY, 
-    Associate_ID VARCHAR(11),
-	Supervisor_ID VARCHAR(11),
-	PresentHCMLocationCode VARCHAR(30),
-	Business_Unit VARCHAR(5))
-    
-    INSERT INTO #Supervisor_Details(Associate_ID, Supervisor_ID, PresentHCMLocationCode, Business_Unit)
-    SELECT Associate_ID, Supervisor_ID, PresentHCMLocationCode, Business_Unit
-	FROM CentralRepository.dbo.vw_CentralRepository_Associate_Details CPM WITH(NOLOCK)
-    WHERE IsActive IN ('A','L') AND per_org='EMP' and Supervisor_ID=@Loginid
-	
-	INSERT INTO #PROJECT1(Project_ID)
-	SELECT Project_ID FROM APPROVAL_PROJECTS AP INNER JOIN 
-    CentralRepository.dbo.vw_CentralRepository_allocation CA WITH(NOLOCK)
-    ON AP.ProjectID = CA.Project_ID INNER JOIN 	#Supervisor_Details AD ON CA.Associate_id = AD.Associate_ID 
-    WHERE  DATEDIFF(month, Allocation_End_Date, GETDATE()) <=3 AND 
-    AP.Fk_Componentid in (5,51,171) and AP.Rowstatus = 1 
-	and DATEDIFF(month, ValidTill, GETDATE()) < 6
-	GROUP BY Project_ID
-	
-------Declare temp variable ----------
-DECLARE @ComponentCountryMappingId INT
-select @ComponentCountryMappingId= CCM.PK_ComponentCountryMappingID from COMPONENTCOUNTRYMAPPING CCM 
-INNER JOIN ComponentMaster CM ON CCM.Fk_ComponentID=CM.PK_ComponentId
-where CM.FK_ComponentGroupID=@ComponentId and CCM.FK_componentcountryid=@CountryID
+            $('#tblReferral').find('thead').html('').html(htmldata);
+        }
+        else {
+            var htmldata = '';
+            if (CheckedFlag == 1) {
+                htmldata += '<tr><th class="td1"><input type="checkbox" checked id="chkReferral" /></th>';
+            }
+            else {
+                htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
+            }
+            //htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
+            htmldata += ' <th id="Th5" class="sort td2" column="ReferrorAssociateID">Referrer ID </th>';
+            htmldata += ' <th class="sort td3" column="RefereeAssociateID">Referee ID </th>';
+            htmldata += ' <th class="sort td4" column="RefereeBGstatus">Referee  <br />BG status</th>';
+            htmldata += ' <th class="sort td5" column="Amount">Amount </th>';
+            htmldata += ' <th column="SpecialCaseReason" class="td6">Special Case <br />Reason</th>';
+            htmldata += ' <th column="SpecialCaseMail" class="td7">Special Case Mail</th>';
+            htmldata += ' <th class="sort td8" column="Status">Status</th>';
+            htmldata += ' <th column="Remarks" class="td9">Rejection/Resubmit Remarks </th>';
+            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
+            htmldata += ' <th class="sort td8" column="SetId">SetId </th>';
+            htmldata += ' <th class="td10">View</th></tr>';
 
-	IF(@RoleID =1)
-	BEGIN
+            $('#tblReferral').find('thead').html('').html(htmldata);
+        }
+        $("#refDetails .refPage").css("display", "block");
+        //grid_htmlhead += '<thead><tr><th width="30px">&nbsp;</th><th width="109px" id="refid">Referrer ID </th><th width="102px">Referee ID </th><th width="100px">Referee <br />BG status </th><th width="90px">Amount</th><th width="135px">Special Case Reason</th><th width="83px">Status</th><th width="113px">Remarks</th><th width="60px">View</th><th width="75px">Edit</th></tr></thead>';
+        //grid_html += '<tbody>';
+        if (msg.d.length > 0) {
 
-		IF(@CountryID=1)
-		BEGIN	
-------Declare temp table ----------
-		CREATE TABLE #PROJCIS(ProjectID VARCHAR(20),MINVALUE DATETIME,CUSTOMERID VARCHAR(10),
-		Fk_ComponentID VARCHAR(10))	
-		/**********Check component id ****/
-		IF(@ComponentId = 4)
-		BEGIN	
-			
-			INSERT INTO #PROJCIS(ProjectID ,MINVALUE ,CUSTOMERID ,Fk_ComponentID)	
-			SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID,Fk_ComponentID
-			FROM  UserRoleMapping URM WITH(NOLOCK) 
-			INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=URM.ProjectID
-			INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_ComponentId=AP.Fk_ComponentID 
-			and CM.Rowstatus=1 AND CM.PK_ComponentId  in (4,5,6)
-			INNER JOIN ComponentRoleMapping CRM WITH(NOLOCK) ON CRM.PK_ComponentRoleID=URM.FK_ComponentRoleID  
-			INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-			ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-			CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-			WHERE URM.AssociateID=@loginId AND AP.RowStatus=1 AND CRM.RowStatus=1 AND CRM.FK_RoleID=1 
-			AND URM.RowStatus = 1
-			GROUP BY AP.ProjectID,CP.Project_End_Date,CP.Customer_ID,Fk_ComponentID
-			
-			SELECT ProjectID,CUSTOMERID FROM 
-		   ( SELECT ProjectID,CUSTOMERID, MINVALUE, ROW_NUMBER() 
-		   OVER(PARTITION BY ProjectID ORDER BY ProjectID ASC) AS Rank
-			FROM #PROJCIS  WHERE DATEADD(MM,6,MINVALUE)>=GETDATE() ) S
-			WHERE S.Rank = 1			
-			END
-				
-		/**********Check component id ****/
-		ELSE IF((@ComponentId = 98) or (@ComponentId = 100))---VNM NSA
-		BEGIN	
-			
-			INSERT INTO #PROJCIS(ProjectID ,MINVALUE ,CUSTOMERID ,Fk_ComponentID)	
-			SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID,Fk_ComponentID
-			FROM  UserRoleMapping URM WITH(NOLOCK) 
-			INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=URM.ProjectID
-			INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_ComponentId=AP.Fk_ComponentID 
-			and CM.Rowstatus=1 AND CM.PK_ComponentId  in (170,171,172,175)
-			INNER JOIN ComponentRoleMapping CRM WITH(NOLOCK) ON CRM.PK_ComponentRoleID=URM.FK_ComponentRoleID 
-			INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-			ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-			CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-			WHERE URM.AssociateID=@loginId AND AP.RowStatus=1 AND CRM.RowStatus=1 
-			AND CRM.FK_RoleID=1 AND URM.RowStatus = 1
-			GROUP BY AP.ProjectID,CP.Project_End_Date,CP.Customer_ID,Fk_ComponentID
-			
-			SELECT ProjectID,CUSTOMERID FROM 
-		   ( SELECT ProjectID,CUSTOMERID, MINVALUE, ROW_NUMBER() OVER(PARTITION BY ProjectID 
-		   ORDER BY ProjectID ASC) AS Rank
-			FROM #PROJCIS  WHERE DATEADD(MM,6,MINVALUE)>=GETDATE() ) S 
-			WHERE S.Rank = 1			
-			END
-------Drop temp table ----------
-			DROP TABLE #PROJCIS
-		
-		END
-		ELSE
-		BEGIN
-------Declare temp table ----------
-			CREATE TABLE #PROJECTUploader(ProjectID VARCHAR(20))
-			INSERT INTO #PROJECTUploader(ProjectID)
-			SELECT DISTINCT AP.ProjectID
-			FROM PR.APACPROJECT AP 
-			inner join userrolemapping UM  WITH(NOLOCK) ON UM.ProjectID= AP.ProjectID
-			WHERE um.AssociateID=@loginId AND AP.RowStatus=1 and um.RowStatus=1 
-			AND AP.Fk_ComponentCountryMappingID=@ComponentCountryMappingId
-			GROUP BY AP.ProjectID
-			
-			SELECT ProjectID FROM #PROJECTUploader WITH(NOLOCK) 
-			DROP TABLE #PROJECTUploader
-			END
+            var classname = '';
+            if (CustomizeRB != '~1~2~3~4~5~6~7~8~9~10') {
+                $.each(msg.d, function (i, data) {
+                    if ((i % 2) == 0) {
+                        classname = 'even';
+                    }
+                    else {
+                        classname = 'odd';
+                    }
+                    if (data.RejectionReason == null) {
+                        data.RejectionReason = "";
+                    }
+                    var rejectionRemarks = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
+                    var splreason = (data.RejectionReason.length > 30) ? data.SpecialCaseReason.substring(0, 30) + '...' : data.SpecialCaseReason;
 
-	END
-	
-		/**********Check role id ****/
-	IF(@RoleID=12)
-	BEGIN
-------Declare temp table ----------
-		CREATE TABLE #PROJIT(ProjectID VARCHAR(20),MINVALUE DATETIME,CUSTOMERID VARCHAR(10),
-		Fk_ComponentID VARCHAR(10))
-		INSERT INTO #PROJIT(ProjectID ,MINVALUE ,CUSTOMERID,Fk_ComponentID )
-		SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID,FK_ComponentID
-		FROM  UserRoleMapping URM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=URM.ProjectID
-		INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_ComponentId=AP.Fk_ComponentID 
-		and CM.Rowstatus=1 AND CM.PK_ComponentId  in (50,51,52)
-		INNER JOIN ComponentRoleMapping CRM WITH(NOLOCK) ON CRM.PK_ComponentRoleID=URM.FK_ComponentRoleID  
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE URM.AssociateID=@loginId AND AP.RowStatus=1 AND CRM.RowStatus=1 
-		AND CRM.FK_RoleID=12 AND URM.RowStatus = 1
-		GROUP BY AP.ProjectID,CP.Project_End_Date,CP.Customer_ID,FK_ComponentID
-		
-		SELECT ProjectID,CUSTOMERID FROM 
-		   ( SELECT ProjectID,CUSTOMERID, MINVALUE, ROW_NUMBER() OVER(PARTITION BY ProjectID 
-		   ORDER BY ProjectID ASC) AS Rank
-	  FROM #PROJIT  WHERE DATEADD(MM,6,MINVALUE)>=GETDATE() ) S 
-	  WHERE S.Rank = 1
-	  
-------Drop temp table ----------
-	  DROP TABLE #PROJIT
-	
-	END
-	
-		/**********Check role id ****/
-	IF(@RoleID=3)
-	BEGIN
+                    var SplCaseMailUploadId = data.SplCaseMailUploadId;
+                    var gridMailIdval = "";
+                    if (SplCaseMailUploadId == 0) {
+                        gridMailIdval = "<div></div>";
+                    }
+                    else {
+                        gridMailIdval = '<input type="button" style="cursor:pointer" id=' + data.SplCaseMailUploadId + ' class="mail_btn1" fileuploadid=' + data.SplCaseMailUploadId + '/>';
+                    }
 
-		INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-		SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  Approval_Projects AP WITH(NOLOCK) 
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE AP.RowStatus=1 
-		GROUP BY AP.ProjectID,CP.Project_End_Date,CP.Customer_ID		
+                    grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox"  class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
+                    grid_html += '<td class="td5">' + data.Amount + '</td>';
+                    grid_html += '<td class="td6" title="' + data.SpecialCaseReason + '">' + splreason + '</td><td class="Approvedtd4 td7">' + gridMailIdval + '</td><td class="td8">' + data.Status + '</td>';
+                    grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9">' + rejectionRemarks + '</td>';
 
-		SELECT ProjectID,CustomerID AS CUSTOMERID  FROM #PROJ WITH(NOLOCK)
-		WHERE DATEADD(MM,2,MINVALUE)>=GETDATE() 
-	END
-	
-		/**********Check role id ****/
-	IF(@RoleID=6)
-	BEGIN		
-		/**********Check component id ****/
-		IF(@ComponentId = 12)
-		BEGIN
-		INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-		SELECT DISTINCT AP.ProjectID,MAX(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT AP.MSA_SOWENDDATE) A(COL)
-		WHERE PM.PROJECT_MANAGER=@loginId AND AP.RowStatus=1 and FK_ComponentID in (50,51,52)
-		--AND CP.Project_End_Date>=AP.ValidTill
-	    GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-		END
-		/**********Check component id ****/
-		ELSE IF((@ComponentId = 98) OR (@ComponentId = 100))
-		BEGIN
-		INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-		SELECT DISTINCT AP.ProjectID,MAX(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT AP.MSA_SOWENDDATE) A(COL)
-		WHERE PM.PROJECT_MANAGER=@loginId AND AP.RowStatus=1 and FK_ComponentID in (170,171,172,175)
-		--AND CP.Project_End_Date>=AP.ValidTill
-		GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-		END
-		/**********Check component id ****/
-		ELSE IF(@ComponentId = 4)
-		BEGIN
-		INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-		SELECT DISTINCT AP.ProjectID,MAX(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK)
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT AP.MSA_SOWENDDATE) A(COL)
-		WHERE PM.PROJECT_MANAGER=@loginId AND AP.RowStatus=1 and FK_ComponentID in (4,5,6) 
-		--and CP.Project_End_Date>=ap.ValidTill
-		GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-		END
-		--Discretenary Allowance,DBO and StandBy Incentive
-		ELSE IF(@ComponentId in (102,103,104))
-		BEGIN
-			INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-			SELECT DISTINCT AP.ProjectID,AP.EndDate AS MINVALUE ,Customer_ID AS CUSTOMERID
-			FROM  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM WITH(NOLOCK) 
-			INNER JOIN PR.APACProject AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-			INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-			ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 			
-			WHERE PM.PROJECT_MANAGER=@loginId AND AP.RowStatus=1 
-			and AP.Fk_ComponentCountryMappingID=@ComponentCountryMappingId
-			GROUP BY ProjectID,AP.EndDate,CP.Customer_ID
-			END
-		ELSE
+                    grid_html += '<td class="td8">' + data.ProjectId + '</td>< td class="td8" > ' + data.SetId + '</td >';
 
-		BEGIN
-		INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-		SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE PM.PROJECT_MANAGER=@loginId AND AP.RowStatus=1 and FK_ComponentID=@ComponentId
-	    GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-		UNION ALL
-		SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE,Customer_ID AS CUSTOMERID 
-		FROM  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM WITH(NOLOCK) 
-		INNER JOIN Approval_MonthlyYearlyApprovals AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID
-		CROSS APPLY (SELECT AP.ValidTo
-		UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE PM.PROJECT_MANAGER=@loginId and AP.RowStatus=1 and FK_ComponentID=@ComponentID
-		GROUP BY ProjectID,CP.Project_End_Date,CP.Customer_ID
-		UNION ALL
-		SELECT DISTINCT AP.ProjectID,'' AS MINVALUE,'' AS CUSTOMERID 
-		FROM  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM WITH(NOLOCK) 
-		INNER JOIN PR.APACPROJECT AP WITH(NOLOCK) ON AP.ProjectID=convert(varchar,PM.PROJECT_ID)
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK)  
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 		
-		WHERE PM.PROJECT_MANAGER=@loginId AND AP.RowStatus=1  
-		AND FK_COMPONENTCOUNTRYMAPPINGID=@ComponentCountryMappingId
-	   GROUP BY ProjectID
-		END		
-	
-		IF(@CountryID = 1 and @ComponentId not in (4,12,98,100))
-		BEGIN
-			SELECT ProjectID,CUSTOMERID FROM #PROJ WITH(NOLOCK) WHERE DATEADD(MM,2,MINVALUE)>=GETDATE() 
-		END
-		ELSE IF(@CountryID = 1 and @ComponentId in (4,12,98,100))
-		BEGIN
-			CREATE TABLE #PROJNew(ProjectID VARCHAR(20),MINVAL DATETIME,CUSTOMERID VARCHAR(10))
-			INSERT INTO #PROJNew(ProjectID,MINVAL,CUSTOMERID )
-			select CP.Project_ID, MIN(COL) As MINVAL,P.CUSTOMERID  from #PROJ P inner join 
-			[CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK)
-			on p.projectid=CP.Project_ID
-			CROSS APPLY(select CP.Project_End_Date union all select P.MINVALUE) A(COL)
-			group by Project_ID,P.CUSTOMERID
 
-			SELECT ProjectID,CUSTOMERID FROM #PROJNew WITH(NOLOCK) WHERE DATEADD(MM,2,MINVAL)>=GETDATE() 
-			
-			DROP TABLE #PROJNew
-		END
-ELSE
-BEGIN
-SELECT ProjectID,CUSTOMERID FROM #PROJ WITH(NOLOCK) 
-END
-	END
-	
-		/**********Check role id ****/
-	IF(@RoleID=10)
-	BEGIN
+                    if (CheckedFlag == 1) {
+                        grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" checked id=' + (i + 1) + ' /></td >';
+                    }
+                    else {
+                        grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td >';
+                    }
+                    if (CustomizeRB.indexOf("~11~") > -1) {
+                        grid_html += '<td class="td3" style="text-align:center;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                    }
+                    if (CustomizeRB.indexOf("~12~") > -1) {
+                        grid_html += '<td class="td9" style="text-align:left;" RefereeDOJ="' + data.RefereeDOJ + '">' + data.RefereeDOJ + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                    }
+                    grid_html += '<td class="td10"><img class="view_details spriteImage" style="--x:-2061px;--y:-1112px;width:20px;height:16px" /></td></tr>';
+                });
+                $('#tblReferral').find('tbody').html('').html(grid_html);
+            }
+            else {
+                $.each(msg.d, function (i, data) {
+                    if ((i % 2) == 0) {
+                        classname = 'even';
+                    }
+                    else {
+                        classname = 'odd';
+                    }
+                    if (data.RejectionReason == null) {
+                        data.RejectionReason = "";
+                    }
+                    var rejectionRemarks = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
+                    var splreason = (data.RejectionReason.length > 30) ? data.SpecialCaseReason.substring(0, 30) + '...' : data.SpecialCaseReason;
 
-	   INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-	   SELECT CRP.Project_ID,MIN(COL) AS MINVALUE,Customer_ID AS CUSTOMERID
-	   FROM CentralRepository.dbo.vw_CentralRepository_SFDC_Account CRH WITH (NOLOCK) 
-	   INNER JOIN UserroleMapping URM WITH (NOLOCK) ON CRH.Peoplesoft_Customer_Id__C=URM.CustomerID
-	   INNER JOIN ComponentRoleMapping CRM WITH (NOLOCK) ON CRM.Pk_ComponentRoleID=URM.Fk_ComponentRoleID
-	   INNER JOIN Centralrepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK)
-	   ON CRP.Customer_ID=CRH.Peoplesoft_Customer_Id__C
-	   INNER JOIN Approval_MonthlyYearlyApprovals AMY WITH (NOLOCK) on AMY.ProjectID=CRP.Project_ID
-	   CROSS APPLY (SELECT AMY.ValidTo
-	   UNION ALL SELECT CRP.Project_End_Date) A(COL)
-	   WHERE URM.AssociateID=@loginId and URM.Rowstatus=1 and CRM.Rowstatus=1 and AMY.VerificationStatus=2
-	   GROUP BY Project_ID,CRP.Customer_ID
-	   
-		SELECT ProjectID,CUSTOMERID FROM #PROJ WITH(NOLOCK) WHERE DATEADD(MM,2,MINVALUE)>=GETDATE() 
-		END
-		
-		/**********Check role id ****/
-	IF(@RoleID=11)
-	BEGIN
-	
-------Declare temp table ----------
-	   Declare  @Customer table(CustomerID varchar(20))
-	   
-------Declare temp table ----------
-		Declare @Project table (ProjectID varchar(15))
+                    var SplCaseMailUploadId = data.SplCaseMailUploadId;
+                    var gridMailIdval = "";
+                    if (SplCaseMailUploadId == 0) {
+                        gridMailIdval = "<div></div>";
+                    }
+                    else {
+                        gridMailIdval = '<input type="button" style="cursor:pointer" id=' + data.SplCaseMailUploadId + ' class="mail_btn1" fileuploadid=' + data.SplCaseMailUploadId + '/>';
+                    }
+                    if (CheckedFlag == 1) {
+                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox" checked class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
+                    }
+                    else {
+                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox" class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
+                    }
+                    grid_html += '<td class="td5">' + data.Amount + '</td>';
+                    grid_html += '<td class="td6" title="' + data.SpecialCaseReason + '">' + splreason + '</td><td class="Approvedtd4 td7">' + gridMailIdval + '</td><td class="td8">' + data.Status + '</td>';
+                    if (CheckedFlag == 1) {
+                        grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>';
+                        $('#tblReferral tbody tr,#tblReferral tbody tr,#tblReferral tbody tr').each(function (i) {
+                            if (($(this).find('td:nth-child(9) input').val()) == undefined) {
+                                var val = $(this).find('td:nth-child(9)').attr('rejreason');
+                                var off = $(this).offset();
+                                if (val == '') {
+                                    $('.error_msg_remarks').show();
+                                    $(this).find('td:nth-child(9)').append('<input type="text" class="txtbx_td txt" />')
+                                    $('.error_msg_remarks').css({ 'top': off.top + 15, 'left': off.left + 909 })
+                                }
+                                else {
+                                    // aler('input fields')
+                                    $(this).find('td:nth-child(10)').text('');
+                                    $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />');
+                                    $(this).find('td:nth-child(10) input').val(val);
+                                }
+                            }
+                        })
+                    }
+                    else {
+                        grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9">' + rejectionRemarks + '</td>';
+                        //grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejReason + '<td class="std10">' + data.Status + '</td></tr>';
+                    }
+                    grid_html +=  '<td class="td8" > ' + data.SetId + '</td ><td class="td8">' + data.ProjectId + '</td><td class="td10"><img class="view_details spriteImage" style="--x:-2061px;--y:-1112px;width:20px;height:16px" /></td></tr > ';
+                });
+                $('#tblReferral').find('tbody').html('').html(grid_html);
+                //var heightdiff = $("#refDetails .viewport")[0].scrollHeight - $("#refDetails .viewport").height();
+                //if (heightdiff > 0) {
+                //    $(".dataTableScroll .scrollbar").css("display", "block");
+                //}
+                //else {
+                //    $(".dataTableScroll .scrollbar").css("display", "none");
+                //}
 
-	   insert into @Project(ProjectID)
-       Select URM.ProjectID from Approval_MonthlyYearlyApprovals MYA WITH (NOLOCK) 
-       INNER JOIN UserRoleMapping URM With (nolock) on Convert(varchar,MYA.ProjectID)=URM.ProjectID
-       INNER JOIN ComponentRoleMapping CRM with (NOLOCK) ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID
-       INNER JOIN ComponentCOuntryMapping CCM WITH (NOLOCK)
-	   ON CCM.PK_ComponentCountryMappingID=CRM.FK_ComponentCountryMappingID
-       INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_COmponentID=CCM.FK_ComponentID
-       WHERE URM.RowStatus=1 and URM.AssociateID=@LoginID and MYA.Rowstatus=1 
-	   and MYA.Fk_ComponentID=@ComponentId 
-	   AND CRM.RowStatus=1 and CM.FK_ComponentGroupID in (7,10) and CRM.FK_RoleID=11
-       AND CCM.FK_ComponentCountryID=1 and CCM.RowStatus=1 and CM.RowStatus=1
-       GROUP BY URM.ProjectID
+                //$('.dataTableScroll').tinyscrollbar({ sizethumb: 22 });
+            }
+        }
+        else {
+            $("#tblReferral").append("<tr class='even' id='NoData'><td colspan='12' class='text-center'>No data available</td></tr>");
+            $(".dataTableScroll .scrollbar").hide();
 
-	   --INSERT INTO @Project(ProjectID)
-    --   Select MYA.ProjectID from Approval_MonthlyYearlyApprovals MYA WITH (NOLOCK) 
-    --   INNER JOIN Centralrepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK) 
-	   --ON MYA.ProjectID=Convert(varchar,CRP.Project_ID)
-    --   INNER JOIN @Customer C ON CRP.Customer_ID=C.CustomerID
-    --   WHERE MYA.Rowstatus=1 and MYA.Fk_ComponentID=@ComponentId 
-    --   GROUP BY MYA.ProjectID
-
-	   select ProjectID from @project
-
-	END
-	
-		/**********Check role id ****/
-	IF(@RoleID in(19,20) AND @CountryID in (1))
-	BEGIN
-		
-		/**********Check component id ****/
-		IF(@ComponentId = 12)
-		BEGIN
-		INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-		SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_allocation PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE PM.Associate_id=@loginId AND AP.RowStatus=1 and FK_ComponentID in (51)
-		AND DATEDIFF(month, Allocation_End_Date, GETDATE()) <=3 
-		and AP.Rowstatus = 1 and DATEDIFF(month, ValidTill, GETDATE()) < 6
-		AND @RoleID = 19
-	   GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-	    union
-	   SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_allocation PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		INNER JOIN #PROJECT1 PR ON PR.Project_ID = CP.Project_ID 
-		INNER JOIN #Supervisor_Details SD ON SD.Supervisor_ID=@loginId
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE  AP.RowStatus=1 and FK_ComponentID in (51) AND DATEDIFF(month, Allocation_End_Date, GETDATE()) <=3 
-		and AP.Rowstatus = 1 and DATEDIFF(month, ValidTill, GETDATE()) < 6 
-		and @RoleID = 20 
-	   GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-	   END
-		/**********Check component id ****/
-		ELSE IF((@ComponentId = 98) OR (@ComponentId = 100))
-		BEGIN
-		INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-		SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_allocation PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE PM.Associate_id=@loginId AND AP.RowStatus=1 and FK_ComponentID in (171)
-		AND DATEDIFF(month, Allocation_End_Date, GETDATE()) <=3 
-		and AP.Rowstatus = 1 and DATEDIFF(month, ValidTill, GETDATE()) < 6 
-		and @RoleID = 19
-	   GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-	   union
-	   SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_allocation PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		INNER JOIN #PROJECT1 PR ON PR.Project_ID = CP.Project_ID 
-		INNER JOIN #Supervisor_Details SD ON SD.Supervisor_ID=@loginId
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE  AP.RowStatus=1 and FK_ComponentID in (171) AND DATEDIFF(month, Allocation_End_Date, GETDATE()) <=3 
-		and AP.Rowstatus = 1 and DATEDIFF(month, ValidTill, GETDATE()) < 6 
-		and @RoleID = 20
-	   GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-		END
-		/**********Check component id ****/
-		ELSE IF(@ComponentId = 4)
-		BEGIN
-		INSERT INTO #PROJ(ProjectID,MINVALUE ,CUSTOMERID )
-		SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_allocation PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		ON TRY_CAST(CP.Project_ID AS INT) = AP.ProjectID
-		--ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE PM.Associate_id=@loginId AND AP.RowStatus=1 and FK_ComponentID in (5) 
-		AND DATEDIFF(month, Allocation_End_Date, GETDATE()) <=3 
-		and AP.Rowstatus = 1 and DATEDIFF(month, ValidTill, GETDATE()) < 6
-		and @RoleID = 19
-	   GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-	   UNION
-	    SELECT DISTINCT AP.ProjectID,MIN(COL) AS MINVALUE ,Customer_ID AS CUSTOMERID
-		FROM  CentralRepository.dbo.vw_CentralRepository_allocation PM WITH(NOLOCK) 
-		INNER JOIN Approval_Projects AP WITH(NOLOCK) ON AP.ProjectID=PM.PROJECT_ID
-		INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK) 
-		INNER JOIN #PROJECT1 PR ON PR.Project_ID = CP.Project_ID 
-		INNER JOIN #Supervisor_Details SD ON SD.Supervisor_ID=@loginId
-		ON ISNUMERIC(CP.Project_ID)=1 AND  CP.Project_ID=AP.ProjectID 
-		CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)
-		WHERE  AP.RowStatus=1 and FK_ComponentID in (5) AND DATEDIFF(month, Allocation_End_Date, GETDATE()) <=3 
-		and AP.Rowstatus = 1 and DATEDIFF(month, ValidTill, GETDATE()) < 6
-		and @RoleID = 20
-	   GROUP BY ProjectID,CP.Project_End_Date ,CP.Customer_ID
-		END		
-	
-		/**********Check country id ****/
-		IF(@CountryID = 1)
-	BEGIN
-		SELECT ProjectID,CUSTOMERID FROM #PROJ WITH(NOLOCK) WHERE DATEADD(MM,3,MINVALUE)>=GETDATE() 
-END
-ELSE
-BEGIN
-SELECT ProjectID,CUSTOMERID FROM #PROJ WITH(NOLOCK) 
-END
-	END
-
-	IF(@RoleID in(24,18))
-	--BEGIN
-
-	CREATE TABLE #PROJECTUploader_Icentive(ProjectID VARCHAR(20))
-			INSERT INTO #PROJECTUploader_Icentive(ProjectID)
-			SELECT DISTINCT AP.ProjectID
-			FROM PR.APACPROJECT AP 
-			inner join userrolemapping UM  WITH(NOLOCK) ON UM.ProjectID= AP.ProjectID	
-			inner join ComponentRoleMapping CRM on CRM.PK_ComponentRoleID=um.FK_ComponentRoleID
-			WHERE um.AssociateID=@loginId AND AP.RowStatus=1 and um.RowStatus=1 and crm.FK_RoleID=@RoleID
-			AND AP.Fk_ComponentCountryMappingID=@ComponentCountryMappingId AND
-			DATEADD(MM,3,AP.EndDate)>=GETDATE()
-			AND AP.StartDate <= GETDATE()
-			GROUP BY AP.ProjectID			
-			SELECT ProjectID FROM #PROJECTUploader_Icentive WITH(NOLOCK) 
-			DROP TABLE #PROJECTUploader_Icentive
---	END
-	
---------Declare temp table ----------
---DROP TABLE #PROJ
---DROP TABLE #PROJECT1
---DROP TABLE #Supervisor_Details
---END TRY
--- BEGIN CATCH
--- SELECT @@ERROR
--- END CATCH 
---END
+        }
+    }

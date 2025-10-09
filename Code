@@ -64,8 +64,8 @@
             htmldata += ' <th column="SpecialCaseMail" class="td7">Special Case Mail</th>';
             htmldata += ' <th class="sort td8" column="Status">Status</th>';
             htmldata += ' <th column="Remarks" class="td9">Rejection/Resubmit Remarks </th>';
-            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
             htmldata += ' <th class="sort td8" column="SetId">SetId </th>';
+            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
 
             if (CustomizeRB.indexOf("~11~") > -1) {
                 htmldata += ' <th class="td3" column="UploaderID">Uploader ID</th>'
@@ -94,8 +94,8 @@
             htmldata += ' <th column="SpecialCaseMail" class="td7">Special Case Mail</th>';
             htmldata += ' <th class="sort td8" column="Status">Status</th>';
             htmldata += ' <th column="Remarks" class="td9">Rejection/Resubmit Remarks </th>';
-            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
             htmldata += ' <th class="sort td8" column="SetId">SetId </th>';
+            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
             htmldata += ' <th class="td10">View</th></tr>';
 
             $('#tblReferral').find('thead').html('').html(htmldata);
@@ -133,10 +133,7 @@
                     grid_html += '<td class="td5">' + data.Amount + '</td>';
                     grid_html += '<td class="td6" title="' + data.SpecialCaseReason + '">' + splreason + '</td><td class="Approvedtd4 td7">' + gridMailIdval + '</td><td class="td8">' + data.Status + '</td>';
                     grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9">' + rejectionRemarks + '</td>';
-
-                    grid_html += '<td class="td8">' + data.ProjectId + '</td>< td class="td8" > ' + data.SetId + '</td >';
-
-
+                    grid_html += '< td class="td8" > ' + data.SetId + '</td > <td class="td8">' + data.ProjectId + '</td>';
                     if (CheckedFlag == 1) {
                         grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" checked id=' + (i + 1) + ' /></td >';
                     }

@@ -1,107 +1,158 @@
-       public static List<List<Dictionary<string, object>>> GetUploaderIndiaValidData(
-        string componentGroupId,
-        string projectID,
-        int page,
-        int displayLength,
-        string orderBy,
-        int sortOrder,
-        int getPages)
-        {
-            List<List<Dictionary<string, object>>> rowsList = new List<List<Dictionary<string, object>>>();
-            List<Dictionary<string, object>> rows = new List<Dictionary<string, object>>();
-            try
-            {
-                string strRoleId = HttpContext.Current.Session["RoleId"].ToString();
-                int RoleId = Convert.ToInt32(strRoleId);
+	IF (@COMPONENTGROUPID = 1)     
+	    BEGIN
+		DECLARE @iDisplayStart1 INT, @iDisplayEnd1 INT
+			DECLARE @totrec1 INT
 
-                ComponentDetails objCompDetails = new ComponentDetails()
-                {
-                    COMPONENTGROUPID = Convert.ToInt64(componentGroupId),
-                    ProjectId = projectID
-                };
-                objCompDetails.PageNum = page;
-                objCompDetails.IDisplayLength = displayLength;
-                objCompDetails.OrderBy = orderBy;
-                objCompDetails.SortOrder = sortOrder;
-                objCompDetails.RoleID = RoleId;
-                objCompDetails.CountryID = Convert.ToInt32(HttpContext.Current.Session["CountryID"].ToString());
-                if (getPages == 1)
-                {
-                    objCompDetails.GetPages = getPages;
-                }
+			SET @iDisplayEnd1 = @pageNum * @iDisplayLength
+			SET @iDisplayStart1 = @iDisplayEnd1 - (@iDisplayLength - 1)
 
-                DataSet gridUserDetails = new DataSet();
+			IF @orderBy = ''
+			BEGIN
+				SET @orderBy = '(SELECT 0)'
+			END
+		IF ((ISNULL(@searchData, '') = '') AND (ISNULL(@searchData2, '') = ''))
+		BEGIN
+			SELECT PK_NoticePayID, AssociateID, ProjectId, ISNULL(Amount, '') Amount, 
+			ISNULL(MC_B.CDescription, '') AS SpecialCaseReason, ISNULL((
+						CASE 
+							WHEN STATUS = 1
+								THEN 'Valid'
+							WHEN STATUS = 2
+								THEN 'Deleted'
+							WHEN STATUS = 3
+								THEN 'Rejected'
+							WHEN STATUS = 4
+								THEN 'Resubmitted'
+							WHEN STATUS = 5
+								THEN 'Processed'
+							WHEN STATUS = 12
+								THEN 'Approved'
+							END
+						), '') AS Status, ISNULL(InputRemarks, '') Remarks, 
+						ISNULL(RejectionReason, '') RejectionReason, 
+						ISNULL(NP.SplCaseMailUploadId, 0) AS SplCaseMailUploadId,
+						NP.Createdby As UploaderID, NP.SetId AS SetID
+					INTO #TEMPNP
+			FROM PR.NoticePay NP WITH (NOLOCK)
+			LEFT JOIN MasterCodes MC_B WITH (NOLOCK)
+				ON MC_B.CCodeId = TRY_CAST(SpecialCaseReason AS INT) AND MC_B.CParentRef = 2 
+				AND MC_B.RowStatus = 1 AND MC_B.CUserDefined1=@COMPONENTGROUPID
+			WHERE NP.ROWSTATUS = 1 AND STATUS IN (1, 3, 4, 12)
+			ORDER BY NP.CreatedDate DESC, NP.ModifiedDate DESC
 
-                if (componentGroupId.Equals("1") || componentGroupId.Equals("2") || componentGroupId.Equals("3") ||
-                    componentGroupId.Equals("4") || componentGroupId.Equals("5") || componentGroupId.Equals("6") ||
-                    componentGroupId.Equals("7") || componentGroupId.Equals("8") || componentGroupId.Equals("9") ||
-                    componentGroupId.Equals("10") || componentGroupId.Equals("11") || componentGroupId.Equals("12") ||
-                    componentGroupId.Equals("16") || componentGroupId.Equals("15") || componentGroupId.Equals("41") ||
-                    componentGroupId.Equals("43") || componentGroupId.Equals("44") || componentGroupId.Equals("98") ||
-                    componentGroupId.Equals("100") || componentGroupId.Equals("102") || componentGroupId.Equals("103") ||
-                    componentGroupId.Equals("104")|| componentGroupId.Equals("105"))
-                {
-                    objCompDetails.LoginId = HttpContext.Current.Session["UserId"].ToString();
-                    gridUserDetails = UtilityBAL.GetUploaderValidData(objCompDetails);
-                }
+			IF (@getPages = 0)
+				BEGIN
+					IF @sortOrder = 1
+					BEGIN
+						EXEC ('SELECT RowNo,PK_NoticePayID,AssociateID, ProjectId,Amount,SpecialCaseReason,
+						Status,Remarks,RejectionReason,SplCaseMailUploadId,UploaderID,SetID
+							 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' ASC) AS [RowNo],
+							 * FROM #TEMPNP ) t
+									WHERE ROWNO BETWEEN ' + @iDisplayStart1 + ' AND ' + @iDisplayEnd1)
+					END
+					ELSE
+					BEGIN
 
+						EXEC ('SELECT RowNo,PK_NoticePayID,AssociateID, ProjectId,Amount,SpecialCaseReason,
+						Status,Remarks,RejectionReason,SplCaseMailUploadId,UploaderID,SetID 
+						 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' DESC) AS [RowNo],
+						 * FROM #TEMPNP) t
+								WHERE RowNo BETWEEN ' + @iDisplayStart1 + ' AND ' + @iDisplayEnd1)
+					END
+					SELECT @totrec1 = COUNT(1) FROM #TEMPNP
 
-                rows = null;
-                if (gridUserDetails.Tables.Count > 0 && gridUserDetails.Tables[0].Rows.Count > 0)
-                {
-                    DataTable gridUserDetailsTable = gridUserDetails.Tables[0];
-                    Dictionary<string, object> row = null;
-                    rows = new List<Dictionary<string, object>>();
-                    foreach (DataRow dr in gridUserDetailsTable.Rows)
-                    {
-                        row = new Dictionary<string, object>();
-                        foreach (DataColumn col in gridUserDetailsTable.Columns)
-                        {
-                            row.Add(col.ColumnName, dr[col]);
-                        }
+					IF (@totrec1 % @iDisplayLength) = 0
+						SELECT (@totrec1 / @iDisplayLength) AS Pages, @totrec1 AS Total
+					ELSE
+						SELECT (@totrec1 / @iDisplayLength) + 1 AS Pages, @totrec1 AS Total
+				END
+				ELSE
+				BEGIN
+					SELECT @totrec1 = COUNT(1) FROM #TEMPNP
 
-                        rows.Add(row);
-                    }
+					IF (@totrec1 % @iDisplayLength) = 0
+						SELECT (@totrec1 / @iDisplayLength) AS Pages, @totrec1 AS Total
+					ELSE
+						SELECT (@totrec1 / @iDisplayLength) + 1 AS Pages, @totrec1 AS Total
+				END
 
-                    rowsList.Add(rows);
-                }
-                else
-                {
-                    rows = new List<Dictionary<string, object>>();
-                    rowsList.Add(rows);
-                }
+				DROP TABLE #TEMPNP
+		END
+		ELSE
+		BEGIN
+			SELECT @Description = CDescription
+			FROM MasterCodes WITH (NOLOCK)
+			WHERE CParentRef = 8 AND CCodeId = @COMPONENTID AND CUserDefined1 = @ddlData 
+			AND RowStatus = 1
 
-                rows = null;
-                if (gridUserDetails.Tables.Count > 1)
-                {
-                    if (gridUserDetails.Tables[1].Rows.Count > 0)
-                    {
+			BEGIN
+				SELECT PK_NoticePayID, AssociateID, ProjectId, ISNULL(Amount, '') Amount,
+				ISNULL(MC_B.CDescription, '') AS SpecialCaseReason, ISNULL((
+							CASE 
+								WHEN STATUS = 1
+									THEN 'Valid'
+								WHEN STATUS = 2
+									THEN 'Deleted'
+								WHEN STATUS = 3
+									THEN 'Rejected'
+								WHEN STATUS = 4
+									THEN 'Resubmitted'
+								WHEN STATUS = 5
+									THEN 'Processed'
+								WHEN STATUS = 12
+									THEN 'Approved'
+								END
+							), '') AS Status, ISNULL(InputRemarks, '') Remarks, 
+							ISNULL(RejectionReason, '') RejectionReason, 
+							ISNULL(NP.SplCaseMailUploadId, 0) AS SplCaseMailUploadId,NP.Createdby As UploaderID, 
+							NP.SetId AS SetID
+							INTO #TEMPNP2
+				FROM PR.NoticePay NP WITH (NOLOCK)
+				LEFT JOIN MasterCodes MC_B WITH (NOLOCK)
+					ON MC_B.CCodeId = TRY_CAST(SpecialCaseReason AS INT) AND MC_B.CParentRef = 2 AND MC_B.RowStatus = 1
+					and MC_B.CUserDefined1=@COMPONENTGROUPID
+				WHERE NP.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) 
+				AND NP.ProjectId LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))
+				 AND NP.RowStatus = 1 AND STATUS IN (1, 3, 4, 12)
+				ORDER BY NP.CreatedDate DESC, NP.ModifiedDate DESC
 
-                        DataTable gridUserDetailsTable = gridUserDetails.Tables[1];
-                        Dictionary<string, object> row = null;
-                        rows = new List<Dictionary<string, object>>();
-                        foreach (DataRow dr in gridUserDetailsTable.Rows)
-                        {
-                            row = new Dictionary<string, object>();
-                            foreach (DataColumn col in gridUserDetailsTable.Columns)
-                            {
-                                row.Add(col.ColumnName, dr[col]);
-                            }
+				IF (@getPages = 0)
+				BEGIN
+					IF @sortOrder = 1
+					BEGIN
+						EXEC ('SELECT RowNo,PK_NoticePayID,AssociateID, ProjectId,Amount,SpecialCaseReason,
+						Status,Remarks,RejectionReason,SplCaseMailUploadId,UploaderID,SetID 
+							 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' ASC) AS [RowNo],
+							 * FROM #TEMPNP2 ) t
+									WHERE ROWNO BETWEEN ' + @iDisplayStart1 + ' AND ' + @iDisplayEnd1)
+					END
+					ELSE
+					BEGIN
 
-                            rows.Add(row);
-                        }
+						EXEC ('SELECT RowNo,PK_NoticePayID,AssociateID, ProjectId,Amount,SpecialCaseReason,
+						Status,Remarks,RejectionReason,SplCaseMailUploadId,UploaderID,SetID
+						 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' DESC) AS [RowNo],
+						 * FROM #TEMPNP2) t
+								WHERE RowNo BETWEEN ' + @iDisplayStart1 + ' AND ' + @iDisplayEnd1)
+					END
+					SELECT @totrec1 = COUNT(1) FROM #TEMPNP2
 
-                        rowsList.Add(rows);
-                    }
-                }
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-            }
+					IF (@totrec1 % @iDisplayLength) = 0
+						SELECT (@totrec1 / @iDisplayLength) AS Pages, @totrec1 AS Total
+					ELSE
+						SELECT (@totrec1 / @iDisplayLength) + 1 AS Pages, @totrec1 AS Total
+				END
+				ELSE
+				BEGIN
+					SELECT @totrec1 = COUNT(1) FROM #TEMPNP2
 
-            return rowsList;
-        }
+					IF (@totrec1 % @iDisplayLength) = 0
+						SELECT (@totrec1 / @iDisplayLength) AS Pages, @totrec1 AS Total
+					ELSE
+						SELECT (@totrec1 / @iDisplayLength) + 1 AS Pages, @totrec1 AS Total
+				END
 
-        #endregion GetUploaderIndiaValidData
+				DROP TABLE #TEMPNP2
+			END		
+		END
+	END

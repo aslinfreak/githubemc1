@@ -1,64 +1,107 @@
-$(document).off('click', '#a_valid').on('click', '#a_valid', function () {
-    //$(document).on('click', '#a_valid', function () {   
-    if ($('#bonus').val() == 5) {
-        $('#drpdown_filter').find('option:nth-child(4)').text("Status");
-    }
-    if ($('#bonus').val() == 5 || $('#bonus').val() == 6) {
-        $("#displayrecords").html('');
-        var option_html = "<option value='50' selected='selected'>50</option><option value='100'>100</option><option value='150'>150</option><option value='200'>200</option>";
-        $("#displayrecords").html(option_html);
-        $("#displayrecords").val(50);
-        $("#displayrecords").data("prev", $("#displayrecords").val());
-        $("#selectRecord").text(50);
-    }
-    else {
-        $("#displayrecords").val(250);
-        $("#displayrecords").data("prev", $("#displayrecords").val());
-        $("#selectRecord").text(250);
-    }
-    if ($('#bonus').val() == 102 || $('#bonus').val() == 103 || $('#bonus').val() == 104 || $('#bonus').val() == 105) {
-        $('#ulMonth').css("display", "block");
-        $('#ulQuarter').hide();
-        $("#dwnload_Data").hide();
-        $("#dwnload_Datadivider").hide();
-    } else {
-        $("#dwnload_Data").show();
-        $("#dwnload_Datadivider").show();
-    }
-    //$("#idpopup_msg1").css("margin-top", "-350px");
-    $("#progressBackgroundFilter").show();
-    $("#processMessage").show();
-    $(".dataTableScroll .scrollbar").hide();
-    $("#NoData").remove();
-    page = 1;
-    sortOrder = 1;
-    orderBy = '';
-    $("#nvalid").prop("checked", false);
-    $("#jvalid").prop("checked", false);
-    $("#rvalid").prop("checked", false);
-    $("#svalid").prop("checked", false);
-    $("#CBAvalid").prop("checked", false);
-    $("#BPSvalidchk").prop("checked", false);
-    $("#UBSvalidchk").prop("checked", false);
-    $("#CLvalidchk").prop("checked", false);
-    $("#Transvalidchk").prop("checked", false);
-    $(this).addClass('selected');
-    $('#a_exceptions').removeClass('selected');
-    $('#a_otherGeo').removeClass('selected');
-    if ($('#bonus').val() == 10) {
-        $(".new_btn").hide();
-    } else {
-        $(".new_btn").show();
-    }
-    $(".delete_btn").css("margin-left", "10px");
-    compvalue = $('#bonus').val();
-    if (compvalue == 1 || compvalue == 2 || compvalue == 3 || compvalue == 4 || compvalue == 5 || compvalue == 6) {
-        keyPressEnter();
-    }
-    else if ($('#aid').val() == '') {
-        BindValidGridtbl();
-    }
-    else {
-        keyPressEnter();
-    }
-});
+       public static List<List<Dictionary<string, object>>> GetUploaderIndiaValidData(
+        string componentGroupId,
+        string projectID,
+        int page,
+        int displayLength,
+        string orderBy,
+        int sortOrder,
+        int getPages)
+        {
+            List<List<Dictionary<string, object>>> rowsList = new List<List<Dictionary<string, object>>>();
+            List<Dictionary<string, object>> rows = new List<Dictionary<string, object>>();
+            try
+            {
+                string strRoleId = HttpContext.Current.Session["RoleId"].ToString();
+                int RoleId = Convert.ToInt32(strRoleId);
+
+                ComponentDetails objCompDetails = new ComponentDetails()
+                {
+                    COMPONENTGROUPID = Convert.ToInt64(componentGroupId),
+                    ProjectId = projectID
+                };
+                objCompDetails.PageNum = page;
+                objCompDetails.IDisplayLength = displayLength;
+                objCompDetails.OrderBy = orderBy;
+                objCompDetails.SortOrder = sortOrder;
+                objCompDetails.RoleID = RoleId;
+                objCompDetails.CountryID = Convert.ToInt32(HttpContext.Current.Session["CountryID"].ToString());
+                if (getPages == 1)
+                {
+                    objCompDetails.GetPages = getPages;
+                }
+
+                DataSet gridUserDetails = new DataSet();
+
+                if (componentGroupId.Equals("1") || componentGroupId.Equals("2") || componentGroupId.Equals("3") ||
+                    componentGroupId.Equals("4") || componentGroupId.Equals("5") || componentGroupId.Equals("6") ||
+                    componentGroupId.Equals("7") || componentGroupId.Equals("8") || componentGroupId.Equals("9") ||
+                    componentGroupId.Equals("10") || componentGroupId.Equals("11") || componentGroupId.Equals("12") ||
+                    componentGroupId.Equals("16") || componentGroupId.Equals("15") || componentGroupId.Equals("41") ||
+                    componentGroupId.Equals("43") || componentGroupId.Equals("44") || componentGroupId.Equals("98") ||
+                    componentGroupId.Equals("100") || componentGroupId.Equals("102") || componentGroupId.Equals("103") ||
+                    componentGroupId.Equals("104")|| componentGroupId.Equals("105"))
+                {
+                    objCompDetails.LoginId = HttpContext.Current.Session["UserId"].ToString();
+                    gridUserDetails = UtilityBAL.GetUploaderValidData(objCompDetails);
+                }
+
+
+                rows = null;
+                if (gridUserDetails.Tables.Count > 0 && gridUserDetails.Tables[0].Rows.Count > 0)
+                {
+                    DataTable gridUserDetailsTable = gridUserDetails.Tables[0];
+                    Dictionary<string, object> row = null;
+                    rows = new List<Dictionary<string, object>>();
+                    foreach (DataRow dr in gridUserDetailsTable.Rows)
+                    {
+                        row = new Dictionary<string, object>();
+                        foreach (DataColumn col in gridUserDetailsTable.Columns)
+                        {
+                            row.Add(col.ColumnName, dr[col]);
+                        }
+
+                        rows.Add(row);
+                    }
+
+                    rowsList.Add(rows);
+                }
+                else
+                {
+                    rows = new List<Dictionary<string, object>>();
+                    rowsList.Add(rows);
+                }
+
+                rows = null;
+                if (gridUserDetails.Tables.Count > 1)
+                {
+                    if (gridUserDetails.Tables[1].Rows.Count > 0)
+                    {
+
+                        DataTable gridUserDetailsTable = gridUserDetails.Tables[1];
+                        Dictionary<string, object> row = null;
+                        rows = new List<Dictionary<string, object>>();
+                        foreach (DataRow dr in gridUserDetailsTable.Rows)
+                        {
+                            row = new Dictionary<string, object>();
+                            foreach (DataColumn col in gridUserDetailsTable.Columns)
+                            {
+                                row.Add(col.ColumnName, dr[col]);
+                            }
+
+                            rows.Add(row);
+                        }
+
+                        rowsList.Add(rows);
+                    }
+                }
+            }
+            catch (SystemException ex)
+            {
+                ErrorLogger logger = new ErrorLogger();
+                logger.LogError(ex);
+            }
+
+            return rowsList;
+        }
+
+        #endregion GetUploaderIndiaValidData

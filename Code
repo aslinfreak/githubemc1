@@ -1,226 +1,64 @@
-    if (componentGroupId == 2) {
-        $("#refDetails").show();
-        $("#OutreachDetails").hide();
-        $("#shiftDetails").hide();
-        $("#itshiftDetails").hide();
-        $("#CBADetails").hide();
-        $("#trtDetails").hide();
-        $("#BPSShiftDetails").hide();
-        $("#SixthDayDetails").hide();
-        $("#BPSTransportAllowance").hide();
-        $("#GymDetails").hide();
-        $("#DisAlwDetails").hide();
-        $("#SbiAlwDetails").hide();
-        $("#DBOAlwDetails").hide();
-        $("#NSA2AlwDetails").hide();
-        $('#tblReferral').find('tbody').html('');
-        $('#tblReferral').css('display', 'table');
-        $('#tblReferral_wrapper').css('display', 'block');
-        $('#tblReferralHead').css('display', 'block');
-        $('#tblReferralHead_wrapper').css('display', 'block');
-        $('#refDetails .dataTableScroll').css('display', 'block');
-        $('#PM_tblShiftAllowance').css('display', 'none');
-        $('#PM_tblShiftAllowance_wrapper').css('display', 'none');
-        $('#PFSS_tblShiftAllowance').css('display', 'none');
-        $('#PFSS_tblShiftAllowance_wrapper').css('display', 'none');
-        $('#PM_tblShiftAllowanceHead').css('display', 'none');
-        $('#PM_tblShiftAllowanceHead_wrapper').css('display', 'none');
-        $('#PM_tblITShiftAllowanceHead').css('display', 'none');
-        $('#PM_tblITShiftAllowanceHead_wrapper').css('display', 'none');
-        $('#PFSS_tblShiftAllowanceHead').css('display', 'none');
-        $('#PFSS_tblShiftAllowanceHead_wrapper').css('display', 'none');
-        $("#Noticepay .refPage").css("display", "none");
-        $("#Joiningbonus .refPage").css("display", "none");
-        $('#tblJoining').css('display', 'none');
-        $('#tblNoticepay').css('display', 'none');
-        $('#GymDetails .dataTableScroll').css('display', 'none');
-        $('#refDetails .dataTableScroll').css('display', 'block');
-        $('#refDetails .viewport').css('overflow', 'scroll');
-        $("#customize").show();
-        $('#Noticepay').css('display', 'none');
-        $('#Joiningbonus').css('display', 'none');
-        $('#refDetails .dataTableScroll').css('display', 'block');
-        //$("#disLabel").css("margin-left", "450px");
-        $("#ulRecord li").css("width", "");
-        $("#ulRecord li").addClass("mleft50");
-        $('#disLabel').css('margin-left', '345px');
-        $('#customize').css('left', '326px');
-        //getTotalPages();
-        $("#NoData").remove();
-        if (CustomizeRB != '~1~2~3~4~5~6~7~8~9~10') {
-            var htmldata = '';
-            if (CheckedFlag == 1) {
-                htmldata += '<tr><th class="td1"><input type="checkbox" checked id="chkReferral" /></th>';
-            }
-            else {
-                htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
-            }
-            //htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
-            htmldata += ' <th id="Th5" class="sort td2" column="ReferrorAssociateID">Referrer ID </th>';
-            htmldata += ' <th class="sort td3" column="RefereeAssociateID">Referee ID </th>';
-            htmldata += ' <th class="sort td4" column="RefereeBGstatus">Referee  <br />BG status</th>';
-            htmldata += ' <th class="sort td5" column="Amount">Amount </th>';
-            htmldata += ' <th column="SpecialCaseReason" class="td6">Special Case <br />Reason</th>';
-            htmldata += ' <th column="SpecialCaseMail" class="td7">Special Case Mail</th>';
-            htmldata += ' <th class="sort td8" column="Status">Status</th>';
-            htmldata += ' <th column="Remarks" class="td9">Rejection/Resubmit Remarks </th>';
-            htmldata += ' <th class="sort td8" column="SetId">SetId </th>';
-            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
-
-            if (CustomizeRB.indexOf("~11~") > -1) {
-                htmldata += ' <th class="td3" column="UploaderID">Uploader ID</th>'
-            }
-            if (CustomizeRB.indexOf("~12~") > -1) {
-                htmldata += ' <th class="td9" column="RefereeDOJ">RefereeDOJ</th>'
-            }
-            htmldata += ' <th class="td10">View</th></tr>';
-
-            $('#tblReferral').find('thead').html('').html(htmldata);
-        }
-        else {
-            var htmldata = '';
-            if (CheckedFlag == 1) {
-                htmldata += '<tr><th class="td1"><input type="checkbox" checked id="chkReferral" /></th>';
-            }
-            else {
-                htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
-            }
-            //htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
-            htmldata += ' <th id="Th5" class="sort td2" column="ReferrorAssociateID">Referrer ID </th>';
-            htmldata += ' <th class="sort td3" column="RefereeAssociateID">Referee ID </th>';
-            htmldata += ' <th class="sort td4" column="RefereeBGstatus">Referee  <br />BG status</th>';
-            htmldata += ' <th class="sort td5" column="Amount">Amount </th>';
-            htmldata += ' <th column="SpecialCaseReason" class="td6">Special Case <br />Reason</th>';
-            htmldata += ' <th column="SpecialCaseMail" class="td7">Special Case Mail</th>';
-            htmldata += ' <th class="sort td8" column="Status">Status</th>';
-            htmldata += ' <th column="Remarks" class="td9">Rejection/Resubmit Remarks </th>';
-            htmldata += ' <th class="sort td8" column="SetId">SetId </th>';
-            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
-            htmldata += ' <th class="td10">View</th></tr>';
-
-            $('#tblReferral').find('thead').html('').html(htmldata);
-        }
-        $("#refDetails .refPage").css("display", "block");
-        //grid_htmlhead += '<thead><tr><th width="30px">&nbsp;</th><th width="109px" id="refid">Referrer ID </th><th width="102px">Referee ID </th><th width="100px">Referee <br />BG status </th><th width="90px">Amount</th><th width="135px">Special Case Reason</th><th width="83px">Status</th><th width="113px">Remarks</th><th width="60px">View</th><th width="75px">Edit</th></tr></thead>';
-        //grid_html += '<tbody>';
-        if (msg.d.length > 0) {
-
-            var classname = '';
-            if (CustomizeRB != '~1~2~3~4~5~6~7~8~9~10') {
-                $.each(msg.d, function (i, data) {
-                    if ((i % 2) == 0) {
-                        classname = 'even';
-                    }
-                    else {
-                        classname = 'odd';
-                    }
-                    if (data.RejectionReason == null) {
-                        data.RejectionReason = "";
-                    }
-                    var rejectionRemarks = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
-                    var splreason = (data.RejectionReason.length > 30) ? data.SpecialCaseReason.substring(0, 30) + '...' : data.SpecialCaseReason;
-
-                    var SplCaseMailUploadId = data.SplCaseMailUploadId;
-                    var gridMailIdval = "";
-                    if (SplCaseMailUploadId == 0) {
-                        gridMailIdval = "<div></div>";
-                    }
-                    else {
-                        gridMailIdval = '<input type="button" style="cursor:pointer" id=' + data.SplCaseMailUploadId + ' class="mail_btn1" fileuploadid=' + data.SplCaseMailUploadId + '/>';
-                    }
-
-                    grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox"  class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
-                    grid_html += '<td class="td5">' + data.Amount + '</td>';
-                    grid_html += '<td class="td6" title="' + data.SpecialCaseReason + '">' + splreason + '</td><td class="Approvedtd4 td7">' + gridMailIdval + '</td><td class="td8">' + data.Status + '</td>';
-                    grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9">' + rejectionRemarks + '</td>';
-                    grid_html += '< td class="td8" > ' + data.SetId + '</td > <td class="td8">' + data.ProjectId + '</td>';
-                    if (CheckedFlag == 1) {
-                        grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" checked id=' + (i + 1) + ' /></td >';
-                    }
-                    else {
-                        grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td >';
-                    }
-                    if (CustomizeRB.indexOf("~11~") > -1) {
-                        grid_html += '<td class="td3" style="text-align:center;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
-                    }
-                    if (CustomizeRB.indexOf("~12~") > -1) {
-                        grid_html += '<td class="td9" style="text-align:left;" RefereeDOJ="' + data.RefereeDOJ + '">' + data.RefereeDOJ + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
-                    }
-                    grid_html += '<td class="td10"><img class="view_details spriteImage" style="--x:-2061px;--y:-1112px;width:20px;height:16px" /></td></tr>';
-                });
-                $('#tblReferral').find('tbody').html('').html(grid_html);
-            }
-            else {
-                $.each(msg.d, function (i, data) {
-                    if ((i % 2) == 0) {
-                        classname = 'even';
-                    }
-                    else {
-                        classname = 'odd';
-                    }
-                    if (data.RejectionReason == null) {
-                        data.RejectionReason = "";
-                    }
-                    var rejectionRemarks = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
-                    var splreason = (data.RejectionReason.length > 30) ? data.SpecialCaseReason.substring(0, 30) + '...' : data.SpecialCaseReason;
-
-                    var SplCaseMailUploadId = data.SplCaseMailUploadId;
-                    var gridMailIdval = "";
-                    if (SplCaseMailUploadId == 0) {
-                        gridMailIdval = "<div></div>";
-                    }
-                    else {
-                        gridMailIdval = '<input type="button" style="cursor:pointer" id=' + data.SplCaseMailUploadId + ' class="mail_btn1" fileuploadid=' + data.SplCaseMailUploadId + '/>';
-                    }
-                    if (CheckedFlag == 1) {
-                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox" checked class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
-                    }
-                    else {
-                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox" class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
-                    }
-                    grid_html += '<td class="td5">' + data.Amount + '</td>';
-                    grid_html += '<td class="td6" title="' + data.SpecialCaseReason + '">' + splreason + '</td><td class="Approvedtd4 td7">' + gridMailIdval + '</td><td class="td8">' + data.Status + '</td>';
-                    if (CheckedFlag == 1) {
-                        grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>';
-                        $('#tblReferral tbody tr,#tblReferral tbody tr,#tblReferral tbody tr').each(function (i) {
-                            if (($(this).find('td:nth-child(9) input').val()) == undefined) {
-                                var val = $(this).find('td:nth-child(9)').attr('rejreason');
-                                var off = $(this).offset();
-                                if (val == '') {
-                                    $('.error_msg_remarks').show();
-                                    $(this).find('td:nth-child(9)').append('<input type="text" class="txtbx_td txt" />')
-                                    $('.error_msg_remarks').css({ 'top': off.top + 15, 'left': off.left + 909 })
-                                }
-                                else {
-                                    // aler('input fields')
-                                    $(this).find('td:nth-child(10)').text('');
-                                    $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />');
-                                    $(this).find('td:nth-child(10) input').val(val);
-                                }
-                            }
-                        })
-                    }
-                    else {
-                        grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9">' + rejectionRemarks + '</td>';
-                        //grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejReason + '<td class="std10">' + data.Status + '</td></tr>';
-                    }
-                    grid_html +=  '<td class="td8" > ' + data.SetId + '</td ><td class="td8">' + data.ProjectId + '</td><td class="td10"><img class="view_details spriteImage" style="--x:-2061px;--y:-1112px;width:20px;height:16px" /></td></tr > ';
-                });
-                $('#tblReferral').find('tbody').html('').html(grid_html);
-                //var heightdiff = $("#refDetails .viewport")[0].scrollHeight - $("#refDetails .viewport").height();
-                //if (heightdiff > 0) {
-                //    $(".dataTableScroll .scrollbar").css("display", "block");
-                //}
-                //else {
-                //    $(".dataTableScroll .scrollbar").css("display", "none");
-                //}
-
-                //$('.dataTableScroll').tinyscrollbar({ sizethumb: 22 });
-            }
-        }
-        else {
-            $("#tblReferral").append("<tr class='even' id='NoData'><td colspan='12' class='text-center'>No data available</td></tr>");
-            $(".dataTableScroll .scrollbar").hide();
-
-        }
+$(document).off('click', '#a_valid').on('click', '#a_valid', function () {
+    //$(document).on('click', '#a_valid', function () {   
+    if ($('#bonus').val() == 5) {
+        $('#drpdown_filter').find('option:nth-child(4)').text("Status");
     }
+    if ($('#bonus').val() == 5 || $('#bonus').val() == 6) {
+        $("#displayrecords").html('');
+        var option_html = "<option value='50' selected='selected'>50</option><option value='100'>100</option><option value='150'>150</option><option value='200'>200</option>";
+        $("#displayrecords").html(option_html);
+        $("#displayrecords").val(50);
+        $("#displayrecords").data("prev", $("#displayrecords").val());
+        $("#selectRecord").text(50);
+    }
+    else {
+        $("#displayrecords").val(250);
+        $("#displayrecords").data("prev", $("#displayrecords").val());
+        $("#selectRecord").text(250);
+    }
+    if ($('#bonus').val() == 102 || $('#bonus').val() == 103 || $('#bonus').val() == 104 || $('#bonus').val() == 105) {
+        $('#ulMonth').css("display", "block");
+        $('#ulQuarter').hide();
+        $("#dwnload_Data").hide();
+        $("#dwnload_Datadivider").hide();
+    } else {
+        $("#dwnload_Data").show();
+        $("#dwnload_Datadivider").show();
+    }
+    //$("#idpopup_msg1").css("margin-top", "-350px");
+    $("#progressBackgroundFilter").show();
+    $("#processMessage").show();
+    $(".dataTableScroll .scrollbar").hide();
+    $("#NoData").remove();
+    page = 1;
+    sortOrder = 1;
+    orderBy = '';
+    $("#nvalid").prop("checked", false);
+    $("#jvalid").prop("checked", false);
+    $("#rvalid").prop("checked", false);
+    $("#svalid").prop("checked", false);
+    $("#CBAvalid").prop("checked", false);
+    $("#BPSvalidchk").prop("checked", false);
+    $("#UBSvalidchk").prop("checked", false);
+    $("#CLvalidchk").prop("checked", false);
+    $("#Transvalidchk").prop("checked", false);
+    $(this).addClass('selected');
+    $('#a_exceptions').removeClass('selected');
+    $('#a_otherGeo').removeClass('selected');
+    if ($('#bonus').val() == 10) {
+        $(".new_btn").hide();
+    } else {
+        $(".new_btn").show();
+    }
+    $(".delete_btn").css("margin-left", "10px");
+    compvalue = $('#bonus').val();
+    if (compvalue == 1 || compvalue == 2 || compvalue == 3 || compvalue == 4 || compvalue == 5 || compvalue == 6) {
+        keyPressEnter();
+    }
+    else if ($('#aid').val() == '') {
+        BindValidGridtbl();
+    }
+    else {
+        keyPressEnter();
+    }
+});

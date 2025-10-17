@@ -1,33 +1,25 @@
-Server Error in '/' Application.
-String reference not set to an instance of a String.
-Parameter name: s
-Description: An unhandled exception occurred during the execution of the current web request. Please review the stack trace for more information about the error and where it originated in the code.
+		public static string Encrypt(string encryptString, string key)
+        {
+            var randomNumber = SecureNumber();
+            string finalEncryptedString = encryptString + "," + randomNumber.ToString();
+            byte[] clearBytes = Encoding.Unicode.GetBytes(finalEncryptedString);
+            using (Aes encryptor = Aes.Create())
+            {
+                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(key, new byte[] {
+                    0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76
+                });
+                encryptor.Key = pdb.GetBytes(32);
+                encryptor.IV = pdb.GetBytes(16);
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateEncryptor(), CryptoStreamMode.Write))
+                    {
+                        cs.Write(clearBytes, 0, clearBytes.Length);
+                        cs.Close();
+                    }
+                    encryptString = Convert.ToBase64String(ms.ToArray());
+                }
+            }
 
-Exception Details: System.ArgumentNullException: String reference not set to an instance of a String.
-Parameter name: s
-
-Source Error:
-
-
-Line 2220:            using (Aes encryptor = Aes.Create())
-Line 2221:            {
-Line 2222:                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(key, new byte[] {
-Line 2223:                    0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76
-Line 2224:                });
-
-Source File: C:\Users\2318190\source\repos\OneC_727_WebApp(1)\SPay\SPay.BAL\UtilityBAL\UtilityBAL.cs    Line: 2222
-
-Stack Trace:
-
-
-[ArgumentNullException: String reference not set to an instance of a String.
-Parameter name: s]
-   System.Text.Encoding.GetBytes(String s) +14550071
-   System.Security.Cryptography.Rfc2898DeriveBytes..ctor(String password, Byte[] salt) +114
-   SPay.BAL.UtilityBAL.UtilityBAL.Encrypt(String encryptString, String key) in C:\Users\2318190\source\repos\OneC_727_WebApp(1)\SPay\SPay.BAL\UtilityBAL\UtilityBAL.cs:2222
-   SPayWebApp.Download.Page_Load(Object sender, EventArgs e) in C:\Users\2318190\source\repos\OneC_727_WebApp(1)\SPay\SPayWebApp\Download.aspx.cs:93
-   System.Web.UI.Control.OnLoad(EventArgs e) +108
-   System.Web.UI.Control.LoadRecursive() +90
-   System.Web.UI.Page.ProcessRequestMain(Boolean includeStagesBeforeAsyncPoint, Boolean includeStagesAfterAsyncPoint) +1602
-
-Version Information: Microsoft .NET Framework Version:4.0.30319; ASP.NET Version:4.8.9316.0
+            return encryptString;
+        }

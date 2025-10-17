@@ -1,36 +1,33 @@
-function opentemplate() {
+Server Error in '/' Application.
+String reference not set to an instance of a String.
+Parameter name: s
+Description: An unhandled exception occurred during the execution of the current web request. Please review the stack trace for more information about the error and where it originated in the code.
 
-    var keycode = '';    
-    keycode = 'Bulk Approval';
+Exception Details: System.ArgumentNullException: String reference not set to an instance of a String.
+Parameter name: s
 
-    var datastring = '{"keycode":"' + keycode + '","componentGroupID":0}';
-    $.ajax({
-        type: "POST",
-        url: "WebMethods.aspx/GetEmptyTemplateURL",
-        contentType: "application/json; charset=utf-8",
-        data: datastring,
-        dataType: "json",
-        cache: false,
-        success: function (msg) {
-            if (msg.d != '') {
-                const url = msg.d;
-                $("#progressBackgroundFilter, #processMessage").show();
+Source Error:
 
-                document.cookie = "fileDownload=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-                const checkInterval = setInterval(() => {
-                    if (document.cookie.includes("fileDownload=true")) {
-                        clearInterval(checkInterval);
-                        $("#progressBackgroundFilter, #processMessage").hide();
-                    }
-                }, 1000);
-                window.location.href = url;
-            }
-            else {
-                errorpopup('No Template to download');
-            }
-        },
-        error: function (xhr) {
-            errorpopup(parent.document.getElementById("hdnSession").value);
-        }
-    });
-}
+
+Line 2220:            using (Aes encryptor = Aes.Create())
+Line 2221:            {
+Line 2222:                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(key, new byte[] {
+Line 2223:                    0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76
+Line 2224:                });
+
+Source File: C:\Users\2318190\source\repos\OneC_727_WebApp(1)\SPay\SPay.BAL\UtilityBAL\UtilityBAL.cs    Line: 2222
+
+Stack Trace:
+
+
+[ArgumentNullException: String reference not set to an instance of a String.
+Parameter name: s]
+   System.Text.Encoding.GetBytes(String s) +14550071
+   System.Security.Cryptography.Rfc2898DeriveBytes..ctor(String password, Byte[] salt) +114
+   SPay.BAL.UtilityBAL.UtilityBAL.Encrypt(String encryptString, String key) in C:\Users\2318190\source\repos\OneC_727_WebApp(1)\SPay\SPay.BAL\UtilityBAL\UtilityBAL.cs:2222
+   SPayWebApp.Download.Page_Load(Object sender, EventArgs e) in C:\Users\2318190\source\repos\OneC_727_WebApp(1)\SPay\SPayWebApp\Download.aspx.cs:93
+   System.Web.UI.Control.OnLoad(EventArgs e) +108
+   System.Web.UI.Control.LoadRecursive() +90
+   System.Web.UI.Page.ProcessRequestMain(Boolean includeStagesBeforeAsyncPoint, Boolean includeStagesAfterAsyncPoint) +1602
+
+Version Information: Microsoft .NET Framework Version:4.0.30319; ASP.NET Version:4.8.9316.0

@@ -1,158 +1,36 @@
-	IF (@COMPONENTGROUPID = 1)     
-	    BEGIN
-		DECLARE @iDisplayStart1 INT, @iDisplayEnd1 INT
-			DECLARE @totrec1 INT
+function opentemplate() {
 
-			SET @iDisplayEnd1 = @pageNum * @iDisplayLength
-			SET @iDisplayStart1 = @iDisplayEnd1 - (@iDisplayLength - 1)
+    var keycode = '';    
+    keycode = 'Bulk Approval';
 
-			IF @orderBy = ''
-			BEGIN
-				SET @orderBy = '(SELECT 0)'
-			END
-		IF ((ISNULL(@searchData, '') = '') AND (ISNULL(@searchData2, '') = ''))
-		BEGIN
-			SELECT PK_NoticePayID, AssociateID, ProjectId, ISNULL(Amount, '') Amount, 
-			ISNULL(MC_B.CDescription, '') AS SpecialCaseReason, ISNULL((
-						CASE 
-							WHEN STATUS = 1
-								THEN 'Valid'
-							WHEN STATUS = 2
-								THEN 'Deleted'
-							WHEN STATUS = 3
-								THEN 'Rejected'
-							WHEN STATUS = 4
-								THEN 'Resubmitted'
-							WHEN STATUS = 5
-								THEN 'Processed'
-							WHEN STATUS = 12
-								THEN 'Approved'
-							END
-						), '') AS Status, ISNULL(InputRemarks, '') Remarks, 
-						ISNULL(RejectionReason, '') RejectionReason, 
-						ISNULL(NP.SplCaseMailUploadId, 0) AS SplCaseMailUploadId,
-						NP.Createdby As UploaderID, NP.SetId AS SetID
-					INTO #TEMPNP
-			FROM PR.NoticePay NP WITH (NOLOCK)
-			LEFT JOIN MasterCodes MC_B WITH (NOLOCK)
-				ON MC_B.CCodeId = TRY_CAST(SpecialCaseReason AS INT) AND MC_B.CParentRef = 2 
-				AND MC_B.RowStatus = 1 AND MC_B.CUserDefined1=@COMPONENTGROUPID
-			WHERE NP.ROWSTATUS = 1 AND STATUS IN (1, 3, 4, 12)
-			ORDER BY NP.CreatedDate DESC, NP.ModifiedDate DESC
+    var datastring = '{"keycode":"' + keycode + '","componentGroupID":0}';
+    $.ajax({
+        type: "POST",
+        url: "WebMethods.aspx/GetEmptyTemplateURL",
+        contentType: "application/json; charset=utf-8",
+        data: datastring,
+        dataType: "json",
+        cache: false,
+        success: function (msg) {
+            if (msg.d != '') {
+                const url = msg.d;
+                $("#progressBackgroundFilter, #processMessage").show();
 
-			IF (@getPages = 0)
-				BEGIN
-					IF @sortOrder = 1
-					BEGIN
-						EXEC ('SELECT RowNo,PK_NoticePayID,AssociateID, ProjectId,Amount,SpecialCaseReason,
-						Status,Remarks,RejectionReason,SplCaseMailUploadId,UploaderID,SetID
-							 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' ASC) AS [RowNo],
-							 * FROM #TEMPNP ) t
-									WHERE ROWNO BETWEEN ' + @iDisplayStart1 + ' AND ' + @iDisplayEnd1)
-					END
-					ELSE
-					BEGIN
-
-						EXEC ('SELECT RowNo,PK_NoticePayID,AssociateID, ProjectId,Amount,SpecialCaseReason,
-						Status,Remarks,RejectionReason,SplCaseMailUploadId,UploaderID,SetID 
-						 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' DESC) AS [RowNo],
-						 * FROM #TEMPNP) t
-								WHERE RowNo BETWEEN ' + @iDisplayStart1 + ' AND ' + @iDisplayEnd1)
-					END
-					SELECT @totrec1 = COUNT(1) FROM #TEMPNP
-
-					IF (@totrec1 % @iDisplayLength) = 0
-						SELECT (@totrec1 / @iDisplayLength) AS Pages, @totrec1 AS Total
-					ELSE
-						SELECT (@totrec1 / @iDisplayLength) + 1 AS Pages, @totrec1 AS Total
-				END
-				ELSE
-				BEGIN
-					SELECT @totrec1 = COUNT(1) FROM #TEMPNP
-
-					IF (@totrec1 % @iDisplayLength) = 0
-						SELECT (@totrec1 / @iDisplayLength) AS Pages, @totrec1 AS Total
-					ELSE
-						SELECT (@totrec1 / @iDisplayLength) + 1 AS Pages, @totrec1 AS Total
-				END
-
-				DROP TABLE #TEMPNP
-		END
-		ELSE
-		BEGIN
-			SELECT @Description = CDescription
-			FROM MasterCodes WITH (NOLOCK)
-			WHERE CParentRef = 8 AND CCodeId = @COMPONENTID AND CUserDefined1 = @ddlData 
-			AND RowStatus = 1
-
-			BEGIN
-				SELECT PK_NoticePayID, AssociateID, ProjectId, ISNULL(Amount, '') Amount,
-				ISNULL(MC_B.CDescription, '') AS SpecialCaseReason, ISNULL((
-							CASE 
-								WHEN STATUS = 1
-									THEN 'Valid'
-								WHEN STATUS = 2
-									THEN 'Deleted'
-								WHEN STATUS = 3
-									THEN 'Rejected'
-								WHEN STATUS = 4
-									THEN 'Resubmitted'
-								WHEN STATUS = 5
-									THEN 'Processed'
-								WHEN STATUS = 12
-									THEN 'Approved'
-								END
-							), '') AS Status, ISNULL(InputRemarks, '') Remarks, 
-							ISNULL(RejectionReason, '') RejectionReason, 
-							ISNULL(NP.SplCaseMailUploadId, 0) AS SplCaseMailUploadId,NP.Createdby As UploaderID, 
-							NP.SetId AS SetID
-							INTO #TEMPNP2
-				FROM PR.NoticePay NP WITH (NOLOCK)
-				LEFT JOIN MasterCodes MC_B WITH (NOLOCK)
-					ON MC_B.CCodeId = TRY_CAST(SpecialCaseReason AS INT) AND MC_B.CParentRef = 2 AND MC_B.RowStatus = 1
-					and MC_B.CUserDefined1=@COMPONENTGROUPID
-				WHERE NP.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) 
-				AND NP.ProjectId LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))
-				 AND NP.RowStatus = 1 AND STATUS IN (1, 3, 4, 12)
-				ORDER BY NP.CreatedDate DESC, NP.ModifiedDate DESC
-
-				IF (@getPages = 0)
-				BEGIN
-					IF @sortOrder = 1
-					BEGIN
-						EXEC ('SELECT RowNo,PK_NoticePayID,AssociateID, ProjectId,Amount,SpecialCaseReason,
-						Status,Remarks,RejectionReason,SplCaseMailUploadId,UploaderID,SetID 
-							 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' ASC) AS [RowNo],
-							 * FROM #TEMPNP2 ) t
-									WHERE ROWNO BETWEEN ' + @iDisplayStart1 + ' AND ' + @iDisplayEnd1)
-					END
-					ELSE
-					BEGIN
-
-						EXEC ('SELECT RowNo,PK_NoticePayID,AssociateID, ProjectId,Amount,SpecialCaseReason,
-						Status,Remarks,RejectionReason,SplCaseMailUploadId,UploaderID,SetID
-						 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' DESC) AS [RowNo],
-						 * FROM #TEMPNP2) t
-								WHERE RowNo BETWEEN ' + @iDisplayStart1 + ' AND ' + @iDisplayEnd1)
-					END
-					SELECT @totrec1 = COUNT(1) FROM #TEMPNP2
-
-					IF (@totrec1 % @iDisplayLength) = 0
-						SELECT (@totrec1 / @iDisplayLength) AS Pages, @totrec1 AS Total
-					ELSE
-						SELECT (@totrec1 / @iDisplayLength) + 1 AS Pages, @totrec1 AS Total
-				END
-				ELSE
-				BEGIN
-					SELECT @totrec1 = COUNT(1) FROM #TEMPNP2
-
-					IF (@totrec1 % @iDisplayLength) = 0
-						SELECT (@totrec1 / @iDisplayLength) AS Pages, @totrec1 AS Total
-					ELSE
-						SELECT (@totrec1 / @iDisplayLength) + 1 AS Pages, @totrec1 AS Total
-				END
-
-				DROP TABLE #TEMPNP2
-			END		
-		END
-	END
+                document.cookie = "fileDownload=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+                const checkInterval = setInterval(() => {
+                    if (document.cookie.includes("fileDownload=true")) {
+                        clearInterval(checkInterval);
+                        $("#progressBackgroundFilter, #processMessage").hide();
+                    }
+                }, 1000);
+                window.location.href = url;
+            }
+            else {
+                errorpopup('No Template to download');
+            }
+        },
+        error: function (xhr) {
+            errorpopup(parent.document.getElementById("hdnSession").value);
+        }
+    });
+}

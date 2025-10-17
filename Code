@@ -1,25 +1,91 @@
-		public static string Encrypt(string encryptString, string key)
+        protected void Page_Load(object sender, EventArgs e)
         {
-            var randomNumber = SecureNumber();
-            string finalEncryptedString = encryptString + "," + randomNumber.ToString();
-            byte[] clearBytes = Encoding.Unicode.GetBytes(finalEncryptedString);
-            using (Aes encryptor = Aes.Create())
+            var regexItem = new Regex(@"^[a-zA-Z0-9_\-\s]*$");
+          
+            string versionkey = ConfigurationManager.AppSettings["Version"].ToString();
+            
+            string downloadUrl = string.Empty;
+            string ClientIdkey = string.Empty;
+            string ocm = ConfigurationManager.AppSettings["IsOCMEnabled"].ToString();
+            string associateID = HttpContext.Current.Session["UserId"].ToString();
+
+            //string ocmcontenid = "CONT6BE08832C7334B89A22C9E61E036E522";
+
+            switch (ocm)
             {
-                Rfc2898DeriveBytes pdb = new Rfc2898DeriveBytes(key, new byte[] {
-                    0x49, 0x76, 0x61, 0x6e, 0x20, 0x4d, 0x65, 0x64, 0x76, 0x65, 0x64, 0x65, 0x76
-                });
-                encryptor.Key = pdb.GetBytes(32);
-                encryptor.IV = pdb.GetBytes(16);
-                using (MemoryStream ms = new MemoryStream())
-                {
-                    using (CryptoStream cs = new CryptoStream(ms, encryptor.CreateEncryptor(), CryptoStreamMode.Write))
+                case "0":
                     {
-                        cs.Write(clearBytes, 0, clearBytes.Length);
-                        cs.Close();
+                        if (HttpContext.Current.Session["OCI"].ToString() == "1")
+                        {
+                            downloadUrl = ConfigurationManager.AppSettings["FileDownloadUIOCI"].ToString();
+                            ClientIdkey = SendMailer.FetchKeyVaultSecret("OCMClientId");
+                        }
+                        else
+                        {
+                            downloadUrl = ConfigurationManager.AppSettings["FileDownloadUIOCM"].ToString();
+                            ClientIdkey = SendMailer.FetchKeyVaultSecret("OCMClientId");
+                        }
+                        break;
                     }
-                    encryptString = Convert.ToBase64String(ms.ToArray());
-                }
+                case "1":
+                    {
+                        downloadUrl = ConfigurationManager.AppSettings["FileDownloadUIOCM"].ToString();
+                        ClientIdkey = SendMailer.FetchKeyVaultSecret("OCMClientId");
+                        break;
+                    }
+                default:
+                    break;
             }
 
-            return encryptString;
+            string encryptAssociateid = UtilityBAL.Encrypt(associateID, ClientIdkey);
+
+            if (Request.QueryString["fileUploadId"].ToString() != "null")
+            {
+                try
+                {
+                    string fileUploadId = string.Empty;
+                    if (regexItem.IsMatch(Request.QueryString["fileUploadId"].ToString().Trim()))
+                    {
+                        fileUploadId = CAS.Security.Application.EncodeHelper.HtmlEncode(
+                            HttpUtility.UrlEncode(Request.QueryString["fileUploadId"]));
+                    }
+
+
+
+                    if (ocm == "1")
+                    {
+                        string stFinalQueryString = string.Format("?OCMContentID={0}&AssociateID={1}", fileUploadId, encryptAssociateid);
+                        string finalurl = string.Format(downloadUrl + stFinalQueryString);
+                        Response.Redirect(finalurl);
+                    }
+                    else
+                    {
+                        if (HttpContext.Current.Session["OCI"].ToString() == "1")
+                        {
+                            string stFinalQueryString = string.Format("?OCMContentID={0}&categoryidentifier={1}", fileUploadId, encryptAssociateid);
+                            string finalurl = string.Format(downloadUrl + stFinalQueryString);
+                            Response.Redirect(finalurl);
+                        }
+                        else
+                        {
+                            string stFinalQueryString = string.Format("?OCMContentID={0}&AssociateID={1}", fileUploadId, encryptAssociateid);
+                            string finalurl = string.Format(downloadUrl + stFinalQueryString);
+                            Response.Redirect(finalurl);
+                        }
+                    }
+
+
+
+                }
+                catch (SystemException ex)
+                {
+                    ErrorLogger logger = new ErrorLogger();
+                    logger.LogError(ex);
+                    return;
+                }
+            }
+            else
+            {
+                return;
+            }
         }

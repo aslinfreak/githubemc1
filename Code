@@ -1,4 +1,4 @@
-When I click Save,The Approval Mail is saved with attach,it doesn't check validation 
+When I click the Save button,it saved without uploading the Approval Mail,it doesn't check validation.So please help me to fix this without changing the code format
 
 ManageApproval.aspx
 When I inspect Save button-->

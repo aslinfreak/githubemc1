@@ -1,86 +1,50 @@
-function saveBulk() {
+When I click Save,The Approval Mail is saved with attach,it doesn't check validation 
+
+ManageApproval.aspx
+When I inspect Save button-->
+<div class="clear">
+</div>
+<div class="btns  mtop20 flft">
+    <p class="red post mleft20">
+        * All fields are Mandatory
+    </p>
+    <asp:Button BorderStyle="None" ID="SavewithProjects" runat="server" Text="Save"
+        class="save_btn mleft350 btn btn-primary" Style="cursor: pointer; vertical-align: middle; margin-top: -10px;"
+        OnClientClick="return saveFirstTimewithProjects();"
+        OnClick="SavewithProjects_Click" />
+When I inspect ApprovaL Mail---->
+<li class="">
+      <label>
+          Approval Mail <span class="red">*</span></label>
+      <!-- <input type="text" class="txtbx_small flft"/>-->
+      <div class="flft marT5">
+          <asp:FileUpload class="txtbx_med flft txt lh25"
+              ID="projAppMail" name="Appmail" runat="server" Style="display: none" />
+          <asp:Button type="button" ID="OCMsavewithProj" Text="Attach File"
+              runat="server" class="pull-left btn btn-primary"
+              OnClientClick="return OCMsavewithProjmail();"
+              UseSubmitBehavior="false" Style="display: none" />
+          <a id="clck" class="thickbox"></a>
+      </div>
+      <label style="font-size: 11px; width: 250px !important; margin-left: 150px">
+          (Valid Format-.msg,.doc,.docx,.xls,.xlsx)</label>
+      <div class="clear">
+      </div>
+
+  </li>
+ManageApproval.js(This is where I need to add my validation)
+function saveFirstTimewithProjects() {
     $("#progressBackgroundFilter").show();
     $("#processMessage").show();
     var error = '';
     $('#tagerr').html('');
     $('#tagsucc').html('');
-    var excel = $('#BulkexcelFile').val();
-    var AppUrl = $('#BulkApproval').val();
-    var OtherUrl = $('#BulkOthers').val();
-    var assStatus;
-    if ((AppUrl == '' || excel == '' )&& ocm != 1) {
-        error += 'Please fill the mandatory fields' + ',';
-    }
-    else {
-       
-        if (ocm != 1) {
-            if ((AppUrl.substr(AppUrl.length - 4) != '.msg') && ocm != 1) {
-                error += 'Approval Mail should be in .msg format' + ',';
-            }
-
-            if (OtherUrl != "") {
-                if (OtherUrl.substr(OtherUrl.length - 4) != '.msg' && OtherUrl.substr(OtherUrl.length - 4) != '.doc'
-                    && OtherUrl.substr(OtherUrl.length - 4) != 'docx' && OtherUrl.substr(OtherUrl.length - 4) != '.xls'
-                    && OtherUrl.substr(OtherUrl.length - 4) != 'xlsx') {
-                    error += 'Other files should be mail or word or excel files' + ',';
-                }
-
-            }
-        }
-        var datastring = '{"userID":"' + ApprovedBy + '"}';
-        $.ajax({
-            type: "POST",
-            url: "ManageApproval.aspx/CheckValidAssociateID",
-            data: datastring,
-            contentType: "application/json; charset=utf-8",
-            async: false,
-            cache: false,
-            dataType: "json",
-            success: function (msg) {
-                assStatus = msg.d;
-                if (assStatus == 0) {
-                    error += 'Enter  Valid Approver ID' + ','
-                }
-            },
-            error: function (xhr) {
-                errorpopup(document.getElementById("hdnSession").value);
-                if (xhr != undefined && xhr != null) {
-                    PageMethods.LogAjaxError("ManageApproval", "CheckValidAssociateID", xhr.responseText);
-                }
-                $("#progressBackgroundFilter").hide();
-                $("#processMessage").hide();
-            }
-        });
-
-    }
-    if (error == '') {
-        $("input[id=hdnapptype]").val($("#apptype").val());
-        $("input[id=hdnCompid]").val(compType);
-        $("input[id=hdnfromdate]").val(ValidFrom);
-        $("input[id=hdnToDate]").val(ValidTo);
-        $("input[id=hdnApprovedBy]").val(ApprovedBy);
-        $("input[id=hdnapptype]").val($("#apptype").val());
-        $("input[id=hdnCompName]").val($("#selectcomp").text());
-        return true;
-    }
-    else {
-        error = error.replace(/(^\s*,)|(,\s*$)/g, '');
-        errorpopup(error);
-        return false;
-    }
-}
-
-
-function OCMsavewithProjmail() {
-    $("#progressBackgroundFilter").show();
-    $("#processMessage").show();
-    var error = '';
-    $('#tagerr').html('');
-    $('#tagsucc').html('');
-    var comp = DOMPurify.sanitize($('#compprojnames').val());
-    var projId = DOMPurify.sanitize($('#txtapprProjId').val());
+    var comp = $('#compprojnames').val();
+    var projId = $('#txtapprProjId').val();
     var projendDate = $('#txtprojEndDate').text();
+
     var AppUrl = $('#projAppMail').val();
+
     var validFrom = $('#vfrom_txt').val();
     var validTo = $('#vto_txt').val();
     var currappr = $('#currApprover').val();
@@ -88,7 +52,7 @@ function OCMsavewithProjmail() {
         var MSASOWDate = $('#MSASOWDate').val();
         var docType = ($('#ded1').prev('.radio').css('background-position-y') == '-25px') ? 1 : 2;
         var otherUrl = $('#projOtherMail').val();
-        if (otherUrl == "") {
+        if (otherUrl == "" && ocm != 1) {
             error += 'Please attach a file in others field,';
         }
     }
@@ -97,17 +61,56 @@ function OCMsavewithProjmail() {
         var docType = -1;
         var otherUrl = '';
     }
-    // ocm call
-    if (comp == 4 || comp == 50 || comp == 170) {
-        url = clienturl + "componentGroupId=" + comp + "&projectID=" + projId + "&CountryId=1&label1=Approval Mail:&roleID=2&action=3&button=1&page=isManageApproval&ocmflag=1&close=0&TB_iframe=true&height=220&width=442&modal=true&allowTransparency=true"
 
+    if (comp == -1 || projId == '' || projendDate == '' || (AppUrl == '' && ocm != 1) || validFrom == '' || validTo == '' || currappr == '') {
+        error += 'Please fill the mandatory fields' + ',';
     }
     else {
-        url = clienturl + "componentGroupId=" + comp + "&projectID=" + projId + "&CountryId=1&label1=Approval Mail:&label2=Others(project):&roleID=2&action=3&button=1&page=isManageApproval&ocmflag=1&close=0&TB_iframe=true&height=220&width=442&modal=true&allowTransparency=true"
+
+        if (new Date(validFrom) > new Date(validTo)) {
+            error += 'From Date should not be greater than To Date' + ',';
+        }
+        if (ocm == 0) {
+                if ((AppUrl.substr(AppUrl.length - 4) != '.msg') && ocm !=1 ){
+                error += 'Approval Mail should be in .msg format' + ',';
+            }
+            if (otherUrl != "") {
+                if (otherUrl.substr(otherUrl.length - 4) != '.msg' && otherUrl.substr(otherUrl.length - 4) != '.doc' && otherUrl.substr(otherUrl.length - 4) != 'docx' && otherUrl.substr(otherUrl.length - 4) != '.xls' && otherUrl.substr(otherUrl.length - 4) != 'xlsx') {
+                    error += 'Other files should be mail or word or excel files' + ',';
+                }
+            }
+            if (new Date(validTo) > new Date(projendDate)) {
+                error += " 'Valid to' date cannot exceed 'Project End date'" + ',';
+            }
+        }
     }
-    url = EncodeUrlParameters(url); 
-    $("a#clck").attr('href', encodeURI(url)).click();
-    $("#progressBackgroundFilter").hide();
-    $("#processMessage").hide();
+
+    if (comp == 50 || comp == 51 || comp == 52) {
+        if (new Date(projendDate) < new Date(validTo)) {
+
+            var errmsg = " 'Valid to' date cannot exceed 'Project End date'";
+            errorpopup(errmsg);
+            return false;
+        }
+    }
+    var msg = saveDetailsValidation(projId, currappr);
+
+    error += msg;
+    if (error == '') {
+        $("input[id=hdnapptype]").val($("#apptype").val());
+        $("input[id=hdnprojcomp]").val(comp);
+        $("input[id=hdnprojproId]").val(projId);
+        $("input[id=hdnMSASOWDate]").val(MSASOWDate);
+        $("input[id=hdndocType]").val(docType);
+        $("input[id=hdnprojValidFrom]").val(validFrom);
+        $("input[id=hdnprojValidTo]").val(validTo);
+        $("input[id=hdncurrappr]").val(currappr);
+        return true;
+    }
+    else {
+        error = error.replace(/(^\s*,)|(,\s*$)/g, '');
+        errorpopup(error);
+        return false;
+    }
 
 }

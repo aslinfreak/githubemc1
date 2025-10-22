@@ -1,116 +1,207 @@
-When I click the Save button,it saved without uploading the Approval Mail,it doesn't check validation.So please help me to fix this without changing the code format
+uploaddata.aspx
+<li class="pull-left" id="download">
+     <a id="emptyTemplte" onclick="opentemplate()" class="flft mleft10 link downloadIcon" style="cursor: pointer;">
+         <!--<img id="download_img" src="../Images/download_folder.png" height="30px" width="30px" />-->
+         <span class="">Download Empty Template</span>
+     </a>
+uploaddata.js
+function opentemplate() {
 
-ManageApproval.aspx
-When I inspect Save button-->
-<div class="clear">
-</div>
-<div class="btns  mtop20 flft">
-    <p class="red post mleft20">
-        * All fields are Mandatory
-    </p>
-    <asp:Button BorderStyle="None" ID="SavewithProjects" runat="server" Text="Save"
-        class="save_btn mleft350 btn btn-primary" Style="cursor: pointer; vertical-align: middle; margin-top: -10px;"
-        OnClientClick="return saveFirstTimewithProjects();"
-        OnClick="SavewithProjects_Click" />
-When I inspect ApprovaL Mail---->
-<li class="">
-      <label>
-          Approval Mail <span class="red">*</span></label>
-      <!-- <input type="text" class="txtbx_small flft"/>-->
-      <div class="flft marT5">
-          <asp:FileUpload class="txtbx_med flft txt lh25"
-              ID="projAppMail" name="Appmail" runat="server" Style="display: none" />
-          <asp:Button type="button" ID="OCMsavewithProj" Text="Attach File"
-              runat="server" class="pull-left btn btn-primary"
-              OnClientClick="return OCMsavewithProjmail();"
-              UseSubmitBehavior="false" Style="display: none" />
-          <a id="clck" class="thickbox"></a>
-      </div>
-      <label style="font-size: 11px; width: 250px !important; margin-left: 150px">
-          (Valid Format-.msg,.doc,.docx,.xls,.xlsx)</label>
-      <div class="clear">
-      </div>
-
-  </li>
-ManageApproval.js(This is where I need to add my validation)
-function saveFirstTimewithProjects() {
-    $("#progressBackgroundFilter").show();
-    $("#processMessage").show();
-    var error = '';
-    $('#tagerr').html('');
-    $('#tagsucc').html('');
-    var comp = $('#compprojnames').val();
-    var projId = $('#txtapprProjId').val();
-    var projendDate = $('#txtprojEndDate').text();
-
-    var AppUrl = $('#projAppMail').val();
-
-    var validFrom = $('#vfrom_txt').val();
-    var validTo = $('#vto_txt').val();
-    var currappr = $('#currApprover').val();
-    if (comp != 4 && comp != 50 && comp != 170) {
-        var MSASOWDate = $('#MSASOWDate').val();
-        var docType = ($('#ded1').prev('.radio').css('background-position-y') == '-25px') ? 1 : 2;
-        var otherUrl = $('#projOtherMail').val();
-        if (otherUrl == "" && ocm != 1) {
-            error += 'Please attach a file in others field,';
-        }
+    var componentGroupId = $('#bonus').val();
+    var keycode = '';
+    if (componentGroupId == 1) {
+        keycode = 'NoticePay Template Path';
     }
-    else {
-        var MSASOWDate = '';
-        var docType = -1;
-        var otherUrl = '';
+    else if (componentGroupId == 2) {
+        keycode = 'Referral Bonus Template Path';
     }
-
-    if (comp == -1 || projId == '' || projendDate == '' || (AppUrl == '' && ocm != 1) || validFrom == '' || validTo == '' || currappr == '') {
-        error += 'Please fill the mandatory fields' + ',';
+    else if (componentGroupId == 3) {
+        keycode = 'Joining Bonus Template Path';
     }
-    else {
-
-        if (new Date(validFrom) > new Date(validTo)) {
-            error += 'From Date should not be greater than To Date' + ',';
-        }
-        if (ocm == 0) {
-                if ((AppUrl.substr(AppUrl.length - 4) != '.msg') && ocm !=1 ){
-                error += 'Approval Mail should be in .msg format' + ',';
+    else if (componentGroupId == 4 && RoleId != 19) {
+        keycode = 'Shift Allowance Template';
+    }
+    var datastring = '{"keycode":"' + keycode + '","componentGroupID":"' + componentGroupId + '"}';
+    $.ajax({
+        type: "POST",
+        url: "../WebMethods.aspx/GetEmptyTemplateURL",
+        contentType: "application/json; charset=utf-8",
+        data: datastring,
+        dataType: "json",
+        cache: false,
+        success: function (msg) {
+            if (msg.d != '') {
+                const url = msg.d;
+                $("#progressBackgroundFilter, #processMessage").show();
+                const checkInterval = setTimeout(() => {
+                    $("#progressBackgroundFilter, #processMessage").hide();
+                }, 5000);
+                window.location.href = url;
+                }
+            else {
+                errorpopup('No Template to download');
             }
-            if (otherUrl != "") {
-                if (otherUrl.substr(otherUrl.length - 4) != '.msg' && otherUrl.substr(otherUrl.length - 4) != '.doc' && otherUrl.substr(otherUrl.length - 4) != 'docx' && otherUrl.substr(otherUrl.length - 4) != '.xls' && otherUrl.substr(otherUrl.length - 4) != 'xlsx') {
-                    error += 'Other files should be mail or word or excel files' + ',';
+        },
+        error: function (xhr) {
+            errorpopup(parent.document.getElementById("hdnSession").value);
+        }
+    });
+}
+WebMethods.aspx.cs
+        public static string GetEmptyTemplateURL(string keycode, int componentGroupID)
+        {
+            string value = string.Empty;
+            try
+            {
+                string strRoleId = HttpContext.Current.Session["RoleId"].ToString();
+                string strcountryid = HttpContext.Current.Session["CountryID"].ToString();
+                int RoleId = Convert.ToInt32(strRoleId);
+                int countryID = Convert.ToInt32(strcountryid);
+
+                FileUploadDetails objdetails = new FileUploadDetails()
+                {
+                    KeyCode = keycode,
+                    ComponentID = componentGroupID,
+                    RoleID = RoleId,
+                    CountryID = countryID
+                };
+                DataSet template = UtilityBAL.GetEmptyTemplateURL(objdetails);
+                if (template.Tables.Count > 0 && template.Tables[0].Rows.Count > 0)
+                {
+                    value = template.Tables[0].Rows[0]["KeyValue"].ToString();
+                }
+                else
+                {
+                    value = string.Empty;
                 }
             }
-            if (new Date(validTo) > new Date(projendDate)) {
-                error += " 'Valid to' date cannot exceed 'Project End date'" + ',';
+            catch (SystemException ex)
+            {
+                ErrorLogger logger = new ErrorLogger();
+                logger.LogError(ex);
             }
+
+            return value;
         }
-    }
+webconfig:
+		<add key="FileDownloadUIOCI" value="http://localhost:5072/DSSWrapper/APIFileDownload" />
+Another solution file
+DSSWrapperController.cs
+        public async Task<IActionResult> APIFileDownload( string OCMContentID, string categoryidentifier)
+        {
+            DocumentDetails OciDownloadResponse = new DocumentDetails();  
+            var Key = _configuration["OCIClientID"];
+            var tenancyId = _configuration["OCISettings:TenancyId"];
+            var userId = _configuration["OCISettings:UserId"];
+            var fingerprint = _configuration["OCISettings:Fingerprint"];
+            var OCIregion = _configuration["OCISettings:Region"];
+            var relativePath = _configuration["OCISettings:RelativePath"];
+            var bucketName = _configuration["OCISettings:BucketName"];
+            var namespaceName = _configuration["OCISettings:NamespaceName"];
+            var ocipassphraseString = _configuration["OCISettings:PassphraseString"];
+            var logactionurl = _configuration["ApigeeSettings:logactionurl"];
+            var logerrorurl = _configuration["ApigeeSettings:logerrorurl"];
+            var tokenApi = _configuration["ApigeeSettings:tokenApi"];
+            var ApigeeClientIdToken = _configuration["ApigeeSettings:ApigeeClientid"];
+            var ApigeeClientSecretToken = _configuration["ApigeeSettings:ApigeeClientSecret"];
+            var encryptionKey = _configuration["ApigeeSettings:encryptionKey"];
 
-    if (comp == 50 || comp == 51 || comp == 52) {
-        if (new Date(projendDate) < new Date(validTo)) {
+            string basePath = AppDomain.CurrentDomain.BaseDirectory + @"wwwroot\Pem data\";
+            string fullPath = Path.Combine(basePath, relativePath.Replace("~", "").TrimStart('/').Replace("/", "\\"));
+            var privateKeyPath = fullPath;
+            var AppId = _configuration["OCISettings:AppId"];
+            var contentId = string.Empty;
 
-            var errmsg = " 'Valid to' date cannot exceed 'Project End date'";
-            errorpopup(errmsg);
-            return false;
+
+            DSSWrapper ocicategory = new DSSWrapper();
+            string decryptedId = CustomAuthorizeAttribute.Decrypt(categoryidentifier, Key, "metadata");
+            contentId = "CONT61A43148B90A4F2C9D2793CE33DCD9EB";
+            Dictionary<string, string> metadata = new Dictionary<string, string>
+                        {
+                            { "namespaceName", namespaceName },
+                            { "bucketName", bucketName }                            
+                        };
+
+            try
+            {
+                var StorageConfig = new StorageConfig
+                {
+                    TenancyId = tenancyId,
+                    UserId = userId,
+                    Fingerprint = fingerprint,
+                    PrivateKeyPath = privateKeyPath,
+                    OCIRegion = OCIregion,
+                    ocipassphraseString = ocipassphraseString,
+                    namespaceName = namespaceName,
+                    bucketName = bucketName
+                };
+                var operation = DocumentStorageService.Enum.DocumentOperations.Download;
+                var storageType = DocumentStorageService.Enum.StorageType.OracleObjectStorage;
+
+                var fileDetails = new DocumentDetails
+                {
+                    ContentId = contentId.ToString(),
+                    operation = operation.ToString(),
+                    storageType = storageType.ToString(),
+                    ActivityType = "download",
+                    AppId = AppId,
+                    Metadata = metadata
+                };
+                var apigeCredentials = new ApigeeConfig
+                {
+                    LogActionUrl = logactionurl,
+                    LogErrorUrl = logerrorurl,
+                    TokenApi = tokenApi,
+                    ApigeeClientid = ApigeeClientIdToken,
+                    ApigeeClientSecret = ApigeeClientSecretToken,
+                    EncryptionKey = encryptionKey
+                };
+
+
+                var strConfig = JsonConvert.SerializeObject(StorageConfig);
+                var strApi = JsonConvert.SerializeObject(apigeCredentials);
+                var strFile = JsonConvert.SerializeObject(fileDetails);
+                string processDocumentResult = await _documentStorageSharedService.ProcessDocument(fileDetails, StorageConfig, apigeCredentials);
+                var jsonDoc = JsonDocument.Parse(processDocumentResult);
+                var formattedJson = System.Text.Json.JsonSerializer.Serialize(jsonDoc.RootElement, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+                OciDownloadResponse = JsonConvert.DeserializeObject<DocumentDetails>(formattedJson);
+                if (OciDownloadResponse != null && OciDownloadResponse.FileContent != null)
+                {
+                    var fileName = HttpUtility.UrlDecode(OciDownloadResponse.FileName);
+                    string safeFileName = Regex.Replace(fileName, @"[^\w\-.]", "_");
+                    var fileContent = OciDownloadResponse.FileContent;                    
+                    Response.Cookies.Append("fileDownload", "true", new CookieOptions
+                    {
+                        Path = "/",
+                        Expires = DateTimeOffset.Now.AddMinutes(1),
+                      
+                    });
+                    return File(fileContent, "application/octet-stream", safeFileName);
+                }
+                else
+                {
+                    string url = "http://localhost:8305/OCI_Service.aspx?downloadfile=0";
+                    return new RedirectResult(url);
+                }
+            }
+            catch (Exception ex)
+            {
+                var errorResponse = new
+                {
+                    Message = "An error occurred while downloading the file.",
+                    Error = ex.Message
+                };
+                return StatusCode(StatusCodes.Status500InternalServerError, new JsonResult(errorResponse));
+            }
+
+            var notFoundResponse = new
+            {
+                Message = "File not found."
+            };
+            return NotFound(new JsonResult(notFoundResponse));
         }
-    }
-    var msg = saveDetailsValidation(projId, currappr);
 
-    error += msg;
-    if (error == '') {
-        $("input[id=hdnapptype]").val($("#apptype").val());
-        $("input[id=hdnprojcomp]").val(comp);
-        $("input[id=hdnprojproId]").val(projId);
-        $("input[id=hdnMSASOWDate]").val(MSASOWDate);
-        $("input[id=hdndocType]").val(docType);
-        $("input[id=hdnprojValidFrom]").val(validFrom);
-        $("input[id=hdnprojValidTo]").val(validTo);
-        $("input[id=hdncurrappr]").val(currappr);
-        return true;
-    }
-    else {
-        error = error.replace(/(^\s*,)|(,\s*$)/g, '');
-        errorpopup(error);
-        return false;
-    }
 
-}

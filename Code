@@ -1,207 +1,50 @@
-uploaddata.aspx
-<li class="pull-left" id="download">
-     <a id="emptyTemplte" onclick="opentemplate()" class="flft mleft10 link downloadIcon" style="cursor: pointer;">
-         <!--<img id="download_img" src="../Images/download_folder.png" height="30px" width="30px" />-->
-         <span class="">Download Empty Template</span>
-     </a>
-uploaddata.js
-function opentemplate() {
-
-    var componentGroupId = $('#bonus').val();
-    var keycode = '';
-    if (componentGroupId == 1) {
-        keycode = 'NoticePay Template Path';
+Now Iam checking, componentgroupid=4 and role id=6
+Verifydata.html
+<div class="overview_scroll">
+    <table class="tbl_upload" id="PM_tblShiftAllowance" cellpadding="0" cellspacing="0" width="1133"
+           style="display: none;">
+        <thead></thead>
+        <tbody></tbody>
+    </table>
+</div>
+Verifydata.js
+ if (RoleId == 6 || RoleId == 20) {
+     $('#PM_tblShiftAllowance').find('tbody').html('');
+     $('#PM_tblShiftAllowance').css('display', 'table');
+ }
+ else {
+     $('#PFSS_tblShiftAllowance').find('tbody').html('');
+     $('#PFSS_tblShiftAllowance').css('display', 'table');
+if (RoleId == 6 || RoleId == 20) {
+    var htmldata = '';
+    if (CheckedFlag ==1) {
+        htmldata += '<tr><th class="std1"><input type="checkbox" checked class="svalid" /></th>';
     }
-    else if (componentGroupId == 2) {
-        keycode = 'Referral Bonus Template Path';
+    else { 
+        htmldata += '<tr><th class="std1"><input type="checkbox" class="svalid" /></th>';
     }
-    else if (componentGroupId == 3) {
-        keycode = 'Joining Bonus Template Path';
-    }
-    else if (componentGroupId == 4 && RoleId != 19) {
-        keycode = 'Shift Allowance Template';
-    }
-    var datastring = '{"keycode":"' + keycode + '","componentGroupID":"' + componentGroupId + '"}';
-    $.ajax({
-        type: "POST",
-        url: "../WebMethods.aspx/GetEmptyTemplateURL",
-        contentType: "application/json; charset=utf-8",
-        data: datastring,
-        dataType: "json",
-        cache: false,
-        success: function (msg) {
-            if (msg.d != '') {
-                const url = msg.d;
-                $("#progressBackgroundFilter, #processMessage").show();
-                const checkInterval = setTimeout(() => {
-                    $("#progressBackgroundFilter, #processMessage").hide();
-                }, 5000);
-                window.location.href = url;
-                }
-            else {
-                errorpopup('No Template to download');
-            }
-        },
-        error: function (xhr) {
-            errorpopup(parent.document.getElementById("hdnSession").value);
-        }
-    });
-}
-WebMethods.aspx.cs
-        public static string GetEmptyTemplateURL(string keycode, int componentGroupID)
-        {
-            string value = string.Empty;
-            try
-            {
-                string strRoleId = HttpContext.Current.Session["RoleId"].ToString();
-                string strcountryid = HttpContext.Current.Session["CountryID"].ToString();
-                int RoleId = Convert.ToInt32(strRoleId);
-                int countryID = Convert.ToInt32(strcountryid);
+    htmldata += ' <th class="sort std2" column="AssociateID">Associate ID </th>';
+    htmldata += ' <th class="sort std3" column="Allowance">Allowance</th>';
+            $('#PM_tblShiftAllowance').find('thead').html('').html(htmldata);
 
-                FileUploadDetails objdetails = new FileUploadDetails()
-                {
-                    KeyCode = keycode,
-                    ComponentID = componentGroupID,
-                    RoleID = RoleId,
-                    CountryID = countryID
-                };
-                DataSet template = UtilityBAL.GetEmptyTemplateURL(objdetails);
-                if (template.Tables.Count > 0 && template.Tables[0].Rows.Count > 0)
-                {
-                    value = template.Tables[0].Rows[0]["KeyValue"].ToString();
-                }
-                else
-                {
-                    value = string.Empty;
-                }
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-            }
+if (componentGroupId == 4) {//ShiftAllowance
+    $(".error_msg_reject").css('margin-left', '250px');
+    $(".error_msg_reject").css('left', '370px');
+    //$('#selectassid').css('margin-left', '-25px');
+    //$('.error_msg_input').css();
+    //$(".error_msg_reject").css('left', '400px!important');
+    var len = $('#PM_tblShiftAllowance tbody,#PFSS_tblITShiftAllowance tbody,#PFSS_tblShiftAllowance tbody').find(':checked').length;
+    $('#PM_tblShiftAllowance tbody tr td input[type=checkbox],#PFSS_tblITShiftAllowance tbody tr td input[type=checkbox],#PFSS_tblShiftAllowance tbody tr td input[type=checkbox]').each(function () {
 
-            return value;
-        }
-webconfig:
-		<add key="FileDownloadUIOCI" value="http://localhost:5072/DSSWrapper/APIFileDownload" />
-Another solution file
-DSSWrapperController.cs
-        public async Task<IActionResult> APIFileDownload( string OCMContentID, string categoryidentifier)
-        {
-            DocumentDetails OciDownloadResponse = new DocumentDetails();  
-            var Key = _configuration["OCIClientID"];
-            var tenancyId = _configuration["OCISettings:TenancyId"];
-            var userId = _configuration["OCISettings:UserId"];
-            var fingerprint = _configuration["OCISettings:Fingerprint"];
-            var OCIregion = _configuration["OCISettings:Region"];
-            var relativePath = _configuration["OCISettings:RelativePath"];
-            var bucketName = _configuration["OCISettings:BucketName"];
-            var namespaceName = _configuration["OCISettings:NamespaceName"];
-            var ocipassphraseString = _configuration["OCISettings:PassphraseString"];
-            var logactionurl = _configuration["ApigeeSettings:logactionurl"];
-            var logerrorurl = _configuration["ApigeeSettings:logerrorurl"];
-            var tokenApi = _configuration["ApigeeSettings:tokenApi"];
-            var ApigeeClientIdToken = _configuration["ApigeeSettings:ApigeeClientid"];
-            var ApigeeClientSecretToken = _configuration["ApigeeSettings:ApigeeClientSecret"];
-            var encryptionKey = _configuration["ApigeeSettings:encryptionKey"];
+if (flag == 0) {
+    var len = $('#PM_tblShiftAllowance tbody tr td:nth-child(1),#PFSS_tblITShiftAllowance tbody tr td:nth-child(1),#PFSS_tblShiftAllowance tbody tr td:nth-child(1)').find(':checked').length;
 
-            string basePath = AppDomain.CurrentDomain.BaseDirectory + @"wwwroot\Pem data\";
-            string fullPath = Path.Combine(basePath, relativePath.Replace("~", "").TrimStart('/').Replace("/", "\\"));
-            var privateKeyPath = fullPath;
-            var AppId = _configuration["OCISettings:AppId"];
-            var contentId = string.Empty;
-
-
-            DSSWrapper ocicategory = new DSSWrapper();
-            string decryptedId = CustomAuthorizeAttribute.Decrypt(categoryidentifier, Key, "metadata");
-            contentId = "CONT61A43148B90A4F2C9D2793CE33DCD9EB";
-            Dictionary<string, string> metadata = new Dictionary<string, string>
-                        {
-                            { "namespaceName", namespaceName },
-                            { "bucketName", bucketName }                            
-                        };
-
-            try
-            {
-                var StorageConfig = new StorageConfig
-                {
-                    TenancyId = tenancyId,
-                    UserId = userId,
-                    Fingerprint = fingerprint,
-                    PrivateKeyPath = privateKeyPath,
-                    OCIRegion = OCIregion,
-                    ocipassphraseString = ocipassphraseString,
-                    namespaceName = namespaceName,
-                    bucketName = bucketName
-                };
-                var operation = DocumentStorageService.Enum.DocumentOperations.Download;
-                var storageType = DocumentStorageService.Enum.StorageType.OracleObjectStorage;
-
-                var fileDetails = new DocumentDetails
-                {
-                    ContentId = contentId.ToString(),
-                    operation = operation.ToString(),
-                    storageType = storageType.ToString(),
-                    ActivityType = "download",
-                    AppId = AppId,
-                    Metadata = metadata
-                };
-                var apigeCredentials = new ApigeeConfig
-                {
-                    LogActionUrl = logactionurl,
-                    LogErrorUrl = logerrorurl,
-                    TokenApi = tokenApi,
-                    ApigeeClientid = ApigeeClientIdToken,
-                    ApigeeClientSecret = ApigeeClientSecretToken,
-                    EncryptionKey = encryptionKey
-                };
-
-
-                var strConfig = JsonConvert.SerializeObject(StorageConfig);
-                var strApi = JsonConvert.SerializeObject(apigeCredentials);
-                var strFile = JsonConvert.SerializeObject(fileDetails);
-                string processDocumentResult = await _documentStorageSharedService.ProcessDocument(fileDetails, StorageConfig, apigeCredentials);
-                var jsonDoc = JsonDocument.Parse(processDocumentResult);
-                var formattedJson = System.Text.Json.JsonSerializer.Serialize(jsonDoc.RootElement, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-                OciDownloadResponse = JsonConvert.DeserializeObject<DocumentDetails>(formattedJson);
-                if (OciDownloadResponse != null && OciDownloadResponse.FileContent != null)
-                {
-                    var fileName = HttpUtility.UrlDecode(OciDownloadResponse.FileName);
-                    string safeFileName = Regex.Replace(fileName, @"[^\w\-.]", "_");
-                    var fileContent = OciDownloadResponse.FileContent;                    
-                    Response.Cookies.Append("fileDownload", "true", new CookieOptions
-                    {
-                        Path = "/",
-                        Expires = DateTimeOffset.Now.AddMinutes(1),
-                      
-                    });
-                    return File(fileContent, "application/octet-stream", safeFileName);
-                }
-                else
-                {
-                    string url = "http://localhost:8305/OCI_Service.aspx?downloadfile=0";
-                    return new RedirectResult(url);
-                }
-            }
-            catch (Exception ex)
-            {
-                var errorResponse = new
-                {
-                    Message = "An error occurred while downloading the file.",
-                    Error = ex.Message
-                };
-                return StatusCode(StatusCodes.Status500InternalServerError, new JsonResult(errorResponse));
-            }
-
-            var notFoundResponse = new
-            {
-                Message = "File not found."
-            };
-            return NotFound(new JsonResult(notFoundResponse));
-        }
-
-
+if (componentGroupId == 4) {//Shift Allowance
+    if (RoleId == 6 || RoleId == 20 || RoleId == 3) {
+        var flag = 0;
+        var len = $('#PM_tblShiftAllowance tbody tr td:nth-child(1),#PFSS_tblShiftAllowance tbody tr td:nth-child(1),#PFSS_tblITShiftAllowance tbody tr td:nth-child(1)').find(':checked').length;
+        $('#PM_tblShiftAllowance tbody tr td:nth-child(1) td input[type=checkbox],#PFSS_tblShiftAllowance tbody tr td:nth-child(1) td input[type=checkbox],#PFSS_tblITShiftAllowance tbody tr
+ if (flag == 0) {
+     var selected = '';
+     var txt = '';
+     $('#PM_tblShiftAllowance tbody tr td:nth-child(1),#PFSS_tblShiftAllowance tbody tr td:nth-child(1),#PFSS_tblITShiftAllowance tbody tr td:nth-child(1)').find(':checked').each(function (i) 

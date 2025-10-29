@@ -1,523 +1,264 @@
-    if (componentGroupId == 2) {
-    
-        if (CustomizeRB != '~1~2~3~4~5~6~7~8~9~10') {
-            var htmldata = '';
-            if (CheckedFlag == 1) {
-                htmldata += '<tr><th class="td1"><input type="checkbox" checked id="chkReferral" /></th>';
-            }
-            else {
-                htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
-            }
-            htmldata += ' <th id="Th5" class="sort td2" column="ReferrorAssociateID">Referrer ID </th>';
-            htmldata += ' <th class="sort td3" column="RefereeAssociateID">Referee ID </th>';
-            htmldata += ' <th class="sort td4" column="RefereeBGstatus">Referee  <br />BG status</th>';
-            htmldata += ' <th class="sort td5" column="Amount">Amount </th>';
-            htmldata += ' <th column="SpecialCaseReason" class="td6">Special Case <br />Reason</th>';
-            htmldata += ' <th column="SpecialCaseMail" class="td7">Special Case Mail</th>';
-            htmldata += ' <th class="sort td8" column="Status">Status</th>';
-            htmldata += ' <th column="Remarks" class="td9">Rejection/Resubmit Remarks </th>';
-            htmldata += ' <th class="sort td8" column="SetId">SetId </th>';
-            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
-
-            if (CustomizeRB.indexOf("~11~") > -1) {
-                htmldata += ' <th class="td3" column="UploaderID">Uploader ID</th>'
-            }
-            if (CustomizeRB.indexOf("~12~") > -1) {
-                htmldata += ' <th class="td9" column="RefereeDOJ">RefereeDOJ</th>'
-            }
-            htmldata += ' <th class="td10">View</th></tr>';
-
-            $('#tblReferral').find('thead').html('').html(htmldata);
-        }
-        else {
-            var htmldata = '';
-            if (CheckedFlag == 1) {
-                htmldata += '<tr><th class="td1"><input type="checkbox" checked id="chkReferral" /></th>';
-            }
-            else {
-                htmldata += '<tr><th class="td1"><input type="checkbox" id="chkReferral" /></th>';
-            }
-            htmldata += ' <th id="Th5" class="sort td2" column="ReferrorAssociateID">Referrer ID </th>';
-            htmldata += ' <th class="sort td3" column="RefereeAssociateID">Referee ID </th>';
-            htmldata += ' <th class="sort td4" column="RefereeBGstatus">Referee  <br />BG status</th>';
-            htmldata += ' <th class="sort td5" column="Amount">Amount </th>';
-            htmldata += ' <th column="SpecialCaseReason" class="td6">Special Case <br />Reason</th>';
-            htmldata += ' <th column="SpecialCaseMail" class="td7">Special Case Mail</th>';
-            htmldata += ' <th class="sort td8" column="Status">Status</th>';
-            htmldata += ' <th column="Remarks" class="td9">Rejection/Resubmit Remarks </th>';
-            htmldata += ' <th class="sort td8" column="SetId">SetId </th>';
-            htmldata += ' <th class="sort td8" column="ProjectId">ProjectId </th>';
-            htmldata += ' <th class="td10">View</th></tr>';
-
-            $('#tblReferral').find('thead').html('').html(htmldata);
-        }
-        $("#refDetails .refPage").css("display", "block");
-        if (msg.d.length > 0) {
-            var classname = '';
-            if (CustomizeRB != '~1~2~3~4~5~6~7~8~9~10') {
-                $.each(msg.d, function (i, data) {
-                    if ((i % 2) == 0) {
-                        classname = 'even';
-                    }
-                    else {
-                        classname = 'odd';
-                    }
-                    if (data.RejectionReason == null) {
-                        data.RejectionReason = "";
-                    }
-                    var rejectionRemarks = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
-                    var splreason = (data.RejectionReason.length > 30) ? data.SpecialCaseReason.substring(0, 30) + '...' : data.SpecialCaseReason;
-
-                    var SplCaseMailUploadId = data.SplCaseMailUploadId;
-                    var gridMailIdval = "";
-                    if (SplCaseMailUploadId == 0) {
-                        gridMailIdval = "<div></div>";
-                    }
-                    else {
-                        gridMailIdval = '<input type="button" style="cursor:pointer" id=' + data.SplCaseMailUploadId + ' class="mail_btn1" fileuploadid=' + data.SplCaseMailUploadId + '/>';
-                    }
-
-                    grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox"  class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
-                    grid_html += '<td class="td5">' + data.Amount + '</td>';
-                    grid_html += '<td class="td6" title="' + data.SpecialCaseReason + '">' + splreason + '</td><td class="Approvedtd4 td7">' + gridMailIdval + '</td><td class="td8">' + data.Status + '</td>';
-                    if (CheckedFlag == 1) {
-                        grid_html += '<td rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>';
-                    } else {
-                        grid_html += '<td rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9">' + rejectionRemarks + '</td>';
-                    }
-                    grid_html += '<td class="td8"> ' + data.SetId + '</td>';
-                    grid_html += '<td class="td8">' + data.ProjectId + '</td>'; 
-
-                    if (CustomizeRB.indexOf("~11~") > -1) {
-                        grid_html += '<td class="td3" style="text-align:center;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
-                    }
-                    if (CustomizeRB.indexOf("~12~") > -1) {
-                        grid_html += '<td class="td9" style="text-align:left;" RefereeDOJ="' + data.RefereeDOJ + '">' + data.RefereeDOJ + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
-                    }
-                    grid_html += '<td class="td10"><img class="view_details spriteImage" style="--x:-2061px;--y:-1112px;width:20px;height:16px" /></td></tr>';
-                });
-                $('#tblReferral').find('tbody').html('').html(grid_html);
-                $(document).on('click', '#chkReferral', function () {
-                    var isChecked = $(this).is(':checked');
-                $('input[type="checkbox"]').each(function () {
-                    var checkboxId = $(this).attr('id');
-                    if ($.isNumeric(checkboxId)) {
-                        $(this).prop('checked', isChecked);
-                    }
-                });
-            });
-
-            $('#headerCheckbox').off('click').on('click', function () {
-                var isChecked = $(this).is(':checked');
-                $('.referralvalid').prop('checked', isChecked);
-
-                $('#tblReferral tbody tr').each(function () {
-                    var rejCell = $(this).find('td.td9');
-                    var val = rejCell.attr('rejreason') || '';
-                    if (isChecked) {
-                        rejCell.html('<input type="text" class="txtbx_td txt" value="' + val + '"/>');
-                    } else {
-                        var shortVal = (val.length > 30) ? val.substring(0, 30) + '...' : val;
-                        rejCell.text(shortVal);
-                    }
-                });
-            });
-                
-            }
-            else {
-                $.each(msg.d, function (i, data) {
-                    if ((i % 2) == 0) {
-                        classname = 'even';
-                    }
-                    else {
-                        classname = 'odd';
-                    }
-                    if (data.RejectionReason == null) {
-                        data.RejectionReason = "";
-                    }
-                    var rejectionRemarks = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
-                    var splreason = (data.RejectionReason.length > 30) ? data.SpecialCaseReason.substring(0, 30) + '...' : data.SpecialCaseReason;
-
-                    var SplCaseMailUploadId = data.SplCaseMailUploadId;
-                    var gridMailIdval = "";
-                    if (SplCaseMailUploadId == 0) {
-                        gridMailIdval = "<div></div>";
-                    }
-                    else {
-                        gridMailIdval = '<input type="button" style="cursor:pointer" id=' + data.SplCaseMailUploadId + ' class="mail_btn1" fileuploadid=' + data.SplCaseMailUploadId + '/>';
-                    }
-                    if (CheckedFlag == 1) {
-                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox" checked class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
-                    }
-                    else {
-                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ReferralBonusID + ' status=' + data.Status + '><td class="td1"><input type="checkbox" class="referralvalid" id=' + (i + 1) + ' /></td><td class="ref td2">' + data.ReferrorAssociateID + '</td><td class="td3">' + data.RefereeAssociateID + '</td><td class="td4">' + data.RefereeBGstatus + '</td>';
-                    }
-                    grid_html += '<td class="td5">' + data.Amount + '</td>';
-                    grid_html += '<td class="td6" title="' + data.SpecialCaseReason + '">' + splreason + '</td><td class="Approvedtd4 td7">' + gridMailIdval + '</td><td class="td8">' + data.Status + '</td>';
-                    if (CheckedFlag == 1) {
-                        grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>';
-                        $('#tblReferral tbody tr,#tblReferral tbody tr,#tblReferral tbody tr').each(function (i) {
-                            if (($(this).find('td:nth-child(9) input').val()) == undefined) {
-                                var val = $(this).find('td:nth-child(9)').attr('rejreason');
-                                var off = $(this).offset();
-                                if (val == '') {
-                                    $('.error_msg_remarks').show();
-                                    $(this).find('td:nth-child(9)').append('<input type="text" class="txtbx_td txt" />')
-                                    $('.error_msg_remarks').css({ 'top': off.top + 15, 'left': off.left + 909 })
-                                }
-                                else {
-                                    $(this).find('td:nth-child(10)').text('');
-                                    $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />');
-                                    $(this).find('td:nth-child(10) input').val(val);
-                                }
-                            }
-                        })
-                    }
-                    else {
-                        grid_html += '<td  rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '" style="text-align:left;" class="td9">' + rejectionRemarks + '</td>';
-                    }
-                    grid_html += '<td class="td8">' + data.SetId + '</td ><td class="td8">' + data.ProjectId + '</td><td class="td10"><img class="view_details spriteImage" style="--x:-2061px;--y:-1112px;width:20px;height:16px" /></td></tr> ';
-
-                 
-
-                });
-                $('#tblReferral').find('tbody').html('').html(grid_html);
-              
-            }
-        }
-        else {
-            $("#tblReferral").append("<tr class='even' id='NoData'><td colspan='12' class='text-center'>No data available</td></tr>");
-            $(".dataTableScroll .scrollbar").hide();
-
-        }
-    }
+USE [OneC_SPay]
+GO
+/****** Object:  StoredProcedure [dbo].[usp_GetUploaderFilterData]    Script Date: 28-10-2025 23:51:28 ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+-- ================================================================================================================
+-- AUTHOR     : TEAM
+-- CREATE DATE: JULY 20, 2020    
+-- DESCRIPTION: Added the documentation for the stored procedure
+-- ================================================================================================================
+ALTER PROCEDURE [dbo].[usp_GetUploaderFilterData]   
+(@COMPONENTGROUPID INT=NULL,
+@RoleID INT=NULL,
+@CountryID int= null
+)
+/******************************************************************
+This User-defined Stored Procedure
+used in SPAY  to allow 
+faster execution and reduce network traffic.
+****************************************************************/
+AS
+SET NOCOUNT ON
+BEGIN
+BEGIN TRY
 
 
----------------********____________
+IF(@COMPONENTGROUPID=5)
+BEGIN
+	SELECT @RoleID=7 WHERE @RoleID in (7,9) 
+	Select @RoleID=3 where @RoleID in (3,8)
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined2 =@RoleID or CUserDefined3=@RoleID) 
+	group by CUserDefined1,CDescription
+END
 
-if (componentGroupId == 4) {//shift allowance
+ELSE IF(@COMPONENTGROUPID=2 and @CountryID in (2,18,19)) 
+BEGIN
 
-        if (RoleId == 6 || RoleId == 20) {
-            var htmldata = '';
-            if (CheckedFlag ==1) {
-                htmldata += '<tr><th class="std1"><input type="checkbox" checked class="svalid" /></th>';
-            }
-            else { 
-                htmldata += '<tr><th class="std1"><input type="checkbox" class="svalid" /></th>';
-            }
-            htmldata += ' <th class="sort std2" column="AssociateID">Associate ID </th>';
-            htmldata += ' <th class="sort std3" column="Allowance">Allowance</th>';
-            htmldata += ' <th class="sort std4" column="ShiftTypeName">Shift</th>';
-            htmldata += ' <th class="sort std5" column="StartDate">Start Date</th>';
-            htmldata += ' <th class="sort std8" column="EndDate">End Date</th>';
-            htmldata += ' <th class="sort std6" column="StartTime">Start Time</th>';
-            htmldata += ' <th class="sort std6" column="EndTime">End Time</th>';
-            htmldata += ' <th class="sort std6" column="HCMSchedule">HCM Shift</th>';
-            htmldata += ' <th class="std11">Reject Reason</th>';
-            htmldata += ' <th class="sort std10" column="Status">Status</th></tr>';
-            $('#PM_tblShiftAllowance').find('thead').html('').html(htmldata);
-        }
-        else {
-            if (CustomizeSA != '~1~2~3~5~6~7~8~10~12') {
-                var htmldata = '';
-                if (CheckedFlag == 1) {
-                    htmldata += '<tr><th class="std1"><input type="checkbox" checked class="svalid" /></th>';
-                        }
-                else {
-                    htmldata += '<tr><th class="std1"><input type="checkbox" class="svalid" /></th>';
-                }
-                htmldata += ' <th class="sort std2" column="AssociateID">Associate ID </th>';
-                htmldata += ' <th class="sort std3" column="Allowance">Allowance</th>';
-                htmldata += ' <th class="sort std4" column="ShiftTypeName">Shift</th>';
-                htmldata += ' <th class="sort std5" column="StartDate">Start Date</th>';
-                htmldata += ' <th class="sort std8" column="EndDate">End Date</th>';
-                htmldata += ' <th class="sort std6" column="StartTime">Start Time</th>';
-                htmldata += ' <th class="sort std6" column="EndTime">End Time</th>';
-                htmldata += ' <th class="sort std6" column="HCMSchedule">HCM Shift</th>';
-                htmldata += ' <th class="std11">Reject Reason</th>';
-                if (CustomizeSA.indexOf("~4~") > -1) {
-                    htmldata += ' <th class="std2" column="ProjectID">Project ID</th>'
-                }
-                if (CustomizeSA.indexOf("~9~") > -1) {
-                    htmldata += ' <th class="std2" column="Amount">Amount</th>'
-                }
-                if (CustomizeSA.indexOf("~11~") > -1) {
-                    htmldata += ' <th class="std2" column="UploaderID">UploaderID</th>'
-                }
-                htmldata += ' <th class="sort std10" column="Status">Status</th></tr>';
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+	WHERE CParentRef=8 AND CCodeId=2 AND RowStatus=1 
+	and (CUserDefined1=1 or CUserDefined2 =1 or CUserDefined3=1) 
+	and CUserDefined3 not in  ('20')
+	group by CUserDefined1,CDescription
+END
 
-                $('#PFSS_tblShiftAllowance').find('thead').html('').html(htmldata);
-            }
-            else {
-                var htmldata = '';
-                if (CheckedFlag == 1) {
-                    htmldata += '<tr><th class="std1"><input type="checkbox" checked class="svalid" /></th>';
-                }
-                else {
-                    htmldata += '<tr><th class="std1"><input type="checkbox" class="svalid" /></th>';
-                }
-               
-                htmldata += ' <th class="sort std2" column="AssociateID">Associate ID </th>';
-                htmldata += ' <th class="sort std3" column="Allowance">Allowance</th>';
-                htmldata += ' <th class="sort std4" column="ShiftTypeName">Shift</th>';
-                htmldata += ' <th class="sort std5" column="StartDate">Start Date</th>';
-                htmldata += ' <th class="sort std8" column="EndDate">End Date</th>';
-                htmldata += ' <th class="sort std6" column="StartTime">Start Time</th>';
-                htmldata += ' <th class="sort std6" column="EndTime">End Time</th>';
-                htmldata += ' <th class="sort std6" column="HCMSchedule">HCM Shift</th>';
-                htmldata += ' <th class="std11">Reject Reason</th>';
-                htmldata += ' <th class="sort std10" column="Status">Status</th></tr>';
-                $('#PFSS_tblShiftAllowance').find('thead').html('').html(htmldata);
-            }
-        }
-        $("#NoData").remove();
+Else if ((@COMPONENTGROUPID in (1,2,3) and @CountryID not in (20)) and @RoleID in (1,18))
+BEGIN
+	SELECT @RoleID=1 WHERE @RoleID =18
 
-        if (RoleId == 6 || RoleId == 20) {
-            if (msg.d.length > 0) {
-                var classname = '';
-                $.each(msg.d, function (i, data) {
-                    if ((i % 2) == 0) {
-                        classname = 'even';
-                    }
-                    else {
-                        classname = 'odd';
-                    }
-                    var remarks = '';
-                    if (data.Remarks != null) {
-                        remarks = (data.Remarks.length > 20) ? data.Remarks.substring(0, 20) + '...' : data.Remarks;
-                    }
-                    var rejReason = '';
-                    if (data.RejectionReason != null) {
-                        rejReason = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
-                    }
-                    if (data.Allowance.includes('Night') || $('#bonus').val().includes('Night')) { 
+	IF(@COMPONENTGROUPID=2)
+	BEGIN
+		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+		WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+		and CUserDefined4=18
+		group by CUserDefined1,CDescription
+	END
+END
 
-                        data.StartTime = '';
-                        data.EndTime = '';
-                        data.HCMSchedule = '';
-                    }
-                    var Allowance = (data.Allowance.length > 15) ? data.Allowance.substring(0, 15) + '...' : data.Allowance;
-                    const AprStatuscode_forHM = [12,15];
-                    const AprStatuscode_PM = [12];
-                    grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
-                    if (CheckedFlag == 1) {
-                        if (AprStatuscode_forHM.includes(data.StatusCode) && RoleId == 20) {
-                            grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled = "true"/></td >';
-                        }
-                        else if (AprStatuscode_PM.includes(data.StatusCode) && RoleId == 6) {
-                            grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled = "true"/></td >';
-                        } else {
-                            grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" checked id=' + (i + 1) + ' /></td >';
-                        }
-                    }
-                    else {
-                        if (AprStatuscode_forHM.includes(data.StatusCode) && RoleId == 20) {
-                            grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled = "true"/></td >';
-                        }
-                        else if (AprStatuscode_PM.includes(data.StatusCode) && RoleId == 6) {
-                            grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled = "true"/></td >';
-                        }
-                        else {
-                            grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td >';
-                        } 
-                    }
-                    grid_html += '<td class="ref std2">' + data.AssociateID + '</td>';
-                    grid_html += '<td style="text-align:left;" class="std3" title="' + data.Allowance + '">' + Allowance + '</td>';
-                    grid_html += '<td style="text-align:left;" class="std4">' + data.ShiftTypeName + '</td>';
-                    grid_html += '<td style="text-align:center;" class="std5">' + data.StartDate + '</td>';
-                    grid_html += '<td class="std8">' + data.EndDate + '</td>';
-                    grid_html += '<td style="text-align:center;" class="std6">' + data.StartTime + '</td>';
-                    grid_html += '<td class="std7">' + data.EndTime + '</td>';
-                    grid_html += '<td class="std8">' + data.HCMSchedule + '</td>';            
-                    var rejectionRemarks = (data.RejectionReason && data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : (data.RejectionReason || '');
-                    if (AprStatuscode_forHM.includes(data.StatusCode) && RoleId == 20) {
-                        grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejectionRemarks + '</td>';
-                    }else if (AprStatuscode_PM.includes(data.StatusCode) && RoleId == 6) {
-                        grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejectionRemarks + '</td>';
-                    } else {
-                        grid_html += '<td style="text-align:left;" class="std11 td9" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejectionRemarks + '</td>';
-                    }                  grid_html += '<td class="std10"> ' + data.Status + '</td > </tr > ';                              });
-                               $('#PM_tblShiftAllowance').find('tbody').html('').html(grid_html);
-               
+Else if (@COMPONENTGROUPID in (4,98,100))---VNM NSA
+BEGIN
+	SELECT @RoleID=1 WHERE @RoleID =6
+END
 
-                var heightdiff = 0;
+ELSE IF(@COMPONENTGROUPID in (7,8,9,10,11))
+BEGIN
+	SELECT @RoleID=10 WHERE @RoleID =3
+END
 
-                heightdiff = $("#pm .viewport")[0].scrollHeight - $("#pm .viewport").height();
+ELSE IF(@COMPONENTGROUPID in (12))
+BEGIN
+	SELECT @RoleID=12 WHERE @RoleID =6
+END
 
+ELSE IF(@COMPONENTGROUPID in (43,44))
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID or CUserDefined3=@RoleID) 
+	group by CUserDefined1,CDescription
+END
 
-                if (heightdiff > 0) {
-                    $(".dataTableScroll .scrollbar").css("display", "block");
-                }
-                else {
-                    $(".dataTableScroll .scrollbar").css("display", "none");
-                }
+ELSE IF(@COMPONENTGROUPID=0)
+BEGIN
+	if (@Roleid=3 or @Roleid=2 or @Roleid=1)
+	BEGIN
+		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+		WHERE CParentRef=8 AND CCodeId=5 AND RowStatus=1 
+		and (CUserDefined2=@Roleid or CUserDefined3=@Roleid or Cuserdefined4=@Roleid) 
+		and CParentId=3
+	END
+	Else if (@Roleid=16)
+	BEGIN
+		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+		WHERE CParentRef=8 AND RowStatus=1 
+		and (CUserDefined2=@RoleID and CUserDefined3=@RoleID)
+	END
+	ELSE if (@Roleid in(7,9,8))
+	BEGIN
+		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+		WHERE CParentRef=8 AND CCodeId=5 AND RowStatus=1 
+		and (CUserDefined4=7)
+	END
+END
 
-                $('.dataTableScroll').tinyscrollbar({ sizethumb: 22 });
-                $(".dataTableScroll .scrollbar").hide();
-            }
-            else {
+ELSE if (@Roleid in(7,9))
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+	WHERE CParentRef=8 AND CCodeId=5 AND RowStatus=1 
+	and (CUserDefined4=7)
+END
 
-                $(".refPage").css('margin-top', '12px');
-                $("#middheight").css('height', '480px');
-                $("#PM_tblShiftAllowance").append("<tr class='even' id='NoData'><td colspan='11' class='text-center'>No data available</td></tr>");
+ELSE if ((@Roleid in(19,20,21,3)) and @CountryID=3)
+BEGIN
+	if (@COMPONENTGROUPID in(39,22)) 
+	BEGIN
+		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+		WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+		and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID or CUserDefined3=@RoleID 
+		or CUserDefined4=@RoleID) and CUserDefined4=@CountryID
+		group by CUserDefined1,CDescription
+	END 
+	ELSE
+	BEGIN
+		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+		WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+		and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID)
+		group by CUserDefined1,CDescription
+	END
+END
 
-                $(".dataTableScroll .scrollbar").hide();
+ELSE if ((@Roleid=19 OR @Roleid=20 OR @Roleid=21 or @Roleid=3) and @CountryID<>3 
+and (@COMPONENTGROUPID=2 and @CountryID <>20))
+BEGIN
 
-            }
-        }
-        else {
-            if (CustomizeSA != '~1~2~3~5~6~7~8~10~12') {
-                if (msg.d.length > 0) {
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 and Cuserdefined5=7
+	and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID 
+	or CUserDefined4=@RoleID)
+	group by CUserDefined1,CDescription
 
-                    var classname = '';
-                    $.each(msg.d, function (i, data) {
-                        if ((i % 2) == 0) {
-                            classname = 'even';
-                        }
-                        else {
-                            classname = 'odd';
-                        }
-                        var remarks = '';
-                        if (data.Remarks != null) {
-                            remarks = (data.Remarks.length > 20) ? data.Remarks.substring(0, 20) + '...' : data.Remarks;
-                        }
-                        var rejReason = '';
-                        if (data.RejectionReason != null) {
-                            rejReason = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
-                        }
+END
 
-                        var Allowance = (data.Allowance.length > 20) ? data.Allowance.substring(0, 20) + '...' : data.Allowance;
+ELSE if ((@COMPONENTGROUPID=2 and @CountryID=20 and (@Roleid=3 or @Roleid=1)))
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 and Cuserdefined5=20
+	and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID)
+	group by CUserDefined1,CDescription
 
-                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
-                        grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td >';
-                        grid_html += '<td class="ref std2">' + data.AssociateID + '</td>';
-                        grid_html += '<td style="text-align:left;" class="std3" title="' + data.Allowance + '">' + Allowance + '</td><td style="text-align:left;" class="std4">' + data.ShiftTypeName + '</td>';
-                        grid_html += '<td style="text-align:center;" class="std5">' + data.StartDate + '</td><td class="std8">' + data.EndDate + '</td>';
-                        grid_html += '<td style="text-align:center;" class="std11">' + data.StartTime + '</td><td class="std11">' + data.EndTime + '</td><td class="std8">' + data.HCMSchedule + '</td>';
-                        if (CheckedFlag == 1) {
-                            grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + (data.RejectionReason || '') + '"/></td>';
-                        }
-                        else {
+END
 
-                            grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejReason + '</td>';
+ELSE if (@COMPONENTGROUPID=17 )
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined2=@RoleID or CUserDefined3 =@RoleID)
+	group by CUserDefined1,CDescription
+END
 
-                        }
-                        if (CustomizeSA.indexOf("~4~") > -1) {
-                            grid_html += '<td class="std2" style="text-align:center;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';
-                        }
-                        if (CustomizeSA.indexOf("~9~") > -1) {
-                            grid_html += '<td class="std2" style="text-align:center;" Amount="' + data.Amount + '">' + data.Amount + '</td>';
-                        }
-                        if (CustomizeSA.indexOf("~11~") > -1) {
-                            grid_html += '<td class="std2" style="text-align:center;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';
-                        }
-                        grid_html += '<td>' + data.Status + '</td>';
+ELSE if (@COMPONENTGROUPID=18 and @CountryID <>2)
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined1=@RoleID  or CUserDefined2=@RoleID or CUserDefined3 =@RoleID 
+	or CUserDefined4=@RoleID)and Cuserdefined5 is not null
+	group by CUserDefined1,CDescription
+	
+END
 
-                        if (CheckedFlag == 1) {
-                            $('#PFSS_tblShiftAllowance tbody tr,#PFSS_tblShiftAllowance tbody tr,#PFSS_tblShiftAllowance tbody tr').each(function (i) {
-                                if (($(this).find('td:nth-child(10) input').val()) == undefined) {
-                                    var val = $(this).find('td:nth-child(10)').attr('rejreason');
-                                    var off = $(this).offset();
-                                    if (val == '') {
-                                        $('.error_msg_remarks').show();
-                                        $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />')
-                                        $('.error_msg_remarks').css({ 'top': off.top + 15, 'left': off.left + 909 })
-                                    }
-                                    else {
-                                        $(this).find('td:nth-child(10)').text('');
-                                        $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />');
-                                        $(this).find('td:nth-child(10) input').val(val);
-                                    }
-                                }
-                            })
-                        }
-                    
-                    });
+ELSE if (@COMPONENTGROUPID=18 and @CountryID =2)
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined2=@RoleID or CUserDefined3 =@RoleID)and Cuserdefined5 is null
+	group by CUserDefined1,CDescription
+END
 
-                    $('#PFSS_tblShiftAllowance').find('tbody').html('').html(grid_html);
-                  
-                }
-                else {
+ELSE if (@COMPONENTGROUPID=25 or @COMPONENTGROUPID=42 or @COMPONENTGROUPID=26 
+or @COMPONENTGROUPID=27  )
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID)
+	and Cuserdefined3=@CountryID
+	group by CUserDefined1,CDescription
+END
 
-                    $(".refPage").css('margin-top', '12px');
-                    $("#middheight").css('height', '480px');
-                    $("#PFSS_tblShiftAllowance").append("<tr class='even' id='NoData'><td colspan='10' class='text-center'>No data available</td></tr>");
+ELSE IF(@COMPONENTGROUPID=89 and @CountryID =20) 
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined1=@RoleID or CUserDefined3 =@RoleID ) and CUserDefined4=20
+	group by CUserDefined1,CDescription
+END
 
-                    $(".dataTableScroll .scrollbar").hide();
+ELSE IF(@COMPONENTGROUPID=48 and @CountryID = 16) 
+BEGIN
+SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
+WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID or CUserDefined3=@RoleID) 
+	and CUserDefined4=16
+	group by CUserDefined1,CDescription
+END
 
-                }
-            }
-            else {
-                if (msg.d.length > 0) {
-                    $("#shiftDetails .refPage").css("display", "block");
+ELSE if ((@Roleid=3 OR @Roleid=20 ) AND @COMPONENTGROUPID =22 AND @CountryID NOT IN (8,9))
+BEGIN
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID)
+	group by CUserDefined1,CDescription
+
+END
+ELSE if (@COMPONENTGROUPID IN (22,101,39)  AND @CountryID IN(8,9))
+BEGIN
+	IF(@RoleID IN (3,20,6))
+	BEGIN
+		Select CUserDefined1,CDescription  From MasterCodes 
+		where CParentRef=8 and CCodeId = @COMPONENTGROUPID and CUserDefined5 is not null and RowStatus =1
+		group by CUserDefined1,CDescription
+	END
+	ELSE IF(@RoleID = 19)
+	BEGIN
+		Select CUserDefined1,CDescription  From MasterCodes 
+		where CParentRef=8 and CCodeId = @COMPONENTGROUPID and CUserDefined5=7 and RowStatus =1
+		group by CUserDefined1,CDescription
+	END
+	
+
+END
+
+ELSE if ((@Roleid=19 OR @Roleid=20 or @Roleid=3) and @COMPONENTGROUPID=39 AND @CountryID NOT IN (8,9))
+BEGIN
+
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 and Cuserdefined5=7
+	and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID)
+	group by CUserDefined1,CDescription
+
+END
+ELSE if (@COMPONENTGROUPID in(102,103,104,105) and @Roleid in(6,23))
+BEGIN
+SELECT @RoleID=6 WHERE @RoleID =23
+END
+	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
+	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
+	and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID or CUserDefined3=@RoleID) 
+	group by CUserDefined1,CDescription
 
 
-                    var classname = '';
-                    $.each(msg.d, function (i, data) {
-                        if ((i % 2) == 0) {
-                            classname = 'even';
-                        }
-                        else {
-                            classname = 'odd';
-                        }
-                        var remarks = '';
-                        if (data.Remarks != null) {
-                            remarks = (data.Remarks.length > 20) ? data.Remarks.substring(0, 20) + '...' : data.Remarks;
-                        }
-                        var rejReason = '';
-                        if (data.RejectionReason != null) {
-                            rejReason = (data.RejectionReason.length > 30) ? data.RejectionReason.substring(0, 30) + '...' : data.RejectionReason;
-                        }
-                        
-                        var Allowance = (data.Allowance.length > 20) ? data.Allowance.substring(0, 20) + '...' : data.Allowance;
-                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
-                        if (CheckedFlag == 1) {
-                            grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" checked id=' + (i + 1) + ' /></td >';
-                        }
-                        else {
-                            grid_html += '<td class="std1" > <input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td >';
-                        }
-                        grid_html += '<td class="ref std2">' + data.AssociateID + '</td><td style="text-align:left;" class="std3" title="' + data.Allowance + '">' + Allowance + '</td><td style="text-align:left;" class="std4">' + data.ShiftTypeName + '</td>';
-                        grid_html += '<td style="text-align:center;" class="std5">' + data.StartDate + '</td><td class="std8">' + data.EndDate + '</td>';
-                        grid_html += '<td style="text-align:center;" class="std11">' + data.StartTime + '</td><td class="std11">' + data.EndTime + '</td><td class="std8">' + data.HCMSchedule + '</td>';
-                        if (CheckedFlag == 1) {
-                            grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '"><input type="text" class="txtbx_td txt" value="' + data.RejectionReason + '"/></td>' + '<td class="std10">' + data.Status + '</td></tr>';
-                            $('#PM_tblShiftAllowance tbody tr,#PFSS_tblShiftAllowance tbody tr,#PFSS_tblITShiftAllowance tbody tr').each(function (i) {
-                                if (($(this).find('td:nth-child(10) input').val()) == undefined) {
-                                    var val = $(this).find('td:nth-child(10)').attr('rejreason');
-                                    var off = $(this).offset();
-                                    if (val == '') {
-                                        $('.error_msg_remarks').show();
-                                        $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />')
-                                        $('.error_msg_remarks').css({ 'top': off.top + 15, 'left': off.left + 909 })
-                                    }
-                                    else {
-                                        $(this).find('td:nth-child(10)').text('');
-                                        $(this).find('td:nth-child(10)').append('<input type="text" class="txtbx_td txt" />');
-                                        $(this).find('td:nth-child(10) input').val(val);
-                                    }
-                                }
-                            })
-                        }
-                        else {
-                            grid_html += '<td style="text-align:left;" class="std11" rejreason="' + data.RejectionReason + '" title="' + data.RejectionReason + '">' + rejReason + '<td class="std10">' + data.Status + '</td></tr>';
-                        }
-                       
-                    });
 
-                    $('#PFSS_tblShiftAllowance').find('tbody').html('').html(grid_html);
 
-               
-                }
-                else {
-
-                    $(".refPage").css('margin-top', '12px');
-                    $("#middheight").css('height', '480px');
-                    $("#PFSS_tblShiftAllowance").append("<tr class='even' id='NoData'><td colspan='10' class='text-center'>No data available</td></tr>");
-
-                    $(".dataTableScroll .scrollbar").hide();
-
-                }
-            }
-        }
-    }
+ END TRY
+ BEGIN CATCH
+ SELECT @@ERROR
+ END CATCH 
+END
+/******************************************************************
+This User-defined Stored Procedure
+used in SPAY  to allow 
+faster execution and reduce network traffic.
+****************************************************************/

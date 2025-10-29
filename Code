@@ -1,264 +1,186 @@
 USE [OneC_SPay]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_GetUploaderFilterData]    Script Date: 28-10-2025 23:51:28 ******/
+/****** Object:  StoredProcedure [dbo].[usp_NLD_MoveExpToValidUploaderData]    Script Date: 29-10-2025 16:51:04 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
--- ================================================================================================================
+-- ======================================================================================================================       
 -- AUTHOR     : TEAM
 -- CREATE DATE: JULY 20, 2020    
 -- DESCRIPTION: Added the documentation for the stored procedure
--- ================================================================================================================
-ALTER PROCEDURE [dbo].[usp_GetUploaderFilterData]   
-(@COMPONENTGROUPID INT=NULL,
-@RoleID INT=NULL,
-@CountryID int= null
-)
-/******************************************************************
-This User-defined Stored Procedure
-used in SPAY  to allow 
-faster execution and reduce network traffic.
-****************************************************************/
-AS
-SET NOCOUNT ON
-BEGIN
-BEGIN TRY
+-- ====================================================================================================================== 
+ALTER PROCEDURE [dbo].[usp_NLD_MoveExpToValidUploaderData]  
+(  
+ @KeyId INT,    
+ @ComponentId INT=NULL,
+ @ComponentGrpID INT=NULL,    
+ @LoginId VARCHAR(10),
+ @Amount varchar(10)= NULL,
+ @Amount1 varchar(10)= NULL,
+ @Distance varchar(10),
+ @BeneficiaryAmount varchar(10)= NULL,
+ @PayoutType varchar(100)=NULL,
+ @ProjectId varchar(20)=null,	
+ @StartDate varchar(15)=null,
+ @EndDate varchar(15)=null,
+ @EffectiveDate varchar(15)=null,
+ @StartTime VARCHAR(5),
+ @EndTime VARCHAR(5),
+ @AccountID INT=null,
+ @SpecialCaseReason varchar(100)=NULL,
+ @MailUploadId VARCHAR(50)=null,
+ @CountryId INT=NULL,
+ @Frequency varchar(50)=NULL,
+ @InputRemarks varchar(50)=NULL,
+ @CurrencyCode varchar(50)=NULL,
+ @TotalHours int =NULL,
+ @DayType int=null,
+ @AdvisedMonth varchar(100)=NULL,
+ @Year varchar(20)=NULL
+
+)  
+AS  
+SET NOCOUNT ON  
+BEGIN TRANSACTION;  
+BEGIN TRY   
+
+--Declare @ComponentCountryMappingId
+declare @ComponentCountryMappingId int
+
+	select @ComponentCountryMappingId=CCM.PK_ComponentCountryMappingID 
+	from COMPONENTCOUNTRYMAPPING CCM 
+		INNER JOIN COMPONENTMASTER CM ON CM.PK_COMPONENTID=CCM.FK_COMPONENTID
+		INNER JOIN ComponentGroupMaster CGM WITH (NOLOCK) 
+		ON CGM.PK_ComponentGroupID=CM.FK_ComponentGroupID 
+		where CGM.PK_ComponentGroupID=@ComponentGrpID
+		and CCM.FK_componentcountryid=@CountryId
+
+		--In City Allowance
+ IF(@ComponentGrpID=28)
+  BEGIN         
+      EXEC [dbo].[usp_APAC_InCity_MoveExpToValidUploaderData] @KeyId,@ComponentGrpID,
+	  @StartDate,@EndDate,@LoginId,@CountryId,@ComponentCountryMappingId    
+  END 
+
+  --Sign On Bonus
+ IF(@ComponentGrpID=29)
+  BEGIN         
+      EXEC [dbo].[usp_NLDSignOnBonus_MoveExpToValidUploaderData] @KeyId,@ComponentGrpID,
+	  @Amount,@PayoutType,@LoginId,@CountryId,@ComponentCountryMappingId    
+  END 
+
+  --Retention Bonus
+   IF(@ComponentGrpID=49) 
+  BEGIN         
+      EXEC [dbo].[usp_RetentionBonus_MoveExpToValidUploaderData] @KeyId,@ComponentGrpID,
+	  @Amount,@PayoutType,@LoginId,@CountryId,@ComponentCountryMappingId    
+  END 
+
+  --Relocation Allowance
+ IF(@ComponentGrpID=30)
+  BEGIN       
+      EXEC [dbo].[usp_NLDRelocation_MoveExpToValidUploaderData] @KeyId,@ComponentGrpID,
+	  @PayoutType,@SpecialCaseReason,@MailUploadId,@Amount1,@LoginId,@CountryId
+  END 
+
+  --Transition Allowance
+IF(@ComponentGrpID=34)
+  BEGIN       
+      EXEC [dbo].[usp_NLDTransition_MoveExpToValidUploaderData] @KeyId,@ComponentGrpID,
+	  @PayoutType,@LoginId,@CountryId
+  END 
+
+  --Honorarium
+IF(@ComponentGrpID=35)
+  BEGIN       
+      EXEC [dbo].[usp_NLDHonorarium_MoveExpToValidUploaderData] @KeyId,@ComponentGrpID,
+	  @PayoutType,@Amount,@ProjectId,@LoginId,@CountryId
+  END 
+
+  --Net Travel  Allowance
+IF(@ComponentGrpID=31)
+   BEGIN    
+    EXEC [dbo].[usp_NLDNetTravel_MoveExpToValidUploaderData]  @keyId,@ComponentGrpID,
+	@Amount,@StartDate,@EffectiveDate,@LoginId,@MailUploadId,@PayoutType,
+	@ComponentCountryMappingId
+   END  
+IF(@ComponentGrpID=32)
+   BEGIN    
+    EXEC [dbo].[usp_NLDCommutingAllowance_MoveExpToValidUploaderData]  @keyId,@ComponentGrpID,
+	@Distance,@StartDate,@EffectiveDate,@LoginId,@MailUploadId,@PayoutType,
+	@SpecialCaseReason,@CountryId,@ComponentCountryMappingId
+   END  
+        
+	--On Call Allowance
+IF(@ComponentGrpID=39 OR @ComponentGrpID=22)
+   BEGIN    
+    EXEC [dbo].[usp_NLD_OT_MoveExpToValidUploaderData] @KeyId,@ComponentGrpID,@StartDate,@EndDate,
+	@LoginId,@MailUploadId,@TotalHours,@DayType,@ComponentCountryMappingId
+   END  
+
+IF(@ComponentGrpID=36 OR @ComponentGrpID=37)
+   BEGIN    
+    EXEC [dbo].[usp_NLDInsurance_MoveExpToValidUploaderData]  @keyId,@ComponentGrpID,@Amount,
+	@StartDate,@EffectiveDate,@BeneficiaryAmount,@LoginId,@ComponentCountryMappingId,
+	@SpecialCaseReason,@MailUploadId
+   END  
+
+   --Car Damage & Traffic Fine
+ IF(@ComponentGrpID=38)
+  BEGIN         
+      EXEC [dbo].[usp_NLDCarDamageAndTrafficFine_MoveExpToValidUploaderData] @KeyId,@ComponentGrpID,
+	  @Amount,@MailUploadId,@PayoutType,@LoginId,@CountryId,@ComponentCountryMappingId    
+  END 
 
 
-IF(@COMPONENTGROUPID=5)
+IF(@ComponentGrpID=33 )
+   BEGIN    
+    EXEC [dbo].[usp_NLDRewardsAndRegonition_MoveExpToValidUploaderData] @keyId,@ComponentGrpID,
+	@AdvisedMonth,@Year,@Amount,@PayoutType,@Frequency,@CurrencyCode,@InputRemarks,@LoginId,
+	@CountryId,@ComponentCountryMappingId,@MailUploadId
+   END  
+ 
+ --Benefits
+ IF(@ComponentGrpID=46)
+   BEGIN    
+   EXEC [dbo].[usp_NordicsBenefits_MoveExpToValidUploaderData]@KeyId,@ComponentGrpID,@Amount,
+   @PayoutType,@LoginId,@CountryId,@ComponentCountryMappingId,@MailUploadId
+   END  
+ 
+ --Miscellaneous Inputs
+IF(@ComponentGrpID=50)
 BEGIN
-	SELECT @RoleID=7 WHERE @RoleID in (7,9) 
-	Select @RoleID=3 where @RoleID in (3,8)
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined2 =@RoleID or CUserDefined3=@RoleID) 
-	group by CUserDefined1,CDescription
+EXEC [dbo].[usp_CEMiscellaneousInputs_MoveExpToValidUploaderData] @keyId,@ComponentGrpID,
+@AdvisedMonth,@Year,@Amount,@PayoutType,@CurrencyCode,@InputRemarks,@LoginId,
+@CountryId,@ComponentCountryMappingId
 END
 
-ELSE IF(@COMPONENTGROUPID=2 and @CountryID in (2,18,19)) 
-BEGIN
+ COMMIT TRANSACTION;  
+END TRY  
+BEGIN CATCH  
+  
+ROLLBACK TRANSACTION;  
+   	      DECLARE @ERROR_ID  VARCHAR(8000)    
+          DECLARE @ERROR_MSG  VARCHAR(8000)        
+          DECLARE @ERROR_SEVERITY  VARCHAR(8000)    
+          DECLARE @ERROR_STATE  VARCHAR(100)        
+          DECLARE @ERROR_PROCEDURE  VARCHAR(8000)    
+          DECLARE @ERROR_LINE  VARCHAR(8000)    
 
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-	WHERE CParentRef=8 AND CCodeId=2 AND RowStatus=1 
-	and (CUserDefined1=1 or CUserDefined2 =1 or CUserDefined3=1) 
-	and CUserDefined3 not in  ('20')
-	group by CUserDefined1,CDescription
-END
+          SELECT    
+          @ERROR_ID= ERROR_NUMBER(),    
+          @ERROR_MSG= ERROR_MESSAGE(),    
+          @ERROR_SEVERITY=ERROR_SEVERITY(),    
+          @ERROR_STATE=ERROR_STATE(),    
+          @ERROR_PROCEDURE='[dbo].[usp_SGP_MoveExpToValidUploaderData]',    
+          @ERROR_LINE = ERROR_LINE()    
 
-Else if ((@COMPONENTGROUPID in (1,2,3) and @CountryID not in (20)) and @RoleID in (1,18))
-BEGIN
-	SELECT @RoleID=1 WHERE @RoleID =18
+         INSERT INTO ExceptionLog(ErrorSource, ExceptionMessage, ExceptionStackTrace,
+		 InnerException, ExceptionDateTime, CustomMessage)
+         VALUES('Console',@ERROR_ID+@ERROR_MSG,@ERROR_SEVERITY,@ERROR_STATE,GETDATE(),
+		 @ERROR_PROCEDURE)          
 
-	IF(@COMPONENTGROUPID=2)
-	BEGIN
-		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-		WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-		and CUserDefined4=18
-		group by CUserDefined1,CDescription
-	END
-END
-
-Else if (@COMPONENTGROUPID in (4,98,100))---VNM NSA
-BEGIN
-	SELECT @RoleID=1 WHERE @RoleID =6
-END
-
-ELSE IF(@COMPONENTGROUPID in (7,8,9,10,11))
-BEGIN
-	SELECT @RoleID=10 WHERE @RoleID =3
-END
-
-ELSE IF(@COMPONENTGROUPID in (12))
-BEGIN
-	SELECT @RoleID=12 WHERE @RoleID =6
-END
-
-ELSE IF(@COMPONENTGROUPID in (43,44))
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID or CUserDefined3=@RoleID) 
-	group by CUserDefined1,CDescription
-END
-
-ELSE IF(@COMPONENTGROUPID=0)
-BEGIN
-	if (@Roleid=3 or @Roleid=2 or @Roleid=1)
-	BEGIN
-		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-		WHERE CParentRef=8 AND CCodeId=5 AND RowStatus=1 
-		and (CUserDefined2=@Roleid or CUserDefined3=@Roleid or Cuserdefined4=@Roleid) 
-		and CParentId=3
-	END
-	Else if (@Roleid=16)
-	BEGIN
-		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-		WHERE CParentRef=8 AND RowStatus=1 
-		and (CUserDefined2=@RoleID and CUserDefined3=@RoleID)
-	END
-	ELSE if (@Roleid in(7,9,8))
-	BEGIN
-		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-		WHERE CParentRef=8 AND CCodeId=5 AND RowStatus=1 
-		and (CUserDefined4=7)
-	END
-END
-
-ELSE if (@Roleid in(7,9))
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-	WHERE CParentRef=8 AND CCodeId=5 AND RowStatus=1 
-	and (CUserDefined4=7)
-END
-
-ELSE if ((@Roleid in(19,20,21,3)) and @CountryID=3)
-BEGIN
-	if (@COMPONENTGROUPID in(39,22)) 
-	BEGIN
-		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-		WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-		and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID or CUserDefined3=@RoleID 
-		or CUserDefined4=@RoleID) and CUserDefined4=@CountryID
-		group by CUserDefined1,CDescription
-	END 
-	ELSE
-	BEGIN
-		SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-		WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-		and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID)
-		group by CUserDefined1,CDescription
-	END
-END
-
-ELSE if ((@Roleid=19 OR @Roleid=20 OR @Roleid=21 or @Roleid=3) and @CountryID<>3 
-and (@COMPONENTGROUPID=2 and @CountryID <>20))
-BEGIN
-
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 and Cuserdefined5=7
-	and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID 
-	or CUserDefined4=@RoleID)
-	group by CUserDefined1,CDescription
-
-END
-
-ELSE if ((@COMPONENTGROUPID=2 and @CountryID=20 and (@Roleid=3 or @Roleid=1)))
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 and Cuserdefined5=20
-	and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID)
-	group by CUserDefined1,CDescription
-
-END
-
-ELSE if (@COMPONENTGROUPID=17 )
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined2=@RoleID or CUserDefined3 =@RoleID)
-	group by CUserDefined1,CDescription
-END
-
-ELSE if (@COMPONENTGROUPID=18 and @CountryID <>2)
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined1=@RoleID  or CUserDefined2=@RoleID or CUserDefined3 =@RoleID 
-	or CUserDefined4=@RoleID)and Cuserdefined5 is not null
-	group by CUserDefined1,CDescription
-	
-END
-
-ELSE if (@COMPONENTGROUPID=18 and @CountryID =2)
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined2=@RoleID or CUserDefined3 =@RoleID)and Cuserdefined5 is null
-	group by CUserDefined1,CDescription
-END
-
-ELSE if (@COMPONENTGROUPID=25 or @COMPONENTGROUPID=42 or @COMPONENTGROUPID=26 
-or @COMPONENTGROUPID=27  )
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID)
-	and Cuserdefined3=@CountryID
-	group by CUserDefined1,CDescription
-END
-
-ELSE IF(@COMPONENTGROUPID=89 and @CountryID =20) 
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined1=@RoleID or CUserDefined3 =@RoleID ) and CUserDefined4=20
-	group by CUserDefined1,CDescription
-END
-
-ELSE IF(@COMPONENTGROUPID=48 and @CountryID = 16) 
-BEGIN
-SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK)
-WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID or CUserDefined3=@RoleID) 
-	and CUserDefined4=16
-	group by CUserDefined1,CDescription
-END
-
-ELSE if ((@Roleid=3 OR @Roleid=20 ) AND @COMPONENTGROUPID =22 AND @CountryID NOT IN (8,9))
-BEGIN
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID)
-	group by CUserDefined1,CDescription
-
-END
-ELSE if (@COMPONENTGROUPID IN (22,101,39)  AND @CountryID IN(8,9))
-BEGIN
-	IF(@RoleID IN (3,20,6))
-	BEGIN
-		Select CUserDefined1,CDescription  From MasterCodes 
-		where CParentRef=8 and CCodeId = @COMPONENTGROUPID and CUserDefined5 is not null and RowStatus =1
-		group by CUserDefined1,CDescription
-	END
-	ELSE IF(@RoleID = 19)
-	BEGIN
-		Select CUserDefined1,CDescription  From MasterCodes 
-		where CParentRef=8 and CCodeId = @COMPONENTGROUPID and CUserDefined5=7 and RowStatus =1
-		group by CUserDefined1,CDescription
-	END
-	
-
-END
-
-ELSE if ((@Roleid=19 OR @Roleid=20 or @Roleid=3) and @COMPONENTGROUPID=39 AND @CountryID NOT IN (8,9))
-BEGIN
-
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 and Cuserdefined5=7
-	and (CUserDefined1=@RoleID OR CUserDefined2=@RoleID or CUserDefined3=@RoleID)
-	group by CUserDefined1,CDescription
-
-END
-ELSE if (@COMPONENTGROUPID in(102,103,104,105) and @Roleid in(6,23))
-BEGIN
-SELECT @RoleID=6 WHERE @RoleID =23
-END
-	SELECT CUserDefined1,CDescription FROM MasterCodes WITH (NOLOCK) 
-	WHERE CParentRef=8 AND CCodeId=@COMPONENTGROUPID AND RowStatus=1 
-	and (CUserDefined1=@RoleID or CUserDefined2 =@RoleID or CUserDefined3=@RoleID) 
-	group by CUserDefined1,CDescription
-
-
-
-
- END TRY
- BEGIN CATCH
- SELECT @@ERROR
- END CATCH 
-END
-/******************************************************************
-This User-defined Stored Procedure
-used in SPAY  to allow 
-faster execution and reduce network traffic.
-****************************************************************/
+         RAISERROR(@ERROR_ID,@ERROR_SEVERITY,@ERROR_STATE,@ERROR_MSG);
+  
+END CATCH

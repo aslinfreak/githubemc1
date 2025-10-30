@@ -1,365 +1,93 @@
-USE [OneC_SPay]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-ALTER PROCEDURE [dbo].[usp_APAC_SF_InsertValidUploaderData]
-(
-@ComponentGrpID INT ,
-@AssociateId varchar(10),
-@Amount1 varchar(20)=null,
-@Amount2 varchar(20)=null,
-@Month int=null,
-@year varchar(10)= null,
-@LoginID VARCHAR(20)=null,
-@MailUploadId VARCHAR(50)=null,
-@SchoolFeesReceiptID VARCHAR(30)=null, 
-@MailValidityEndDate varchar(20)=null,
-@CountryId int=null,
-@ComponentCountryMappingId INT = NULL)
-AS
-SET NOCOUNT ON 
-BEGIN
-BEGIN TRY
-
-------------Declaring variables ---------------
-DECLARE @ComponentId INT, @CountryName varchar(20),@Countrycode varchar(10),@DateChk Varchar(15),@EndDate varchar(15)
+    else if (componentGroupId == 18 && CountryId == 2) {//SF
+        var obj = $(this).closest('.popup_new').find('.inner_cont ul');
+        var associateId = obj.find('li:nth-child(1) input').val();
+        var Amount1 = obj.find('li:nth-child(3) input').val();
+        var Amount2 = obj.find('li:nth-child(5) input').val();
+        var payrollmonth = obj.find('li:nth-child(6) select').val();
 
 
-SELECT @DateChk=CAST(@year + '-' + convert(varchar,@Month)+ '-' + '01' AS DATE)
-set @EndDate =(select CONVERT(VARCHAR,(DATEADD(MONTH,1+DATEDIFF(MONTH,0,@DateChk),-1)),110))
-
-SET @ComponentId=58
-Select @CountryName= Country from ComponentCountryMaster where PK_ComponentCountryID=@CountryID
-select @Countrycode=CountryID from ComponentCountryMaster where PK_ComponentCountryID=@CountryID
-
-------------Declaring variables ---------------
-DECLARE @payrollMonth varchar(50)
-
-------------Declaring variables ---------------
-DECLARE @TotalAmount money, @SumAmount money, @Amount money,@Child1TotAmount money,
-@Child2TotAmount money,@TotalChild1Amount money,@TotalChild2Amount money
- Set @TotalAmount=((CONVERT(MONEY,isnull(@Amount1,0)))+(CONVERT(MONEY,isnull(@Amount2,0))))
-
-
- select @SumAmount=  isnull(sum(TotalAmount),'') from PR.SGPSchoolFees
- where AssociateID=@AssociateId and FK_Componentcountrymappingid=@ComponentCountryMappingId 
- and Rowstatus=1 and Year(CreatedDate)= year(getdate())
-
- select @Child1TotAmount=  isnull(sum(Amount1),'') from PR.SGPSchoolFees where 
- AssociateID=@AssociateId and FK_Componentcountrymappingid=@ComponentCountryMappingId 
- and Rowstatus=1 and Year(CreatedDate)= year(getdate())
-
-select @Child2TotAmount=  isnull(sum(Amount2),'') from PR.SGPSchoolFees where
-AssociateID=@AssociateId and FK_Componentcountrymappingid=@ComponentCountryMappingId 
-and Rowstatus=1 and Year(CreatedDate)= year(getdate())
-
-
- Select @Amount= ((CONVERT(MONEY,isnull(@TotalAmount,0)))+(CONVERT(MONEY,isnull(@SumAmount,0))))
-
- select @TotalChild1Amount=((CONVERT(MONEY,isnull(@Amount1,0)))+(CONVERT(MONEY,isnull(@Child1TotAmount,0))))
-
- select @TotalChild2Amount=((CONVERT(MONEY,isnull(@Amount2,0)))+(CONVERT(MONEY,isnull(@Child2TotAmount,0))))
-
-------------Declaring variables ---------------
-Declare @ExistingMailEndDate varchar(20), @ExistingMailUploadId varchar(30)
-Select @ExistingMailUploadId= FileUploadId from Pr.SGPSchoolFees where AssociateID=@AssociateID and Rowstatus=1
-Select @ExistingMailEndDate = MailValidityEndDate from Pr.SGPSchoolFees where AssociateID=@AssociateID and Rowstatus=1
-
-select @AssociateId as AssociateID,@MailuploadID as MailUploadID,
-@MailValidityEndDate As MailEndDate,@SchoolFeesReceiptID as ReceiptUploadId
-into #TempSF
-
-select  @payrollMonth= MonthName from MonthMaster with(nolock) Where MonthID =@Month
+        if ($.trim(Amount1) == '' || $.trim(associateId) == '' || payrollmonth == -1 || mailUploadId == 0) {
+            $('.popup_new .innerErrorHolder').text('Please fill all Fields');
+            $('.popup_new .innerErrorHolder').removeClass("green");
+            $('.popup_new .innerErrorHolder').addClass("red");
+            $("#progressBackgroundFilter").hide();
+            $("#processMessage").hide();
+        }
+        else {
+            if (isNaN(Amount1)) {
+                error += 'Please enter a valid Amount for Child1' + ',';
+            }
+            else if (Amount1 < 0) {
+                error += 'Amount for Child1 cannot be negative' + ',';
+            }
+            else if (Amount1 == 0) {
+                error += 'Amount for Child1 cannot be zero' + ',';
+            }
+            if (isNaN(Amount2)) {
+                error += 'Please enter a valid Amount for Child2 ' + ',';
+            }
+            else if (Amount2 < 0) {
+                error += 'Amount for Child2 cannot be negative' + ',';
+            }
+            else if (Amount2 == 0 && Amount2 != '') {
+                error += 'Amount for Child2 cannot be zero' + ',';
+            }
+            if (isNaN(associateId)) {
+                error += 'AssociateId is invalid' + ',';
+            }
 
 
-		CREATE TABLE #SFEXCEPTIONS
-		(
-			EXCEPTIONREASON VARCHAR(8000) NULL
-		)	
-
-------------Declaring variables ---------------	
-Declare @EmplID INT,@Emplstatus varchar(20),@location varchar(100),
-@Country varchar(10),@Jobcode varchar(10),@DeptID varchar(20),
-@Empltype varchar(10),@Effdt varchar(20),@Company varchar(5),
-@Businessunit varchar(6),@GradeLevel varchar(10),@locationtype varchar(50)
-
-------------Declaring table ---------------
-	DECLARE @SETIDLIST TABLE
-	(
-		Business_Unit VARCHAR(5),
-		Country_ID VARCHAR(3)
-	)
-
-         ---------Insert query------------
-	    INSERT INTO @SETIDLIST(Business_Unit,Country_ID)
-		SELECT DISTINCT Business_Unit,Country_ID FROM 
-		CENTRALREPOSITORY.DBO.vw_CentralRepository_HCMLocation WITH(NOLOCK) WHERE ISActive='A'
-
-		SELECT B.EMPLID ,B.EMPL_RCD ,B.EFFDT ,B.EFFSEQ ,B.ACTION ,B.ACTION_REASON ,B.ACTION_DT ,B.EMPL_STATUS,
-		B.DEPTID ,B.JOBCODE ,B.LOCATION ,    
-		B.COMPANY,B.HR_STATUS,B.BUSINESS_UNIT,B.SUPERVISOR_ID,B.PER_ORG into #InsTEMP
-		FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock) 	
-		WHERE B.emplid=convert(varchar,@AssociateID)	AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)  FROM
-		CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock) WHERE B.EMPLID = B_B.EMPLID 
-		and B_B.action <> 'INA'   AND B.EMPL_RCD = B_B.EMPL_RCD   AND B_B.EFFDT = B.EFFDT)
-				
-		SELECT b.LOCATION AS LOCATION,B.BUSINESS_UNIT AS BU,HL.Country_ID AS CountryID,b.JOBCODE AS Grade,
-		B.DEPTID AS DepartmentId,B.PER_ORG AS EmplType,B.EMPL_STATUS AS EmplStatus,B.EFFDT AS EFFDT,
-		B.COMPANY,B.EMPLID AS AssociateID,ACTION,ACTION_REASON,EMPL_STATUS
-		INTO #SFTEMP FROM #InsTEMP B with (nolock)  	
-		LEFT OUTER join  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
-		ON HL.HCMLocationCode=B.LOCATION 
-		WHERE B.EFFDT = ( SELECT MAX(B_A.EFFDT)  FROM  
-		CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock) WHERE B.EMPLID = B_A.EMPLID  
-		AND B.EMPL_RCD=B_A.EMPL_RCD   and B_A.action <> 'INA'   AND B_A.EFFDT<= convert(date,@DateChk))  
-		AND B.HR_STATUS = 'A'   AND (B.EMPL_STATUS IN ('A','L','P','W') OR (B.EMPL_STATUS = 'S'
-		AND B.ACTION <> 'OGA'))   and b.action <> 'INA' 
-		UNION
-		SELECT  A.LOCATION ,A.BUSINESS_UNIT,HL.Country_ID,A.JOBCODE ,
-	    A.DEPTID ,A.PER_ORG,A.EMPL_STATUS,A.EFFDT,A.COMPANY,A.EMPLID AS AssociateID,
-		ACTION,ACTION_REASON,EMPL_STATUS FROM #InsTEMP A with (nolock) 	  
-	    LEFT OUTER join  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
-		ON HL.HCMLocationCode=A.LOCATION 
-		WHERE  A.EFFDT = ( SELECT MAX(B_A.EFFDT)  FROM
-		CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock) WHERE A.EMPLID = B_A.EMPLID   
-		AND B_A.EFFDT<= convert(date,@DateChk))   
-		AND A.EMPL_RCD = ( SELECT MAX(C_A.EMPL_RCD)  FROM 
-		CentralRepository.dbo.vw_CentralRepository_JOB_Reference C_A with (nolock) WHERE C_A.EMPLID = A.EMPLID   
-		and C_A.action <> 'INA'   AND C_A.EFFDT = A.EFFDT)   AND A.HR_STATUS = 'I'   
-		AND NOT EXISTS ( SELECT 'X'  FROM
-		CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock) WHERE A.EMPLID = B.EMPLID  
-		AND B.EFFDT = ( SELECT MAX(B_A.EFFDT)  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A 
-		WHERE B.EMPLID = B_A.EMPLID   AND B.EMPL_RCD=B_A.EMPL_RCD   
-		and b.action <> 'INA'   AND B_A.EFFDT<= convert(date,@DateChk)) 
-		AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)  FROM
-		CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock) 
-		WHERE B.EMPLID = B_B.EMPLID   AND B.EMPL_RCD = B_B.EMPL_RCD            
-		and b.action <> 'INA'   AND B_B.EFFDT = B.EFFDT)    
-		AND B.HR_STATUS = 'A'   AND (B.EMPL_STATUS IN ('A','L','P','W')    
-		OR (B.EMPL_STATUS = 'S'   AND B.ACTION <> 'OGA'))
-	)
-
- select @EmplID=AssociateID,@Emplstatus=EmplStatus,@locationtype=LOCATION,@Country=CountryID,
- @Jobcode=Grade,@DeptID=DepartmentId,@Empltype=EmplType,@Company=COMPANY,@Businessunit=BU from #SFTEMP
-	
-		select @AssociateId as AssociateId into #AssocaiteDetails
-
-		;WITH cte AS
-		(
-			SELECT DISTINCT  SF.AssociateID,SF.MailValidityEndDate,SF.Rowstatus,
-			ROW_NUMBER() OVER (PARTITION BY SF.AssociateID ORDER BY SF.Createddate DESC) AS rn 
-			FROM PR.SGPSchoolfees SF  WITH(NOLOCK)
-			Right Outer JOIN #TempSF TT WITH(NOLOCK) on TT.AssociateID= SF.AssociateID
-			WHERE  SF.AssociateID is not null  and SF.Rowstatus=1		       
-		)
-		SELECT AssociateID ,MailValidityEndDate,Rowstatus INTO #SFMain
-		FROM cte WITH(NOLOCK)
-		WHERE rn = 1
-
-		 ---------Insert query------------
-INSERT INTO #SFEXCEPTIONS(EXCEPTIONREASON)
-		
-
-		 SELECT 'Associate''s DOJ should be lesser than claim date,' AS EXCEPTIONREASON FROM 
-		 CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-		 WHERE AD.Associate_ID=@AssociateID AND AD.DATEOFJOINING>CONVERT(DATE,@DateChk) 
-
-		UNION ALL
-
-		SELECT COALESCE((CASE WHEN AssociateID=@LoginID 
-		and @AssociateId<>@LoginID THEN 'Associate can only upload his own record' END),'')  AS EXCEPTIONREASON 
-		FROM Policy.PolicyMaster WITH (NOLOCK)
-		WHERE FK_Componentcountrymappingid=@ComponentCountryMappingId and RowStatus=1
-
-		UNION ALL
-
-        SELECT 	DISTINCT	
-			COALESCE((CASE WHEN ((@EmplStatus = 'T' AND LEN(@AssociateID) in (6,7)) OR 
-			(AD.ASSOCIATE_ID IS NULL AND LEN(@AssociateID) in (6,7))) 
-											THEN 'AssociateID is InActive,' END), '') 
-			+
-	
-			COALESCE((CASE WHEN AD.IsActive = 'T' and (DATEDIFF(DD,EffDt ,@DateChk) > 30 
-			OR  DATEDIFF(DD,EffDt,@EndDate) > 30)  
-			  THEN 'Associate’s termination date is greater than 30 days. Special pay can’t be processed,' 
-			  ELSE NULL END), '')   
-			+
-			COALESCE((CAse when @MailValidityEndDate < convert(varchar,getdate(),101) then
-			'Mail Validity EndDate should be greater than CurrentDate,' 
-			else null end ),'')
-			+		   
-			COALESCE((CASE WHEN LEN(@AssociateID) not in (6,7) THEN 'AssociateID is InValid,' ELSE NULL END), '') 		
-			+		   
-			COALESCE((CASE WHEN ISNULL(@SchoolFeesReceiptID,'')='' OR @SchoolFeesReceiptID='0' THEN
-			'School Fees Receipt is mandatory,' ELSE NULL END), '')
-			+
-			COALESCE((CASE WHEN AD.COMPANY IS NULL THEN 'Company Unavailable,' ELSE NULL END), '')  
-			+
-			COALESCE((CASE WHEN AD.BUSINESS_UNIT IS NULL THEN 'SetId Unavailable,' ELSE NULL END), '')
-			     
-			AS EXCEPTIONREASON			
-			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
-			WHERE AD.Associate_ID=@AssociateID
-      
-	    UNION ALL
-
-	        SELECT DISTINCT	 'Approval Mail is mandatory,'  AS EXCEPTIONREASON
-            From #SFMain SF 
-			right outer join #Tempsf TT  With(nolock) on TT.AssociateID= SF.AssociateID
-			Where TT.MailUploadID = '0' and convert(date,SF.MailValidityEndDate) <  convert(date,getdate())  and 
-			 SF.AssociateID is not null  and SF.Rowstatus=1
-
-
-		UNION ALL
-
-	        SELECT DISTINCT	       
-			'Approval Mail is mandatory,' AS EXCEPTIONREASON
-            From PR.SGPSchoolfees SF 
-			right outer join #Tempsf TT  With(nolock) on TT.AssociateID= SF.AssociateID
-			Where SF.AssociateID is null and @MailUploadId='0'
-
-
-			
-	   UNION ALL
-	     SELECT DISTINCT 'Associate Details not available in CRS,' AS EXCEPTIONREASON 
-		 from #SFTEMP SFT WHERE ISNULL(@AssociateID,'')<>ISNULL(SFT.AssociateID,'')
-
-	   UNION ALL
-
-	     SELECT DISTINCT 'Associate not eligible for this allowance,' AS EXCEPTIONREASON from #AssocaiteDetails AD
-	     left outer join  Policy.PolicyMaster PPM on AD.AssociateID=PPM.AssociateId  and PPM.Rowstatus=1
-		 and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
-	     Where ISNULL(PPM.AssociateId,0)=0
-
-	UNION ALL
-
-	     SELECT DISTINCT 'Amount for child 2 not configured for this Associate,' AS EXCEPTIONREASON 
-		 from #AssocaiteDetails AD
-	     left outer join  Policy.PolicyMaster PPM on AD.AssociateID=PPM.AssociateId  and PPM.Rowstatus=1 
-		 and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
-	     Where (ISNULL(@Amount2,'')<>'' or @Amount2<>0) and (ISNULL(PPM.Above1Month,'')='' or 
-		 PPM.Above1Month=convert(decimal,0)) and ISNULL(PPM.AssociateId,'')<>''
-				 
-	   UNION ALL
-     
-		SELECT DISTINCT 'Amount exceeds the max cap of the associate,' AS EXCEPTIONREASON 
-		from  Policy.PolicyMaster PPM with (nolock)	 
-		 where  PPM.AssociateID=@AssociateId and PPM.AssociateID is not null 
-	 and  @Amount> convert(money,PPm.Amount) and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId
-	 and PPM.RowStatus=1
-
-	UNION ALL
-     
-		SELECT DISTINCT 'Amount for Child 1 exceeds Child 1 max cap,' AS EXCEPTIONREASON from  Policy.PolicyMaster PPM	 
-		 where  PPM.AssociateID=@AssociateId and PPM.AssociateID is not null and PPM.Rowstatus=1
-		 and  @TotalChild1Amount> convert(money,PPm.Upto1month) 
-		 and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
-
-	UNION ALL
-     
-		SELECT DISTINCT 'Amount for Child 2 exceeds  Child 2 max cap,' AS EXCEPTIONREASON from  Policy.PolicyMaster PPM	 
-		 where  PPM.AssociateID=@AssociateId and PPM.AssociateID is not null and PPM.Rowstatus=1
-		 and  @TotalChild2Amount> convert(money,PPm.Above1Month) 
-		 and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
-
-
-	   UNION ALL
-			SELECT  DISTINCT (CASE WHEN (month(@DateChk) > month(getdate())) and (year(@DateChk) = year(getdate()))
-			THEN 'Allowance claim cannot be raised for future months ,' else null END) 
-
-	   UNION ALL
-	
-	   SELECT  DISTINCT 
-	   CASE WHEN Status=1 then 'SchoolFees has been already uploaded,' 
-	   when Status=5 then 'SchoolFees has been already processed,'
-	   when Status=14 then 'SchoolFees has been already Approved,' end AS EXCEPTIONREASON		
-	   FROM PR.SGPSchoolFees PNP WITH(NOLOCK)    
-	   WHERE PNP.AssociateID=@AssociateID  and FK_Componentcountrymappingid=@ComponentCountryMappingId 
-	   and PayrollMonth=@payrollMonth and Year=@year
-	   and PNP.Rowstatus=1
-
-
-	   UNION ALL
-
-			SELECT DISTINCT
-			COALESCE((CASE WHEN AD.Per_Org ='CWR' THEN 'Associate is a contractor,' ELSE NULL END), '')  
-				+
-		    COALESCE((CASE WHEN JR.ACTION='TER' AND JR.Action_reason='CTE' AND AD.Per_Org <>'CWR' 	
-			AND JR.EFFDT=AD.DateOfJoining
-		    THEN 'Associate has converted from contractor to Employee,' ELSE NULL END), '')  
-			
-			AS EXCEPTIONREASON			
-			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 			
-			LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) ON 
-			JR.Emplid=AD.Associate_ID
-			WHERE ISNUMERIC(JR.EMPLID)=1 AND  AD.Associate_ID=@AssociateID 
-
-   
-	UNION ALL
-
-		SELECT DISTINCT 
-		COALESCE((CASE WHEN SL.Country_ID IS NULL  THEN 
-		'Associate not active in '+Country+' Payroll as on claim date,' ELSE NULL END), '')
-		AS ExceptionReason
-		FROM ComponentCountryMaster CCM LEFT OUTER JOIN @SETIDLIST SL
-		ON (SL.Country_ID=CCM.SETIDDivision OR SL.Country_ID=CCM.CountryID) and BUSINESS_UNIT=@Businessunit
-		where PK_ComponentCountryID=@CountryId
-
-	   UNION ALL			
-
-		SELECT DISTINCT		
-		COALESCE((CASE WHEN (@Amount1 IS NULL) THEN 'Amount1 is Mandatory,' 
-		WHEN (@Amount1<>'' AND ISNUMERIC(@Amount1) <> 1 OR CONVERT(MONEY,@Amount1)<1)	THEN 
-		'Amount is InValid for Child1,' ELSE NULL END), '')
-		
-		 AS EXCEPTIONREASON						   
-		FROM #SFTEMP SF WITH(NOLOCK) 
-		LEFT OUTER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentID=@COMPONENTID AND PPM.RowStatus=1
-
-
-	     DELETE FROM #SFEXCEPTIONS where isnull(EXCEPTIONREASON,'')=''
-	    
-			DECLARE @SFException VARCHAR(8000)  
-			SELECT @SFException = COALESCE(@SFException + ', ', '') + EXCEPTIONREASON FROM #SFEXCEPTIONS
-		    SELECT @SFException =replace(@SFException,',,',',') 
-		
-           
-  IF(@SFException IS NULL OR @SFException='')
-        BEGIN    
-	     
-		  UPDATE EXP.SGPSchoolFees
-		  SET Rowstatus=0,ModifiedBy=@LoginID,ModifiedDate=GETDATE() WHERE AssociateID=@AssociateID 
-		  and PayrollMonth=@payrollMonth and Year=@year AND RowStatus=1 
-		  and FK_Componentcountrymappingid=@ComponentCountryMappingId
-
-         ---------Insert query------------
-		  INSERT INTO PR.SGPSchoolFees(FK_COMPONENTGROUPID,AssociateID,Amount1,Amount2,TotalAmount,PayrollMonth,
-		  year,status,CreatedBy,CreatedDate,RowStatus,FileUploadId,MailValidityEndDate,SpecialCaseMail,
-		  FK_Componentcountrymappingid)
-	      SELECT @ComponentGrpID,@AssociateId,@Amount1,@Amount2,@TotalAmount,@payrollMonth,@Year,1,@LoginID,
-		  GETDATE(),1,
-		  (case when isnull(@MailUploadId,'0')='0' then @ExistingMailUploadId when @MailUploadId <>'0' 
-		  then @MailUploadId ELSE Null END),
-		  (case when isnull(@MailValidityEndDate,'')='' then @ExistingMailEndDate 
-		  when @MailValidityEndDate is not null then
-		  @MailValidityEndDate ELSE NULL END),@SchoolFeesReceiptID,
-		  @ComponentCountryMappingId
-
-          SELECT 'success' AS STATUS  
-
-        END
-		ELSE
-		BEGIN
-			SELECT @SFException as ExceptionReason
-		END
----------Drop temp table -------------
-    DROP TABLE  #TempSF
-    DROP TABLE  #SFEXCEPTIONS   
-    DROP TABLE  #SFTEMP
-END TRY
- BEGIN CATCH
- SELECT @@ERROR
- END CATCH  
- END
+            if (error == '') {
+                var datastring = '{"componentGroupId":"' + componentGroupId + '","associateId":"' + associateId + '","amount1":"' + Amount1 + '","amount2":"' + Amount2 + '","payrollMonth":"' + payrollmonth + '","mailUploadId":"' + mailUploadId + '"}';
+                $.ajax({
+                    type: "POST",
+                    url: "../APAC_WebMethods.aspx/SaveSchoolFeeNewData",
+                    contentType: "application/json; charset=utf-8",
+                    dataType: "json",
+                    data: datastring,
+                    cache: false,
+                    success: function (msg) {
+                        if (msg.d == 'success') {
+                            $('.popup_new .innerErrorHolder').removeClass("red");
+                            $('.popup_new .innerErrorHolder').addClass("green");
+                            $('.popup_new .innerErrorHolder').text('Saved Successfully');
+                            $("#progressBackgroundFilter").hide();
+                            $("#processMessage").hide();
+                        }
+                        else {
+                            $('.popup_new .innerErrorHolder').removeClass("green");
+                            $('.popup_new .innerErrorHolder').addClass("red");
+                            msg.d = msg.d.replace(/(^\s*,)|(,\s*$)/g, '');
+                            $('.popup_new .innerErrorHolder').text(msg.d);
+                            $("#progressBackgroundFilter").hide();
+                            $("#processMessage").hide();
+                        }
+                        if ($('#aid').val() == '' || $('#bid').val() == '') {
+                            if (type == 1) {
+                                BindValidGridtbl();
+                            }
+                            else if (type == 2) {
+                                BindExceptionsGridtbl();//JB
+                            }
+                        }
+                        else {
+                            keyPressEnter();
+                        }
+                    },
+                    error: function (xhr) {
+                        $('.popup_edit .innerErrorHolder').removeClass("green");
+                        $('.popup_edit .innerErrorHolder').addClass("red");
+                        $('.popup_edit .innerErrorHolder').text("An error occurred: Please raise a GSD under : One Cognizant - One Cognizant Helpdesk (CTI :  1C App Store; Special Pay /Special Pay Allowances;");
+                    }
+                });
+            }
+            else {
+                error = error.replace(/(^\s*,)|(,\s*$)/g, '');
+                $('.popup_new .innerErrorHolder').removeClass("green");
+                $('.popup_new .innerErrorHolder').addClass("red");
+                $('.popup_new .innerErrorHolder').text(error);
+                $("#progressBackgroundFilter").hide();
+                $("#processMessage").hide();
+            }
+        }
+    }

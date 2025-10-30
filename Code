@@ -1,47 +1,79 @@
-    else if (componentGroupId == 18 && CountryId == 2) {//SF
+    else if (componentGroupId == 18 && (CountryId == 14 || CountryId == 15 || CountryId == 16 || CountryId == 17)) {//CE SF
+
+        var invoiceUploadId = ''
+        if(ocm == "1")
+        {
+            invoiceUploadId = FileUploadID;
+        }
+        else
+        {
+            invoiceUploadId = $("#SFReceiptID").parent().attr("fileuploadid");
+        }
+        var installment = '';
         var obj = $(this).closest('.popup_new').find('.inner_cont ul');
         var associateId = obj.find('li:nth-child(1) input').val();
-        var Amount1 = obj.find('li:nth-child(3) input').val();
-        var Amount2 = obj.find('li:nth-child(5) input').val();
-        var payrollmonth = obj.find('li:nth-child(6) select').val();
+        var child = obj.find('li:nth-child(3) select').val();
+        var Amount = obj.find('li:nth-child(4) input').val();
 
+        if (obj.find('li:nth-child(5) .SFdate').attr('data') == 0) {
+            startdate = obj.find('li:nth-child(5) span').text();
+            enddate = obj.find('li:nth-child(6) span').text();
+        }
+        else {
+            startdate = obj.find('li:nth-child(5) input').val();
+            enddate = obj.find('li:nth-child(6) input').val();
+        }
+        //var startdate = obj.find('li:nth-child(5) input').val();
+        //var enddate = obj.find('li:nth-child(6) input').val();
+        var freqType = obj.find('li:nth-child(7) select').val();
+        var year = obj.find('li:nth-child(9) option:selected').text();
+        if (CountryId == 14 || CountryId == 15 || CountryId == 16) {
+            installment = obj.find('li:nth-child(10) select').val();
+        }
+        else if (CountryId == 17) {
+            installment = '1';
+        }
 
-        if ($.trim(Amount1) == '' || $.trim(associateId) == '' || payrollmonth == -1 || mailUploadId == 0) {
+        if (freqType == 3) {
+            var freqSelect = obj.find('li:nth-child(8) select option:selected').text()
+        } else {
+            var freqSelect = obj.find('li:nth-child(8) select').val();
+        }
+
+        //if (mailUploadId == 'undefined' || splcasemailId == 'undefined') {
+        //    $('.popup_new .innerErrorHolder').text('Please Select the File');
+        //}
+
+        if ($.trim(Amount) == '' || $.trim(associateId) == '' || child == -1 || freqType == -1 || freqSelect == -1 || year == -1 ||
+            $.trim(startdate) == '' || $.trim(enddate) == '' || invoiceUploadId == 0 || invoiceUploadId == undefined
+            || installment == -1) {
             $('.popup_new .innerErrorHolder').text('Please fill all Fields');
             $('.popup_new .innerErrorHolder').removeClass("green");
             $('.popup_new .innerErrorHolder').addClass("red");
             $("#progressBackgroundFilter").hide();
             $("#processMessage").hide();
         }
+
         else {
-            if (isNaN(Amount1)) {
-                error += 'Please enter a valid Amount for Child1' + ',';
+            if (isNaN(Amount)) {
+                error += 'Please enter a valid Amount ' + ',';
             }
-            else if (Amount1 < 0) {
-                error += 'Amount for Child1 cannot be negative' + ',';
+            else if (Amount < 0) {
+                error += 'Amount cannot be negative' + ',';
             }
-            else if (Amount1 == 0) {
-                error += 'Amount for Child1 cannot be zero' + ',';
+            else if (Amount == 0) {
+                error += 'Amount cannot be zero' + ',';
             }
-            if (isNaN(Amount2)) {
-                error += 'Please enter a valid Amount for Child2 ' + ',';
-            }
-            else if (Amount2 < 0) {
-                error += 'Amount for Child2 cannot be negative' + ',';
-            }
-            else if (Amount2 == 0 && Amount2 != '') {
-                error += 'Amount for Child2 cannot be zero' + ',';
-            }
+
             if (isNaN(associateId)) {
                 error += 'AssociateId is invalid' + ',';
             }
 
-
             if (error == '') {
-                var datastring = '{"componentGroupId":"' + componentGroupId + '","associateId":"' + associateId + '","amount1":"' + Amount1 + '","amount2":"' + Amount2 + '","payrollMonth":"' + payrollmonth + '","mailUploadId":"' + mailUploadId + '"}';
+                var datastring = '{"componentGroupId":"' + componentGroupId + '","associateId":"' + associateId + '","amount":"' + Amount + '","child":"' + child + '","startDate":"' + startdate + '","endDate":"' + enddate + '","frequencyType":"' + freqType + '","frequencySelect":"' + freqSelect + '","year":"' + year + '","invoiceUploadId":"' + invoiceUploadId + '","installment":"' + installment + '"}';
                 $.ajax({
                     type: "POST",
-                    url: "../APAC_WebMethods.aspx/SaveSchoolFeeNewData",
+                    url: "../APAC_WebMethods.aspx/SaveCESchoolFeeNewData",
                     contentType: "application/json; charset=utf-8",
                     dataType: "json",
                     data: datastring,
@@ -62,7 +94,7 @@
                             $("#progressBackgroundFilter").hide();
                             $("#processMessage").hide();
                         }
-                        if ($('#aid').val() == '' || $('#bid').val() == '') {
+                        if ($('#aid1').val() == '' || $('#bid').val() == '') {
                             if (type == 1) {
                                 BindValidGridtbl();
                             }

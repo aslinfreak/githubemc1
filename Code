@@ -1,125 +1,236 @@
-    else if (componentGroupId == 18 && (CountryId == 14 || CountryId == 15 || CountryId == 16 || CountryId == 17)) {//CE SF
-
-        var invoiceUploadId = ''
-        if(ocm == "1")
+        protected void BtnUpload_Click(object sender, EventArgs e)
         {
-            invoiceUploadId = FileUploadID;
-        }
-        else
-        {
-            invoiceUploadId = $("#SFReceiptID").parent().attr("fileuploadid");
-        }
-        var installment = '';
-        var obj = $(this).closest('.popup_new').find('.inner_cont ul');
-        var associateId = obj.find('li:nth-child(1) input').val();
-        var child = obj.find('li:nth-child(3) select').val();
-        var Amount = obj.find('li:nth-child(4) input').val();
-
-        if (obj.find('li:nth-child(5) .SFdate').attr('data') == 0) {
-            startdate = obj.find('li:nth-child(5) span').text();
-            enddate = obj.find('li:nth-child(6) span').text();
-        }
-        else {
-            startdate = obj.find('li:nth-child(5) input').val();
-            enddate = obj.find('li:nth-child(6) input').val();
-        }
-        //var startdate = obj.find('li:nth-child(5) input').val();
-        //var enddate = obj.find('li:nth-child(6) input').val();
-        var freqType = obj.find('li:nth-child(7) select').val();
-        var year = obj.find('li:nth-child(9) option:selected').text();
-        if (CountryId == 14 || CountryId == 15 || CountryId == 16) {
-            installment = obj.find('li:nth-child(10) select').val();
-        }
-        else if (CountryId == 17) {
-            installment = '1';
-        }
-
-        if (freqType == 3) {
-            var freqSelect = obj.find('li:nth-child(8) select option:selected').text()
-        } else {
-            var freqSelect = obj.find('li:nth-child(8) select').val();
-        }
-
-        //if (mailUploadId == 'undefined' || splcasemailId == 'undefined') {
-        //    $('.popup_new .innerErrorHolder').text('Please Select the File');
-        //}
-
-        if ($.trim(Amount) == '' || $.trim(associateId) == '' || child == -1 || freqType == -1 || freqSelect == -1 || year == -1 ||
-            $.trim(startdate) == '' || $.trim(enddate) == '' || invoiceUploadId == 0 || invoiceUploadId == undefined
-            || installment == -1) {
-            $('.popup_new .innerErrorHolder').text('Please fill all Fields');
-            $('.popup_new .innerErrorHolder').removeClass("green");
-            $('.popup_new .innerErrorHolder').addClass("red");
-            $("#progressBackgroundFilter").hide();
-            $("#processMessage").hide();
-        }
-
-        else {
-            if (isNaN(Amount)) {
-                error += 'Please enter a valid Amount ' + ',';
-            }
-            else if (Amount < 0) {
-                error += 'Amount cannot be negative' + ',';
-            }
-            else if (Amount == 0) {
-                error += 'Amount cannot be zero' + ',';
+            this.processMessage.Style.Add("display", "block");
+            this.progressBackgroundFilter.Style.Add("display", "block");
+            if (Request.QueryString["componentGroupId"] != null)
+            {
+                this.ComponentGroupID = Request.QueryString["componentGroupId"].ToString();
             }
 
-            if (isNaN(associateId)) {
-                error += 'AssociateId is invalid' + ',';
+            if (Request.QueryString["countryId"] != null)
+            {
+                this.CountryId = Request.QueryString["countryId"].ToString();
+            }
+            if (Request.QueryString["componentId"] != null)
+            {
+                this.ComponentID = Request.QueryString["componentId"].ToString();
             }
 
-            if (error == '') {
-                var datastring = '{"componentGroupId":"' + componentGroupId + '","associateId":"' + associateId + '","amount":"' + Amount + '","child":"' + child + '","startDate":"' + startdate + '","endDate":"' + enddate + '","frequencyType":"' + freqType + '","frequencySelect":"' + freqSelect + '","year":"' + year + '","invoiceUploadId":"' + invoiceUploadId + '","installment":"' + installment + '"}';
-                $.ajax({
-                    type: "POST",
-                    url: "../APAC_WebMethods.aspx/SaveCESchoolFeeNewData",
-                    contentType: "application/json; charset=utf-8",
-                    dataType: "json",
-                    data: datastring,
-                    cache: false,
-                    success: function (msg) {
-                        if (msg.d == 'success') {
-                            $('.popup_new .innerErrorHolder').removeClass("red");
-                            $('.popup_new .innerErrorHolder').addClass("green");
-                            $('.popup_new .innerErrorHolder').text('Saved Successfully');
-                            $("#progressBackgroundFilter").hide();
-                            $("#processMessage").hide();
-                        }
-                        else {
-                            $('.popup_new .innerErrorHolder').removeClass("green");
-                            $('.popup_new .innerErrorHolder').addClass("red");
-                            msg.d = msg.d.replace(/(^\s*,)|(,\s*$)/g, '');
-                            $('.popup_new .innerErrorHolder').text(msg.d);
-                            $("#progressBackgroundFilter").hide();
-                            $("#processMessage").hide();
-                        }
-                        if ($('#aid1').val() == '' || $('#bid').val() == '') {
-                            if (type == 1) {
-                                BindValidGridtbl();
-                            }
-                            else if (type == 2) {
-                                BindExceptionsGridtbl();//JB
-                            }
-                        }
-                        else {
-                            keyPressEnter();
-                        }
-                    },
-                    error: function (xhr) {
-                        $('.popup_edit .innerErrorHolder').removeClass("green");
-                        $('.popup_edit .innerErrorHolder').addClass("red");
-                        $('.popup_edit .innerErrorHolder').text("An error occurred: Please raise a GSD under : One Cognizant - One Cognizant Helpdesk (CTI :  1C App Store; Special Pay /Special Pay Allowances;");
+            ErrorLogger loggerECM = new ErrorLogger();
+            loggerECM.LogErrorECM("Upload - PopupUpload - BtnUpload_Click", "Country " + this.CountryId + "Role " + this.RoleID + "ComponentGroupID "
+                       + this.ComponentGroupID + "ComponentID " + this.ComponentID + "ProjectID " + this.projectID, this.userId, "ECM Upload Triggered");
+
+            try
+            {
+                if (this.filUploadIcon.HasFile)
+                {
+                    this.FileUpLoadValidator.IsValid = true;
+                    string fileType = this.filUploadIcon.PostedFile.ContentType;
+                    int rowsCount, length, headerlength;
+                    ////+ DateTime.Now.ToString("ddMMyyyy_HHmmss");
+                    ////Cleansing Canonicalization and Comparison Errors
+                    string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(this.filUploadIcon.FileName));
+                    string strFileName = fileName.Replace("'", string.Empty).Replace(@"\", string.Empty);
+                    string strFileType = System.IO.Path.GetExtension(strFileName).ToString().ToLower();
+                    var rootPath = Server.MapPath("~/ExcelFile/");
+                    var nameExt = string.Concat(strFileName, strFileType);
+                    this.fullpath = EncodeHelper.HtmlEncode(Path.Combine(rootPath, nameExt));
+                    //if (strFileType == ".xlsm")
+                    //{
+                    //    this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
+                    //}
+                    //else
+                    //{
+                    //    throw new SystemException("Uploaded file in .xlsm Format");
+                    //}
+
+                    int limitsize = this.fileConfig * 1024 * 1024;
+                    if (strFileType != ".xlsm" )
+                    {
+                        throw new SystemException("Uploaded file in .xlsm Format");
                     }
-                });
+
+                    if (this.filUploadIcon.PostedFile.ContentLength > limitsize)
+                    {
+                        throw new SystemException("FileSize exceeded");
+                    }
+                    if (fileName.Split('.').Length - 1 >= 2)
+                    {
+                        throw new SystemException("Upload file in single extension");
+                    }
+                    else
+                    {
+                        this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(fullpath));
+                    }
+
+                    string[] excelHeaders;
+
+                    using (SpreadsheetDocument spreadSheetDocument = SpreadsheetDocument.Open(this.fullpath, false))
+                    {
+                        WorkbookPart workbookPart = spreadSheetDocument.WorkbookPart;
+                        IEnumerable<Sheet> sheets =
+                            spreadSheetDocument.WorkbookPart.Workbook.GetFirstChild<Sheets>().Elements<Sheet>();
+                        string relationshipId = sheets.First().Id.Value;
+                        WorksheetPart worksheetPart =
+                            (WorksheetPart)spreadSheetDocument.WorkbookPart.GetPartById(relationshipId);
+                        Worksheet workSheet = worksheetPart.Worksheet;
+                        SheetData sheetData = workSheet.GetFirstChild<SheetData>();
+                        IEnumerable<Row> rows = sheetData.Descendants<Row>();
+                        ////rowsCount = rows.Count();
+                        headerlength = rows.ElementAt(0).Count();
+                        length = rows.Count();
+                        Row row =
+                            worksheetPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>().FirstOrDefault();
+                        var numberOfColumns = 0;
+                        if (row != null)
+                        {
+                            var spans = row.Spans != null ? row.Spans.InnerText : string.Empty;
+                            if (!string.IsNullOrEmpty(spans))
+                            {
+                                char[] delimiter = new char[1];
+                                delimiter[0] = ':';
+                                string[] columns = spans.Split(delimiter);
+                                numberOfColumns = int.Parse(columns[1]);
+                            }
+                        }
+
+                        excelHeaders = new string[numberOfColumns];
+                        rowsCount = 0;
+                        int i = 0;
+                        foreach (Cell cell in rows.ElementAt(0))
+                        {
+                            if (cell.CellValue != null)
+                            {
+                                excelHeaders[i] = GetCellValue(spreadSheetDocument, cell);
+                                i++;
+                                rowsCount++;
+                            }
+                        }
+                    }                    
+
+                    if (length > 1)
+                    {
+                        if (this.isAPAC == true)
+                        {
+                            DataTable dt = new DataTable();
+                            if (this.isGradeAmount != true)
+                            {
+                                int GradeAmount = 0;
+                                dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID, GradeAmount);
+                                this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                                if (dt.Rows.Count != 0)
+                                {
+                                    this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                                    this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                                    this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
+
+                                    this.processMessage.Style.Add("display", "none");
+                                    this.progressBackgroundFilter.Style.Add("display", "none");
+                                }
+
+                            }
+                            else
+                            {
+                                int GradeAmount = 1;
+                                dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID,GradeAmount);
+                                this.ValidateGradeAmountexcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                                if (dt.Rows.Count != 0)
+                                {
+                                    this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                                    this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                                    this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
+
+                                    this.processMessage.Style.Add("display", "none");
+                                    this.progressBackgroundFilter.Style.Add("display", "none");
+                                }
+                            }
+                        }
+                        else if (this.isSchoolFees == true)
+                        {
+                            DataTable dt = new DataTable();
+                            dt = this.GetExcelAsDataTableForSchoolFees(this.fullpath, "Template");
+                            this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                            if (dt.Rows.Count != 0)
+                            {
+                                this.criteriaType = Request.QueryString["CriteriaType"].ToString();
+                                this.ComponentID = Request.QueryString["componentGroupId"].ToString();
+                                this.MoveSFDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType);
+
+                                this.processMessage.Style.Add("display", "none");
+                                this.progressBackgroundFilter.Style.Add("display", "none");
+                            }
+                        }
+                        else if (this.isReversal == true)
+                        {
+                            this.ValidateReversalExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                        }
+
+                        else if (this.isVerify == true)
+                        {
+                            this.ValidateVerifyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                        }
+
+                        else if (this.isVerifyBulk == true)
+                        {
+                            this.ValidateVerifyBulkExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                        }
+
+                        else if (this.isMyPayUpload == true)
+                        {
+                            this.ValidateMyPayUploadExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                        }
+                        else if (this.isCurrencyUpdate == true)
+                        {
+                            this.ValidateCurrencyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                        }
+                        else
+                        {
+                            this.ValidateExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
+                        }
+                    }
+                    else
+                    {
+                        throw new SystemException("Uploaded file is empty");
+                    }
+                }
             }
-            else {
-                error = error.replace(/(^\s*,)|(,\s*$)/g, '');
-                $('.popup_new .innerErrorHolder').removeClass("green");
-                $('.popup_new .innerErrorHolder').addClass("red");
-                $('.popup_new .innerErrorHolder').text(error);
-                $("#progressBackgroundFilter").hide();
-                $("#processMessage").hide();
+            catch (SystemException ex)
+            {
+                ErrorLogger logger = new ErrorLogger();
+                logger.LogError(ex);
+                if (!(ex.Message.Equals("Uploaded file is empty") ||
+                    ex.Message.Equals("Number of columns in uploaded file does not match") ||
+                    ex.Message.Equals("Please fill the mandatory columns")))
+                {
+                    SendMailer.SendErrorMaileronFailure("Upload data", ex);
+                }
+
+                this.processMessage.Style.Add("display", "none");
+                this.progressBackgroundFilter.Style.Add("display", "none");
+                string exception = string.Empty;
+
+                if (this.ComponentGroupID == "4" &&
+                    ex.Message.Equals("Number of columns in uploaded file does not match"))
+                {
+                    exception = "File uploaded has extra inputs in columns after \"End Time\".";
+                }
+                else if (ex.Message.Equals("Number of columns in uploaded file does not match") &&
+                    this.ComponentGroupID != "4")
+                {
+                    exception = "Number of columns in uploaded file does not match";
+                }
+
+                if (ex.Message.Equals("Please fill the mandatory columns"))
+                {
+                    exception =
+                        "Columns/Headers in the uploaded file does not match with the standard template format.";
+                }
+                else
+                {
+                    exception = ex.Message;
+                }
+
+                string script = "<script type='text/javascript'>Message('" + exception + "');" + "</script>";
+                Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
             }
         }
-    }

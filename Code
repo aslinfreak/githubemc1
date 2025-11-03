@@ -1,236 +1,359 @@
-        protected void BtnUpload_Click(object sender, EventArgs e)
-        {
-            this.processMessage.Style.Add("display", "block");
-            this.progressBackgroundFilter.Style.Add("display", "block");
-            if (Request.QueryString["componentGroupId"] != null)
-            {
-                this.ComponentGroupID = Request.QueryString["componentGroupId"].ToString();
-            }
+USE [OneC_SPay]
+GO
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 
-            if (Request.QueryString["countryId"] != null)
-            {
-                this.CountryId = Request.QueryString["countryId"].ToString();
-            }
-            if (Request.QueryString["componentId"] != null)
-            {
-                this.ComponentID = Request.QueryString["componentId"].ToString();
-            }
+@ComponentID INT
+,@projectData ProjectData readonly
+,@CriteriaType VARCHAR(5)
+,@LoginId INT
+,@CountryID INT
+)
 
-            ErrorLogger loggerECM = new ErrorLogger();
-            loggerECM.LogErrorECM("Upload - PopupUpload - BtnUpload_Click", "Country " + this.CountryId + "Role " + this.RoleID + "ComponentGroupID "
-                       + this.ComponentGroupID + "ComponentID " + this.ComponentID + "ProjectID " + this.projectID, this.userId, "ECM Upload Triggered");
+AS
+SET NOCOUNT ON
 
-            try
-            {
-                if (this.filUploadIcon.HasFile)
-                {
-                    this.FileUpLoadValidator.IsValid = true;
-                    string fileType = this.filUploadIcon.PostedFile.ContentType;
-                    int rowsCount, length, headerlength;
-                    ////+ DateTime.Now.ToString("ddMMyyyy_HHmmss");
-                    ////Cleansing Canonicalization and Comparison Errors
-                    string fileName = EncodeHelper.HtmlEncode(Path.GetFileName(this.filUploadIcon.FileName));
-                    string strFileName = fileName.Replace("'", string.Empty).Replace(@"\", string.Empty);
-                    string strFileType = System.IO.Path.GetExtension(strFileName).ToString().ToLower();
-                    var rootPath = Server.MapPath("~/ExcelFile/");
-                    var nameExt = string.Concat(strFileName, strFileType);
-                    this.fullpath = EncodeHelper.HtmlEncode(Path.Combine(rootPath, nameExt));
-                    //if (strFileType == ".xlsm")
-                    //{
-                    //    this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(this.fullpath));
-                    //}
-                    //else
-                    //{
-                    //    throw new SystemException("Uploaded file in .xlsm Format");
-                    //}
+BEGIN
+BEGIN TRY
+DECLARE @ComponentCountryMappingId INT
 
-                    int limitsize = this.fileConfig * 1024 * 1024;
-                    if (strFileType != ".xlsm" )
-                    {
-                        throw new SystemException("Uploaded file in .xlsm Format");
-                    }
+------------Assinging value for ComponentCountryMappingId---------------
 
-                    if (this.filUploadIcon.PostedFile.ContentLength > limitsize)
-                    {
-                        throw new SystemException("FileSize exceeded");
-                    }
-                    if (fileName.Split('.').Length - 1 >= 2)
-                    {
-                        throw new SystemException("Upload file in single extension");
-                    }
-                    else
-                    {
-                        this.filUploadIcon.PostedFile.SaveAs(EncodeHelper.HtmlEncode(fullpath));
-                    }
+SELECT @ComponentCountryMappingId = CCM.PK_ComponentCountryMappingID
+FROM COMPONENTCOUNTRYMAPPING CCM
+INNER JOIN COMPONENTMASTER CM ON CM.PK_COMPONENTID = CCM.FK_COMPONENTID
+WHERE CM.PK_ComponentID = @ComponentID
+AND CCM.FK_componentcountryid = @CountryID
 
-                    string[] excelHeaders;
+INSERT INTO STG.APACProject (
+ProjectID
+,FKComponentID
+,CreatedBy
+,CreatedDate
+,CriteriaType
+,Rowstatus
+,FK_ComponentCountryMappingID
+)
+SELECT ProjectId
+,@ComponentID
+,@LoginId
+,getdate()
+,CONVERT(INT, @CriteriaType)
+,1
+,@ComponentCountryMappingId
+FROM @projectData
 
-                    using (SpreadsheetDocument spreadSheetDocument = SpreadsheetDocument.Open(this.fullpath, false))
-                    {
-                        WorkbookPart workbookPart = spreadSheetDocument.WorkbookPart;
-                        IEnumerable<Sheet> sheets =
-                            spreadSheetDocument.WorkbookPart.Workbook.GetFirstChild<Sheets>().Elements<Sheet>();
-                        string relationshipId = sheets.First().Id.Value;
-                        WorksheetPart worksheetPart =
-                            (WorksheetPart)spreadSheetDocument.WorkbookPart.GetPartById(relationshipId);
-                        Worksheet workSheet = worksheetPart.Worksheet;
-                        SheetData sheetData = workSheet.GetFirstChild<SheetData>();
-                        IEnumerable<Row> rows = sheetData.Descendants<Row>();
-                        ////rowsCount = rows.Count();
-                        headerlength = rows.ElementAt(0).Count();
-                        length = rows.Count();
-                        Row row =
-                            worksheetPart.Worksheet.GetFirstChild<SheetData>().Elements<Row>().FirstOrDefault();
-                        var numberOfColumns = 0;
-                        if (row != null)
-                        {
-                            var spans = row.Spans != null ? row.Spans.InnerText : string.Empty;
-                            if (!string.IsNullOrEmpty(spans))
-                            {
-                                char[] delimiter = new char[1];
-                                delimiter[0] = ':';
-                                string[] columns = spans.Split(delimiter);
-                                numberOfColumns = int.Parse(columns[1]);
-                            }
-                        }
+INSERT INTO STG.APACProject_log (
+ProjectID
+,FKComponentID
+,CreatedBy
+,CreatedDate
+,CriteriaType
+,Rowstatus
+,FK_ComponentCountryMappingID
+)
+SELECT ProjectId
+,@ComponentID
+,@LoginId
+,getdate()
+,CONVERT(INT, @CriteriaType)
+,1
+,@ComponentCountryMappingId
+FROM @projectData
 
-                        excelHeaders = new string[numberOfColumns];
-                        rowsCount = 0;
-                        int i = 0;
-                        foreach (Cell cell in rows.ElementAt(0))
-                        {
-                            if (cell.CellValue != null)
-                            {
-                                excelHeaders[i] = GetCellValue(spreadSheetDocument, cell);
-                                i++;
-                                rowsCount++;
-                            }
-                        }
-                    }                    
+CREATE TABLE #ValidData (
+PK_APACProjectId INT
+,ProjectId VARCHAR(10)
+,FKComponentId INT
+,STATUS VARCHAR(100)
+,CreatedBy INT
+,CreatedDate DATETIME
+,ExceptionReason VARCHAR(1000)
+,ActiveStatus INT
+,CriteriaType INT
+,FK_ComponentCountryMappingID INT
+)
 
-                    if (length > 1)
-                    {
-                        if (this.isAPAC == true)
-                        {
-                            DataTable dt = new DataTable();
-                            if (this.isGradeAmount != true)
-                            {
-                                int GradeAmount = 0;
-                                dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID, GradeAmount);
-                                this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                                if (dt.Rows.Count != 0)
-                                {
-                                    this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                                    this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                                    this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
+INSERT INTO #ValidData (
+PK_APACProjectId
+,ProjectId
+,FKComponentId
+,CreatedBy
+,CreatedDate
+,CriteriaType
+,FK_ComponentCountryMappingID
+)
+SELECT PK_APACProjectId
+,ProjectId
+,FKComponentId
+,CreatedBy
+,CreatedDate
+,CriteriaType
+,FK_ComponentCountryMappingID
+FROM stg.APACProject WITH (NOLOCK)
+WHERE FKComponentId = @ComponentID
 
-                                    this.processMessage.Style.Add("display", "none");
-                                    this.progressBackgroundFilter.Style.Add("display", "none");
-                                }
+EXEC [Trunc].[usp_TruncateTable] 'stg.APACProject'
 
-                            }
-                            else
-                            {
-                                int GradeAmount = 1;
-                                dt = this.GetExcelAsDataTable(this.fullpath, "Template", this.ComponentGroupID,GradeAmount);
-                                this.ValidateGradeAmountexcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                                if (dt.Rows.Count != 0)
-                                {
-                                    this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                                    this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                                    this.MoveDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType, GradeAmount);
+UPDATE VD
+SET ActiveStatus = 1
+FROM #VALIDDATA VD WITH (NOLOCK)
+INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus SP WITH (NOLOCK) 
+ON SP.PROJECT_ID = VD.PROJECTID
+WHERE EFF_STATUS = 'A'
+AND Project_Status = 'A'
+AND EFFSEQ = (
+SELECT max(EFFSEQ)
+FROM [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus
+WHERE project_Id = VD.ProjectId
+)
+AND effdt = (
+SELECT max(effdt)
+FROM [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus
+WHERE project_Id = VD.ProjectId
+)
+AND VD.FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                                    this.processMessage.Style.Add("display", "none");
-                                    this.progressBackgroundFilter.Style.Add("display", "none");
-                                }
-                            }
-                        }
-                        else if (this.isSchoolFees == true)
-                        {
-                            DataTable dt = new DataTable();
-                            dt = this.GetExcelAsDataTableForSchoolFees(this.fullpath, "Template");
-                            this.ValidateAPACExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                            if (dt.Rows.Count != 0)
-                            {
-                                this.criteriaType = Request.QueryString["CriteriaType"].ToString();
-                                this.ComponentID = Request.QueryString["componentGroupId"].ToString();
-                                this.MoveSFDatatabletoDB(dt, this.ComponentID, this.userId, this.criteriaType);
+UPDATE #VALIDDATA
+SET ExceptionReason = 'Project is Inactive,'
+WHERE isnull(Activestatus, 0) = 0
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
+----------------------Inserting data into Exception Table------------------------
+INSERT INTO EXP.APACProject (
+ProjectId
+,FKcomponentID
+,STATUS
+,ExceptionRemarks
+,CreatedBy
+,CreatedDate
+,RowStatus
+,MailSentStatus
+,FK_ComponentCountryMappingID
+)
+SELECT PRojectID
+,FKcomponentID
+,STATUS
+,ExceptionReason
+,@LoginId
+,Getdate()
+,1
+,0
+,@ComponentCountryMappingId
+FROM #VALIDDATA WITH (NOLOCK)
+WHERE ISNULL(ExceptionReason, '') <> ''
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                                this.processMessage.Style.Add("display", "none");
-                                this.progressBackgroundFilter.Style.Add("display", "none");
-                            }
-                        }
-                        else if (this.isReversal == true)
-                        {
-                            this.ValidateReversalExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                        }
+DELETE
+FROM #ValidData
+WHERE ISNULL(ExceptionReason, '') <> ''
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                        else if (this.isVerify == true)
-                        {
-                            this.ValidateVerifyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                        }
+UPDATE VD
+SET VD.ExceptionReason = 'Project is invalid,'
+FROM #VALIDDATA VD WITH (NOLOCK)
+WHERE LEN(VD.ProjectId) <> 10
+AND VD.FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                        else if (this.isVerifyBulk == true)
-                        {
-                            this.ValidateVerifyBulkExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                        }
+------------------------Inserting into Exception Table-----------------------------   
+INSERT INTO EXP.APACProject (
+ProjectId
+,FKcomponentID
+,STATUS
+,ExceptionRemarks
+,CreatedBy
+,CreatedDate
+,RowStatus
+,MailSentStatus
+,FK_ComponentCountryMappingID
+)
+SELECT PRojectID
+,FKcomponentID
+,STATUS
+,ExceptionReason
+,@LoginId
+,getdate()
+,1
+,0
+,FK_ComponentCountryMappingID
+FROM #VALIDDATA WITH (NOLOCK)
+WHERE ISNULL(ExceptionReason, '') <> ''
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                        else if (this.isMyPayUpload == true)
-                        {
-                            this.ValidateMyPayUploadExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                        }
-                        else if (this.isCurrencyUpdate == true)
-                        {
-                            this.ValidateCurrencyExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                        }
-                        else
-                        {
-                            this.ValidateExcel(excelHeaders, this.fullpath, strFileType, rowsCount);
-                        }
-                    }
-                    else
-                    {
-                        throw new SystemException("Uploaded file is empty");
-                    }
-                }
-            }
-            catch (SystemException ex)
-            {
-                ErrorLogger logger = new ErrorLogger();
-                logger.LogError(ex);
-                if (!(ex.Message.Equals("Uploaded file is empty") ||
-                    ex.Message.Equals("Number of columns in uploaded file does not match") ||
-                    ex.Message.Equals("Please fill the mandatory columns")))
-                {
-                    SendMailer.SendErrorMaileronFailure("Upload data", ex);
-                }
+DELETE
+FROM #ValidData
+WHERE ISNULL(ExceptionReason, '') <> ''
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                this.processMessage.Style.Add("display", "none");
-                this.progressBackgroundFilter.Style.Add("display", "none");
-                string exception = string.Empty;
+UPDATE VD
+SET VD.ExceptionReason = 'Project is not available in CRS view,'
+FROM #VALIDDATA VD WITH (NOLOCK)
+LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus SPS WITH (NOLOCK)
+ON VD.ProjectId = SPS.Project_ID
+INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Project CRP WITH (NOLOCK) 
+ON SPS.PROJECT_ID = CRP.Project_ID
+WHERE isnull(SPS.Project_ID, '') = ''
+AND VD.FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                if (this.ComponentGroupID == "4" &&
-                    ex.Message.Equals("Number of columns in uploaded file does not match"))
-                {
-                    exception = "File uploaded has extra inputs in columns after \"End Time\".";
-                }
-                else if (ex.Message.Equals("Number of columns in uploaded file does not match") &&
-                    this.ComponentGroupID != "4")
-                {
-                    exception = "Number of columns in uploaded file does not match";
-                }
+INSERT INTO EXP.APACProject (
+ProjectId
+,FKcomponentID
+,STATUS
+,ExceptionRemarks
+,CreatedBy
+,CreatedDate
+,RowStatus
+,MailSentStatus
+,FK_ComponentCountryMappingID
+)
+SELECT PRojectID
+,FKcomponentID
+,STATUS
+,ExceptionReason
+,@LoginId
+,getdate()
+,1
+,0
+,FK_ComponentCountryMappingID
+FROM #VALIDDATA WITH (NOLOCK)
+WHERE ISNULL(ExceptionReason, '') <> ''
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                if (ex.Message.Equals("Please fill the mandatory columns"))
-                {
-                    exception =
-                        "Columns/Headers in the uploaded file does not match with the standard template format.";
-                }
-                else
-                {
-                    exception = ex.Message;
-                }
+DELETE
+FROM #ValidData
+WHERE ISNULL(ExceptionReason, '') <> ''
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
 
-                string script = "<script type='text/javascript'>Message('" + exception + "');" + "</script>";
-                Page.ClientScript.RegisterStartupScript(this.GetType(), "onload", script);
-            }
-        }
+UPDATE VD
+SET VD.ExceptionReason = 'Duplicate Data Exists in Same Upload,'
+FROM #VALIDDATA VD WITH (NOLOCK)
+WHERE ProjectID IN (
+SELECT ProjectID
+FROM #Validdata
+GROUP BY ProjectID
+HAVING COUNT(ProjectID) > 1
+)
+------------------------------Inserting into Exception Table----------------------------
+INSERT INTO EXP.APACProject (
+ProjectId
+,FKcomponentID
+,STATUS
+,ExceptionRemarks
+,CreatedBy
+,CreatedDate
+,RowStatus
+,MailSentStatus
+,FK_ComponentCountryMappingID
+)
+SELECT PRojectID
+,FKcomponentID
+,STATUS
+,ExceptionReason
+,@LoginId
+,getdate()
+,1
+,0
+,FK_ComponentCountryMappingID
+FROM #VALIDDATA WITH (NOLOCK)
+WHERE ISNULL(ExceptionReason, '') <> ''
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
+
+DELETE
+FROM #ValidData
+WHERE ISNULL(ExceptionReason, '') <> ''
+AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
+-----------------------Inserting data into Log table----------------------------
+INSERT INTO PR.APACPRoject_log (
+FK_APACProjectID
+,ProjectID
+,FKComponentID
+,STATUS
+,CreatedBy
+,CreatedDate
+,LogCreatedBy
+,LogCreatedDate
+,Rowstatus
+,Remarks
+,CriteriaType
+,FK_ComponentCountryMappingID
+)
+SELECT AP.PK_APACProjectID
+,AP.ProjectID
+,AP.FKComponentID
+,AP.STATUS
+,AP.CreatedBy
+,AP.CreatedDate
+,@LoginId
+,getdate()
+,AP.Rowstatus
+,AP.Remarks
+,AP.CriteriaType
+,AP.FK_ComponentCountryMappingID
+FROM PR.APACPRoject AP
+INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = AP.ProjectID
+WHERE AP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
+AND AP.Rowstatus = 1
+--------------------updating data into Main Table-------------------------
+IF EXISTS (
+SELECT AP.ProjectID
+FROM PR.APACPRoject AP WITH (NOLOCK)
+INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = AP.ProjectID
+WHERE AP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
+AND AP.CriteriaType = @CriteriaType
+)
+BEGIN
+UPDATE PAP
+SET modifiedBy = @loginID
+,modifiedDate = getdate()
+,Rowstatus = 1
+FROM PR.APACPRoject PAP WITH (NOLOCK)
+INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = PAP.ProjectID
+WHERE PAP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
+AND PAP.CriteriaType = @CriteriaType
+END
+
+DELETE
+FROM #VALIDDATA
+WHERE ProjectID IN (
+SELECT AP.ProjectID
+FROM PR.APACPRoject AP WITH (NOLOCK)
+INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = AP.ProjectID
+WHERE AP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
+AND AP.CriteriaType = @CriteriaType
+)
+-----------------Inserting data into main table---------------------
+IF NOT EXISTS (
+SELECT AP.ProjectId
+FROM PR.APACPRoject AP WITH (NOLOCK)
+INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = AP.ProjectID
+WHERE AP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
+AND AP.CriteriaType = @CriteriaType
+)
+BEGIN
+INSERT INTO PR.APACPRoject (
+ProjectID
+,STATUS
+,CreatedBy
+,CreatedDate
+,Rowstatus
+,CriteriaType
+,FK_ComponentCountryMappingID
+)
+SELECT ProjectID
+,'Active'
+,@LoginId
+,getdate()
+,1
+,CriteriaType
+,FK_ComponentCountryMappingID
+FROM #ValidData WITH (NOLOCK)
+WHERE FK_ComponentCountryMappingID = @ComponentCountryMappingId
+END
+
+DROP TABLE #ValidData
+END TRY
+ BEGIN CATCH
+ SELECT @@ERROR
+ END CATCH 
+END

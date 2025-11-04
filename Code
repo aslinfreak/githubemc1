@@ -1,359 +1,41 @@
-USE [OneC_SPay]
-GO
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
+function PopulateAssignmentStartDate() {
+    var option_html = '';
+    var componentGroupId = $('#bonus').val();
+    var isActive = 0;
+    var datastring = '{"associateId":"' + loginId + '","componentGroupId":"' + componentGroupId + '","isActive":"' + isActive + '"}';
 
-@ComponentID INT
-,@projectData ProjectData readonly
-,@CriteriaType VARCHAR(5)
-,@LoginId INT
-,@CountryID INT
-)
+    $.ajax({
+        type: "POST",
+        url: "../APAC_WebMethods.aspx/GetAssociateProjectIdAndNameForUploader",
+        contentType: "application/json; charset=utf-8",
+        dataType: "json",
+        data: datastring,
+        cache: false,
+        success: function (msg) {
+            if (msg.d.length > 0) {
+                if (msg.d[0].STATUS != 0) {
 
-AS
-SET NOCOUNT ON
+                    $('.popup_new .innerErrorHolder').html("");
+                    $("#MTAssoname").text($.trim(msg.d[0].AssociateName));
+                    $("#MTDOJ").text($.trim(msg.d[0].DateOfJoining));
 
-BEGIN
-BEGIN TRY
-DECLARE @ComponentCountryMappingId INT
-
-------------Assinging value for ComponentCountryMappingId---------------
-
-SELECT @ComponentCountryMappingId = CCM.PK_ComponentCountryMappingID
-FROM COMPONENTCOUNTRYMAPPING CCM
-INNER JOIN COMPONENTMASTER CM ON CM.PK_COMPONENTID = CCM.FK_COMPONENTID
-WHERE CM.PK_ComponentID = @ComponentID
-AND CCM.FK_componentcountryid = @CountryID
-
-INSERT INTO STG.APACProject (
-ProjectID
-,FKComponentID
-,CreatedBy
-,CreatedDate
-,CriteriaType
-,Rowstatus
-,FK_ComponentCountryMappingID
-)
-SELECT ProjectId
-,@ComponentID
-,@LoginId
-,getdate()
-,CONVERT(INT, @CriteriaType)
-,1
-,@ComponentCountryMappingId
-FROM @projectData
-
-INSERT INTO STG.APACProject_log (
-ProjectID
-,FKComponentID
-,CreatedBy
-,CreatedDate
-,CriteriaType
-,Rowstatus
-,FK_ComponentCountryMappingID
-)
-SELECT ProjectId
-,@ComponentID
-,@LoginId
-,getdate()
-,CONVERT(INT, @CriteriaType)
-,1
-,@ComponentCountryMappingId
-FROM @projectData
-
-CREATE TABLE #ValidData (
-PK_APACProjectId INT
-,ProjectId VARCHAR(10)
-,FKComponentId INT
-,STATUS VARCHAR(100)
-,CreatedBy INT
-,CreatedDate DATETIME
-,ExceptionReason VARCHAR(1000)
-,ActiveStatus INT
-,CriteriaType INT
-,FK_ComponentCountryMappingID INT
-)
-
-INSERT INTO #ValidData (
-PK_APACProjectId
-,ProjectId
-,FKComponentId
-,CreatedBy
-,CreatedDate
-,CriteriaType
-,FK_ComponentCountryMappingID
-)
-SELECT PK_APACProjectId
-,ProjectId
-,FKComponentId
-,CreatedBy
-,CreatedDate
-,CriteriaType
-,FK_ComponentCountryMappingID
-FROM stg.APACProject WITH (NOLOCK)
-WHERE FKComponentId = @ComponentID
-
-EXEC [Trunc].[usp_TruncateTable] 'stg.APACProject'
-
-UPDATE VD
-SET ActiveStatus = 1
-FROM #VALIDDATA VD WITH (NOLOCK)
-INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus SP WITH (NOLOCK) 
-ON SP.PROJECT_ID = VD.PROJECTID
-WHERE EFF_STATUS = 'A'
-AND Project_Status = 'A'
-AND EFFSEQ = (
-SELECT max(EFFSEQ)
-FROM [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus
-WHERE project_Id = VD.ProjectId
-)
-AND effdt = (
-SELECT max(effdt)
-FROM [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus
-WHERE project_Id = VD.ProjectId
-)
-AND VD.FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-UPDATE #VALIDDATA
-SET ExceptionReason = 'Project is Inactive,'
-WHERE isnull(Activestatus, 0) = 0
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
-----------------------Inserting data into Exception Table------------------------
-INSERT INTO EXP.APACProject (
-ProjectId
-,FKcomponentID
-,STATUS
-,ExceptionRemarks
-,CreatedBy
-,CreatedDate
-,RowStatus
-,MailSentStatus
-,FK_ComponentCountryMappingID
-)
-SELECT PRojectID
-,FKcomponentID
-,STATUS
-,ExceptionReason
-,@LoginId
-,Getdate()
-,1
-,0
-,@ComponentCountryMappingId
-FROM #VALIDDATA WITH (NOLOCK)
-WHERE ISNULL(ExceptionReason, '') <> ''
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-DELETE
-FROM #ValidData
-WHERE ISNULL(ExceptionReason, '') <> ''
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-UPDATE VD
-SET VD.ExceptionReason = 'Project is invalid,'
-FROM #VALIDDATA VD WITH (NOLOCK)
-WHERE LEN(VD.ProjectId) <> 10
-AND VD.FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-------------------------Inserting into Exception Table-----------------------------   
-INSERT INTO EXP.APACProject (
-ProjectId
-,FKcomponentID
-,STATUS
-,ExceptionRemarks
-,CreatedBy
-,CreatedDate
-,RowStatus
-,MailSentStatus
-,FK_ComponentCountryMappingID
-)
-SELECT PRojectID
-,FKcomponentID
-,STATUS
-,ExceptionReason
-,@LoginId
-,getdate()
-,1
-,0
-,FK_ComponentCountryMappingID
-FROM #VALIDDATA WITH (NOLOCK)
-WHERE ISNULL(ExceptionReason, '') <> ''
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-DELETE
-FROM #ValidData
-WHERE ISNULL(ExceptionReason, '') <> ''
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-UPDATE VD
-SET VD.ExceptionReason = 'Project is not available in CRS view,'
-FROM #VALIDDATA VD WITH (NOLOCK)
-LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus SPS WITH (NOLOCK)
-ON VD.ProjectId = SPS.Project_ID
-INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Project CRP WITH (NOLOCK) 
-ON SPS.PROJECT_ID = CRP.Project_ID
-WHERE isnull(SPS.Project_ID, '') = ''
-AND VD.FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-INSERT INTO EXP.APACProject (
-ProjectId
-,FKcomponentID
-,STATUS
-,ExceptionRemarks
-,CreatedBy
-,CreatedDate
-,RowStatus
-,MailSentStatus
-,FK_ComponentCountryMappingID
-)
-SELECT PRojectID
-,FKcomponentID
-,STATUS
-,ExceptionReason
-,@LoginId
-,getdate()
-,1
-,0
-,FK_ComponentCountryMappingID
-FROM #VALIDDATA WITH (NOLOCK)
-WHERE ISNULL(ExceptionReason, '') <> ''
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-DELETE
-FROM #ValidData
-WHERE ISNULL(ExceptionReason, '') <> ''
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-UPDATE VD
-SET VD.ExceptionReason = 'Duplicate Data Exists in Same Upload,'
-FROM #VALIDDATA VD WITH (NOLOCK)
-WHERE ProjectID IN (
-SELECT ProjectID
-FROM #Validdata
-GROUP BY ProjectID
-HAVING COUNT(ProjectID) > 1
-)
-------------------------------Inserting into Exception Table----------------------------
-INSERT INTO EXP.APACProject (
-ProjectId
-,FKcomponentID
-,STATUS
-,ExceptionRemarks
-,CreatedBy
-,CreatedDate
-,RowStatus
-,MailSentStatus
-,FK_ComponentCountryMappingID
-)
-SELECT PRojectID
-,FKcomponentID
-,STATUS
-,ExceptionReason
-,@LoginId
-,getdate()
-,1
-,0
-,FK_ComponentCountryMappingID
-FROM #VALIDDATA WITH (NOLOCK)
-WHERE ISNULL(ExceptionReason, '') <> ''
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
-
-DELETE
-FROM #ValidData
-WHERE ISNULL(ExceptionReason, '') <> ''
-AND FK_ComponentCountryMappingID = @ComponentCountryMappingId
------------------------Inserting data into Log table----------------------------
-INSERT INTO PR.APACPRoject_log (
-FK_APACProjectID
-,ProjectID
-,FKComponentID
-,STATUS
-,CreatedBy
-,CreatedDate
-,LogCreatedBy
-,LogCreatedDate
-,Rowstatus
-,Remarks
-,CriteriaType
-,FK_ComponentCountryMappingID
-)
-SELECT AP.PK_APACProjectID
-,AP.ProjectID
-,AP.FKComponentID
-,AP.STATUS
-,AP.CreatedBy
-,AP.CreatedDate
-,@LoginId
-,getdate()
-,AP.Rowstatus
-,AP.Remarks
-,AP.CriteriaType
-,AP.FK_ComponentCountryMappingID
-FROM PR.APACPRoject AP
-INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = AP.ProjectID
-WHERE AP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
-AND AP.Rowstatus = 1
---------------------updating data into Main Table-------------------------
-IF EXISTS (
-SELECT AP.ProjectID
-FROM PR.APACPRoject AP WITH (NOLOCK)
-INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = AP.ProjectID
-WHERE AP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
-AND AP.CriteriaType = @CriteriaType
-)
-BEGIN
-UPDATE PAP
-SET modifiedBy = @loginID
-,modifiedDate = getdate()
-,Rowstatus = 1
-FROM PR.APACPRoject PAP WITH (NOLOCK)
-INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = PAP.ProjectID
-WHERE PAP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
-AND PAP.CriteriaType = @CriteriaType
-END
-
-DELETE
-FROM #VALIDDATA
-WHERE ProjectID IN (
-SELECT AP.ProjectID
-FROM PR.APACPRoject AP WITH (NOLOCK)
-INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = AP.ProjectID
-WHERE AP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
-AND AP.CriteriaType = @CriteriaType
-)
------------------Inserting data into main table---------------------
-IF NOT EXISTS (
-SELECT AP.ProjectId
-FROM PR.APACPRoject AP WITH (NOLOCK)
-INNER JOIN #VALIDDATA VD WITH (NOLOCK) ON VD.ProjectID = AP.ProjectID
-WHERE AP.FK_ComponentCountryMappingID = @ComponentCountryMappingId
-AND AP.CriteriaType = @CriteriaType
-)
-BEGIN
-INSERT INTO PR.APACPRoject (
-ProjectID
-,STATUS
-,CreatedBy
-,CreatedDate
-,Rowstatus
-,CriteriaType
-,FK_ComponentCountryMappingID
-)
-SELECT ProjectID
-,'Active'
-,@LoginId
-,getdate()
-,1
-,CriteriaType
-,FK_ComponentCountryMappingID
-FROM #ValidData WITH (NOLOCK)
-WHERE FK_ComponentCountryMappingID = @ComponentCountryMappingId
-END
-
-DROP TABLE #ValidData
-END TRY
- BEGIN CATCH
- SELECT @@ERROR
- END CATCH 
-END
+                }
+                else if (msg.d[0].STATUS == 0) {
+                    var error = msg.d[0].ERRORMESSAGE;
+                    //$('.popdivcontedit').text('').css('color', 'green').text(error);
+                    $('.popup_new .innerErrorHolder').text(error);
+                    $('.popup_new .innerErrorHolder').removeClass("green");
+                    $('.popup_new .innerErrorHolder').addClass("red");
+                    $("#MTAssoname").text("");
+                    $("#progressBackgroundFilter").hide();
+                    $("#processMessage").hide();
+                }
+            }
+        },
+        error: function (xhr) {
+            $('.popup_new .innerErrorHolder').removeClass("green");
+            $('.popup_new .innerErrorHolder').addClass("red");
+            $('.popup_new .innerErrorHolder').text("An unexpected error has occurred - Please contact administrator for further assisstance or drop a mail to SPaytechteam - SPayTechTeam@cognizant.com");
+        }
+    });
+}

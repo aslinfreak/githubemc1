@@ -1,41 +1,159 @@
-function PopulateAssignmentStartDate() {
-    var option_html = '';
-    var componentGroupId = $('#bonus').val();
-    var isActive = 0;
-    var datastring = '{"associateId":"' + loginId + '","componentGroupId":"' + componentGroupId + '","isActive":"' + isActive + '"}';
+ELSE IF (@COMPONENTGROUPID in (45,47,48) and @CountryID not in (17))
+BEGIN
+	   --------Declare temp variable ------------
+DECLARE @iDisplayStart2 INT, @iDisplayEnd2 INT, @totrec2 INT
+			
+			SET @iDisplayEnd2 = @pageNum * @iDisplayLength
+			SET @iDisplayStart2 = @iDisplayEnd2 - (@iDisplayLength - 1)
+			
+			IF @orderBy = ''
+			BEGIN
+				SET @orderBy = '(SELECT 0)'
+			END
+	IF(@RoleID = 3)
+		BEGIN
+			INSERT INTO #ASSOCIATE(ASSOCIATEID)			
+		  SELECT DISTINCT CreatedBy FROM PR.MaternityAllowance_APAC WITH(NOLOCK)
+		  WHERE fk_componentcountrymappingID=@ComponentcountrymappingID AND ROWSTATUS=1
+			SELECT @Status='1,3,10,14,21,22,8,12,4'
+		END
+	ELSE IF(@RoleID = 1)
+		BEGIN
+			insert into #ASSOCIATE(ASSOCIATEID)
+			select @LoginID
 
-    $.ajax({
-        type: "POST",
-        url: "../APAC_WebMethods.aspx/GetAssociateProjectIdAndNameForUploader",
-        contentType: "application/json; charset=utf-8",
-        dataType: "json",
-        data: datastring,
-        cache: false,
-        success: function (msg) {
-            if (msg.d.length > 0) {
-                if (msg.d[0].STATUS != 0) {
+			SELECT @Status='1,3,4,8,10,17,20,23,24,25'
+	END
+	--/*Check Searchdata*/
+	IF (ISNULL(@searchData, '') = '')
+	   BEGIN
+		SELECT PK_MaternityAllowanceID,MC.AssociateID,	 
+		ISNULL(LTRIM(RTRIM(CAD_A.Associate_FirstName)),'')+' '
+		+ISNULL(LTRIM(RTRIM(CAD_A.Associate_LastName)),'') AS AssociateName,
+		Amount,isnull(Convert(VARCHAR(20),DOJ),'')   as AssignmentStartDate,
+		isnull(Convert(VARCHAR(20),StartDate),'')  StartDate,isnull(Convert(VARCHAR(20),EndDate),'')  EndDate,	
+		ISNULL(MC_A.CDescription, '') AS Status, ISNULL(RejectionReason, '') RejectionReason,
+		isnull(MC_B.Cdescription,'') as PayoutType	,isnull(FileUploadId,'') as FileUploadId,
+		isnull(M.MonthName,'') as PayrollMonth,isnull(Year,'') as Year, isnull(NumberOfDays,'') as	NumberOfDays			
+		INTO #TEMPMobileTaxation
+		FROM PR.MaternityAllowance_APAC MC WITH (NOLOCK)
+		LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CAD_A WITH(NOLOCK)
+		ON CAD_A.Associate_ID=Convert(varchar(11),MC.AssociateID)   
+		INNER JOIN #ASSOCIATE A WITH(NOLOCK) ON A.ASSOCIATEID=Convert(varchar(11),MC.Createdby )
+		LEFT OUTER JOIN MonthMaster M WITH(NOLOCK) ON M.MonthID = MC.PayrollMonth
+		INNER JOIN MasterCodes MC_A with(nolock) on MC_A.CcodeID= MC.Status and MC_A.Cparentref=3
+		and MC_A.CUserDefined1='PR' and MC_A.RowStatus=1
+		left outer join Mastercodes MC_B with(nolock) on MC_B.Cuserdefined1=MC.Type and MC_B.CParentref=40
+		and MC_B.Rowstatus=1 and MC_B.CCodeid=@COMPONENTGROUPID 
+		and (@CountryID in (MC_B.CUserDefined2,MC_B.CUserDefined3))
+		WHERE MC.ROWSTATUS = 1 AND Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))
+		AND MC.fk_componentcountrymappingID=@ComponentcountrymappingID
+		and MC.CreatedDate<=getdate()
+		ORDER BY MC.CreatedDate DESC, MC.ModifiedDate DESC
+		
+				IF (@getPages = 0)
+				BEGIN
+				--Sort by Ascending
+					IF @sortOrder = 1
+					BEGIN
+					EXEC ('SELECT RowNo,PK_MaternityAllowanceID, AssociateID,AssociateName,
+					Amount,AssignmentStartDate,StartDate,EndDate,Status,RejectionReason,FileUploadID,
+						PayoutType,PayrollMonth,Year,NumberOfDays
+							 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' ASC) AS [RowNo],* 
+							 FROM #TEMPMobileTaxation ) t
+									WHERE ROWNO BETWEEN ' + @iDisplayStart2 + ' AND ' + @iDisplayEnd2)
+					END
+					ELSE
+					BEGIN
 
-                    $('.popup_new .innerErrorHolder').html("");
-                    $("#MTAssoname").text($.trim(msg.d[0].AssociateName));
-                    $("#MTDOJ").text($.trim(msg.d[0].DateOfJoining));
+						EXEC ('SELECT RowNo,PK_MaternityAllowanceID, AssociateID,AssociateName,
+						Amount,AssignmentStartDate,StartDate,EndDate,Status,RejectionReason,FileUploadID,
+						PayoutType,PayrollMonth,Year,NumberOfDays
+							 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' DESC) AS [RowNo],* 
+							 FROM #TEMPMobileTaxation ) t
+									WHERE ROWNO BETWEEN ' + @iDisplayStart2 + ' AND ' + @iDisplayEnd2)
+					END
+				END
+				ELSE
+				BEGIN
+				--get total records
+					SELECT @totrec2 = COUNT(1) FROM #TEMPMobileTaxation
 
-                }
-                else if (msg.d[0].STATUS == 0) {
-                    var error = msg.d[0].ERRORMESSAGE;
-                    //$('.popdivcontedit').text('').css('color', 'green').text(error);
-                    $('.popup_new .innerErrorHolder').text(error);
-                    $('.popup_new .innerErrorHolder').removeClass("green");
-                    $('.popup_new .innerErrorHolder').addClass("red");
-                    $("#MTAssoname").text("");
-                    $("#progressBackgroundFilter").hide();
-                    $("#processMessage").hide();
-                }
-            }
-        },
-        error: function (xhr) {
-            $('.popup_new .innerErrorHolder').removeClass("green");
-            $('.popup_new .innerErrorHolder').addClass("red");
-            $('.popup_new .innerErrorHolder').text("An unexpected error has occurred - Please contact administrator for further assisstance or drop a mail to SPaytechteam - SPayTechTeam@cognizant.com");
-        }
-    });
-}
+					IF (@totrec2 % @iDisplayLength) = 0
+						SELECT (@totrec2 / @iDisplayLength) AS Pages, @totrec2 AS Total
+					ELSE
+						SELECT (@totrec2 / @iDisplayLength) + 1 AS Pages, @totrec2 AS Total
+				END
+				
+				--------Drop temp table ----------
+				DROP TABLE #TEMPMobileTaxation
+
+				END
+
+	--/*Check Searchdata*/
+	ELSE IF (ISNULL(@searchData, '') <> '' )
+		BEGIN
+
+		SELECT PK_MaternityAllowanceID,MC.AssociateID,	 ISNULL(LTRIM(RTRIM(CAD_A.Associate_FirstName)),'')
+		+' '+ISNULL(LTRIM(RTRIM(CAD_A.Associate_LastName)),'') AS AssociateName,
+		Amount,isnull(Convert(VARCHAR(20),DOJ),'')   as AssignmentStartDate,
+		isnull(Convert(VARCHAR(20),StartDate),'')  StartDate,isnull(Convert(VARCHAR(20),EndDate),'')  EndDate,	
+		ISNULL(MC_A.CDescription, '') AS Status, ISNULL(RejectionReason, '') RejectionReason,
+		isnull(MC_B.Cdescription,'') as PayoutType	,isnull(FileUploadId,'') as FileUploadId,
+		isnull(M.MonthName,'') as Payrollmonth,isnull(Year,'') as Year, isnull(NumberOfDays,'') as	NumberOfDays	 					
+		INTO #TEMPMobileTaxation_Search
+		FROM PR.MaternityAllowance_APAC MC WITH (NOLOCK)
+		LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CAD_A WITH(NOLOCK)
+		ON CAD_A.Associate_ID=Convert(varchar(11),MC.AssociateID)   
+		INNER JOIN #ASSOCIATE A WITH(NOLOCK) ON A.ASSOCIATEID=Convert(varchar(11),MC.Createdby )
+		LEFT OUTER JOIN MonthMaster M WITH(NOLOCK) ON M.MonthID = MC.PayrollMonth
+		INNER JOIN MasterCodes MC_A with(nolock) on MC_A.CcodeID= MC.Status and MC_A.Cparentref=3 
+		and MC_A.CUserDefined1='PR' and MC_A.RowStatus=1
+		left outer join Mastercodes MC_B with(nolock) on MC_B.Cuserdefined1=MC.Type and MC_B.CParentref=40 
+		and MC_B.Rowstatus=1 and MC_B.CCodeid=@COMPONENTGROUPID
+		and (@CountryID in (MC_B.CUserDefined2,MC_B.CUserDefined3))
+		WHERE MC.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) AND MC.ROWSTATUS = 1
+		AND Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))
+		AND MC.fk_componentcountrymappingID=@ComponentcountrymappingID
+		and MC.CreatedDate<=getdate()
+		ORDER BY MC.CreatedDate DESC, MC.ModifiedDate DESC
+
+				IF (@getPages = 0)
+				BEGIN
+				--Sort by Ascending
+					IF @sortOrder = 1
+					BEGIN
+						EXEC ('SELECT RowNo,PK_MaternityAllowanceID, AssociateID,AssociateName,
+						Amount,AssignmentStartDate,StartDate,EndDate,Status,RejectionReason,FileUploadID,
+						PayoutType,PayrollMonth,Year,NumberOfDays
+							 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' ASC) AS [RowNo],* 
+							 FROM #TEMPMobileTaxation_Search ) t
+									WHERE ROWNO BETWEEN ' + @iDisplayStart2 + ' AND ' + @iDisplayEnd2)
+					END
+					ELSE
+					BEGIN
+
+						EXEC ('SELECT RowNo,PK_MaternityAllowanceID, AssociateID,AssociateName,
+						PayrollMonth,Year,Amount,AssignmentStartDate,Status,RejectionReason,FileUploadID,
+						PayoutType,PayrollMonth,Year,NumberOfDays
+							 FROM (SELECT ROW_NUMBER() OVER (ORDER BY ' + @orderBy + ' DESC) AS [RowNo],* 
+							 FROM #TEMPMobileTaxation_Search ) t
+									WHERE ROWNO BETWEEN ' + @iDisplayStart2 + ' AND ' + @iDisplayEnd2)
+					END
+				END
+			
+			ELSE
+				BEGIN
+				--get total records
+					SELECT @totrec2 = COUNT(1) FROM #TEMPMobileTaxation_Search
+
+					IF (@totrec2 % @iDisplayLength) = 0
+						SELECT (@totrec2 / @iDisplayLength) AS Pages, @totrec2 AS Total
+					ELSE
+						SELECT (@totrec2/ @iDisplayLength) + 1 AS Pages, @totrec2 AS Total
+				END
+				
+				--------Drop temp table ----------
+				DROP TABLE #TEMPMobileTaxation_Search
+					END
+END

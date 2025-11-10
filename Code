@@ -1,22 +1,402 @@
-IF(@componentid=116)  
- BEGIN     
-  
-   --Selecting Associate dtls  
-  SELECT  GR.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-  GR.Location,GR.ProjectID,GR.Amount,GR.DeductionMonth,  
-  (CASE WHEN GR.Status=3 AND GR.RowStatus=1 THEN 'Rejected'   
-  WHEN GR.RowStatus=0 THEN 'Deleted' END) AS Status,GR.RejectionReason,  
-   GR.CreatedBy UploaderID,GR.CreatedDate UploadedDate,GR.ModifiedBy RejectedBy  
-   ,ISNULL(LTRIM(RTRIM(RD.Associate_FirstName)),'')+' '  
-   +ISNULL(LTRIM(RTRIM(RD.Associate_LastName)),'') AS RejecterName,GR.ModifiedDate 'Rejected\Deleteddate'  
- FROM PR.OutreachRecovery GR WITH(NOLOCK)  
-  INNER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
-  ON CONVERT(VARCHAR,AD.Associate_ID)=CONVERT(VARCHAR,GR.AssociateID)   
-  INNER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details RD WITH(NOLOCK)  
-  ON CONVERT(VARCHAR,RD.Associate_ID)=CONVERT(VARCHAR,GR.ModifiedBy)   
-  WHERE (GR.Status =3 or GR.RowStatus=0)  
-  AND ((DATEPART(MM,GR.CreatedDate)=@month AND DATEPART(YY,GR.CreatedDate)=@year) OR  
-  (DATEPART(MM,GR.ModifiedDate)=@Month AND DATEPART(YY,GR.ModifiedDate)=@Year))  
-  
-  END  
+	ELSE IF (@RoleID=3)
+	BEGIN
+	     IF((ISNULL(@searchData, '') = '') AND (ISNULL(@searchData2, '') = '') AND (ISNULL(@searchData3, '') = ''))      
+		BEGIN  
+		IF(@getPages=0)
+	    BEGIN   
+		INSERT INTO #TEMP13 (PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,ShiftTypeName,
+		ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,Status,Remarks,
+		RejectionReason,Amount,UploaderID,HCMSchedule,CreatedDate,ModifiedDate,StatusCode)
+		Select temp.PK_ITShiftAllowanceID,temp.AssociateID,temp.AllowanceID,temp.Allowance,temp.ShiftTypeID,
+		temp.ShiftTypeName,temp.ProjectID,temp.StartDate,temp.StartTime,temp.EndDate,temp.EndTime,
+		temp.TransportEligibility,temp.SpecialCaseReason,temp.Status,temp.Remarks,temp.RejectionReason,temp.Amount,temp.UploaderID,
+		temp.HCMSchedule,temp.CreatedDate,temp.ModifiedDate,temp.StatusCode from 
+        (SELECT  STP.PK_ITShiftAllowanceID,STP.AssociateID,CM.PK_ComponentId AS AllowanceID,
+		CM.ComponentName AS Allowance,STM.PK_ShiftTypeID AS ShiftTypeID
+		,STM.ShiftTypeName,STP.ProjectID,CONVERT(VARCHAR,StartDate,101) AS StartDate,
+		CONVERT(VARCHAR(5),StartTime,108) AS StartTime,
+		CONVERT(VARCHAR,EndDate,101) AS EndDate,CONVERT(VARCHAR(5),EndTime,108) AS EndTime,
+		(CASE WHEN STP.TransportEligibility='Yes' THEN 'Yes' WHEN STP.TransportEligibility='No' 
+		THEN 'No' WHEN STP.TransportEligibility IS NULL THEN 'Not Applicable'
+				ELSE STP.TransportEligibility END) AS TransportEligibility,
+		ISNULL(MC_B.CDescription,'') AS SpecialCaseReason,MC_B.CDescription AS Status,         
+		ISNULL(STP.InputRemarks,'') AS Remarks,ISNULL(STP.RejectionReason,'') AS RejectionReason,
+		STP.Amount AS Amount, STP.CreatedBy AS UploaderID,ISNULL(STP.HCMSchedule,'') AS HCMSchedule,
+		STP.CreatedDate,STP.ModifiedDate, STP.Status as StatusCode
+		FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+		LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CParentRef=3 and STP.Status=MC_B.CCodeId
+		and MC_B.Cuserdefined1='PR'      
+		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (1,15,4,12,35) and CM.PK_ComponentId IN (50,52)
+		UNION 
+		SELECT  STP.PK_ITShiftAllowanceID,STP.AssociateID,CM.PK_ComponentId AS AllowanceID,
+		CM.ComponentName AS Allowance,STM.PK_ShiftTypeID AS ShiftTypeID
+		,STM.ShiftTypeName,STP.ProjectID,CONVERT(VARCHAR,StartDate,101) AS StartDate,
+		CONVERT(VARCHAR(5),StartTime,108) AS StartTime,
+		CONVERT(VARCHAR,EndDate,101) AS EndDate,CONVERT(VARCHAR(5),EndTime,108) AS EndTime,
+		(CASE WHEN STP.TransportEligibility='Yes' THEN 'Yes' WHEN STP.TransportEligibility='No' 
+		THEN 'No' WHEN STP.TransportEligibility IS NULL THEN 'Not Applicable'
+				ELSE STP.TransportEligibility END) AS TransportEligibility,
+		ISNULL(MC_B.CDescription,'') AS SpecialCaseReason,MC_B.CDescription AS Status,         
+		ISNULL(STP.InputRemarks,'') AS Remarks,ISNULL(STP.RejectionReason,'') AS RejectionReason,
+		STP.Amount AS Amount, STP.CreatedBy AS UploaderID,ISNULL(STP.HCMSchedule,'') AS HCMSchedule,
+		STP.CreatedDate,STP.ModifiedDate, STP.Status as StatusCode
+		FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+		LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CParentRef=3 and STP.Status=MC_B.CCodeId 
+		and MC_B.Cuserdefined1='PR'      
+		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (4,21,15,12,35) and CM.PK_ComponentId IN (51)) temp
+		ORDER BY temp.CreatedDate DESC,temp.ModifiedDate DESC
+	
+		IF @sortOrder = 1
+			BEGIN
+				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID
+		,ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,      
+	    Status,Remarks,RejectionReason,Amount,UploaderID,HCMSchedule,StatusCode FROM 
+		(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' ASC) AS [RowNo],* FROM #TEMP13) t
+					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+		ELSE
+			BEGIN
+				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID
+		,ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,      
+	    Status,Remarks,RejectionReason,Amount,UploaderID,HCMSchedule,StatusCode FROM (SELECT ROW_NUMBER() 
+		OVER (ORDER BY '
+		+ @orderBy+' DESC) AS [RowNo],* FROM #TEMP13) t
+					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+
+			SELECT @totrec=count(1) FROM #TEMP13
+			
+			IF (@totrec%@iDisplayLength)=0
+				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+			ELSE
+				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+
+			--DROP TABLE #TEMP13
+	END
+	ELSE
+	   BEGIN
+
+		Insert into #totrec (PK_ID)
+		SELECT PK_ITShiftAllowanceID AS PK_ID FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+		LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CParentRef=3 and STP.Status=MC_B.CCodeId 
+		and MC_B.Cuserdefined1='PR' AND MC_B.RowStatus=1      
+		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (1,15,4,12,35) and CM.PK_ComponentId IN (50,52) 
+		UNION
+		SELECT PK_ITShiftAllowanceID AS PK_ID FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+		LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CParentRef=3 and STP.Status=MC_B.CCodeId 
+		and MC_B.Cuserdefined1='PR' AND MC_B.RowStatus=1      
+		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (4,21,15,35,12) and CM.PK_ComponentId IN (51) 
+		
+	
+		SELECT @totrec =COUNT(1) FROM #totrec 
+
+		IF (@totrec%@iDisplayLength)=0
+			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+		ELSE
+			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+	END	
+END      
+	ELSE
+		BEGIN
+		SELECT @Description = CDescription FROM MasterCodes WITH (NOLOCK) 
+		WHERE CParentRef = 8 AND CCodeId = @COMPONENTGROUPID AND CUserDefined1 = @ddlData AND RowStatus = 1
+
+		BEGIN
+		IF(@getPages=0)
+		BEGIN
+		INSERT INTO #TEMP13 (PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,ShiftTypeName,
+		ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,Status,Remarks,
+		RejectionReason,Amount,UploaderID,HCMSchedule,CreatedDate,ModifiedDate,StatusCode)
+		Select temp.PK_ITShiftAllowanceID,temp.AssociateID,temp.AllowanceID,temp.Allowance,temp.ShiftTypeID,
+		temp.ShiftTypeName,temp.ProjectID,temp.StartDate,temp.StartTime,temp.EndDate,temp.EndTime,
+		temp.TransportEligibility,
+        temp.SpecialCaseReason,temp.Status,temp.Remarks,temp.RejectionReason,temp.Amount,temp.UploaderID,
+		temp.HCMSchedule,temp.CreatedDate,temp.ModifiedDate,temp.StatusCode from 
+        (SELECT  STP.PK_ITShiftAllowanceID,STP.AssociateID,CM.PK_ComponentId AS AllowanceID,
+		CM.ComponentName AS Allowance,STM.PK_ShiftTypeID AS ShiftTypeID
+		,STM.ShiftTypeName,STP.ProjectID,CONVERT(VARCHAR,StartDate,101) AS StartDate,
+		CONVERT(VARCHAR(5),StartTime,108) AS StartTime,
+		CONVERT(VARCHAR,EndDate,101) AS EndDate,CONVERT(VARCHAR(5),EndTime,108) AS EndTime,
+		(CASE WHEN STP.TransportEligibility='Yes' THEN 'Yes' WHEN STP.TransportEligibility='No' 
+		THEN 'No' WHEN STP.TransportEligibility IS NULL THEN 'Not Applicable'
+				ELSE STP.TransportEligibility END) AS TransportEligibility,
+		ISNULL(MC_B.CDescription,'') AS SpecialCaseReason,MC_B.CDescription AS Status,         
+		ISNULL(STP.InputRemarks,'') AS Remarks,ISNULL(STP.RejectionReason,'') AS RejectionReason,
+		STP.Amount AS Amount, STP.CreatedBy AS UploaderID,ISNULL(STP.HCMSchedule,'') AS HCMSchedule,
+		STP.CreatedDate,STP.ModifiedDate,STP.Status as StatusCode
+		FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+		LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CParentRef=3 and STP.Status=MC_B.CCodeId 
+		and MC_B.Cuserdefined1='PR'  
+		WHERE STP.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) AND STP.CreatedBy 
+		LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))
+		AND STP.ProjectID LIKE LTRIM(RTRIM('%' + @searchData3 + '%')) AND 
+		STP.ROWSTATUS=1 AND  STP.Status IN (1,15,4,12,35) and CM.PK_ComponentId IN (50,52)
+		UNION 
+		SELECT  STP.PK_ITShiftAllowanceID,STP.AssociateID,CM.PK_ComponentId AS AllowanceID,
+		CM.ComponentName AS Allowance,STM.PK_ShiftTypeID AS ShiftTypeID
+		,STM.ShiftTypeName,STP.ProjectID,CONVERT(VARCHAR,StartDate,101) AS StartDate,
+		CONVERT(VARCHAR(5),StartTime,108) AS StartTime,
+		CONVERT(VARCHAR,EndDate,101) AS EndDate,CONVERT(VARCHAR(5),EndTime,108) AS EndTime,
+		(CASE WHEN STP.TransportEligibility='Yes' THEN 'Yes' WHEN STP.TransportEligibility='No' 
+		THEN 'No' WHEN STP.TransportEligibility IS NULL THEN 'Not Applicable'
+				ELSE STP.TransportEligibility END) AS TransportEligibility,
+		ISNULL(MC_B.CDescription,'') AS SpecialCaseReason,MC_B.CDescription AS Status,         
+		ISNULL(STP.InputRemarks,'') AS Remarks,ISNULL(STP.RejectionReason,'') AS RejectionReason,
+		STP.Amount AS Amount, STP.CreatedBy AS UploaderID,ISNULL(STP.HCMSchedule,'') AS HCMSchedule,
+		STP.CreatedDate,STP.ModifiedDate,STP.Status as StatusCode
+		FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+		LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CParentRef=3 and STP.Status=MC_B.CCodeId
+		and MC_B.Cuserdefined1='PR'      
+		WHERE STP.ROWSTATUS=1 AND  STP.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%'))
+		AND STP.CreatedBy LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))
+		AND STP.ProjectID LIKE LTRIM(RTRIM('%' + @searchData3 + '%'))  
+		AND STP.Status IN (4,21,15,12,35) and CM.PK_ComponentId IN (51)) temp
+		ORDER BY temp.CreatedDate DESC,temp.ModifiedDate DESC
+	  
+		IF @sortOrder = 1
+			BEGIN
+				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,
+			ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,
+			Status,Remarks,RejectionReason,StatusCode,
+			Amount,UploaderID,HCMSchedule FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' ASC) AS [RowNo],*
+			FROM #TEMP13) t
+					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+		ELSE
+			BEGIN
+				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,
+			ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,
+			Status,Remarks,RejectionReason,StatusCode,
+			Amount,UploaderID,HCMSchedule FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' DESC) AS [RowNo],*
+			FROM #TEMP13) t
+					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+
+			SELECT @totrec=count(1) FROM #TEMP13
+			
+			IF (@totrec%@iDisplayLength)=0
+				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+			ELSE
+				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+
+			--DROP TABLE #TEMP14
+	END
+	ELSE
+	BEGIN
+
+	        Insert into #totrec (PK_ID)
+		    SELECT PK_ITShiftAllowanceID AS PK_ID FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+			INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+			INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+			LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CCodeId=SpecialCaseReason 
+			AND MC_B.CParentRef=3 AND MC_B.RowStatus=1    
+			WHERE STP.ROWSTATUS=1 AND STP.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) 
+			AND STP.CreatedBy LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))
+			AND STP.ProjectID LIKE LTRIM(RTRIM('%' + @searchData3 + '%')) AND 
+			STP.Status IN (1,15,4,12,35) and CM.PK_ComponentId IN (50,52)
+			UNION
+			SELECT PK_ITShiftAllowanceID AS PK_ID FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+			INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+			INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+			LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CCodeId=SpecialCaseReason 
+			AND MC_B.CParentRef=3 AND MC_B.RowStatus=1    
+			WHERE STP.ROWSTATUS=1 AND STP.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%'))
+			AND STP.CreatedBy LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))
+			AND STP.ProjectID LIKE LTRIM(RTRIM('%' + @searchData3 + '%')) AND 
+			STP.Status IN (4,21,15,35,12) and CM.PK_ComponentId IN (51)
+
+			Select @totrec = Count(1) from #totrec
+
+		IF (@totrec%@iDisplayLength)=0
+			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+		ELSE
+			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+	END	
+END
+END
+	END
+
+	ELSE
+	BEGIN
+	IF((ISNULL(@searchData, '') = '') AND (ISNULL(@searchData2, '') = ''))      
+		BEGIN   
+		IF(@getPages=0)
+	    BEGIN    
+		SELECT  STP.PK_ITShiftAllowanceID,STP.AssociateID,CM.PK_ComponentId AS AllowanceID,
+		CM.ComponentName AS Allowance,STM.PK_ShiftTypeID AS ShiftTypeID
+		,STM.ShiftTypeName,STP.ProjectID,CONVERT(VARCHAR,StartDate,101) AS StartDate,
+		CONVERT(VARCHAR(5),StartTime,108) AS StartTime,
+		CONVERT(VARCHAR,EndDate,101) AS EndDate,CONVERT(VARCHAR(5),EndTime,108) AS EndTime,
+		(CASE WHEN STP.TransportEligibility='Yes' THEN 'Yes' WHEN STP.TransportEligibility='No' 
+		THEN 'No' WHEN STP.TransportEligibility IS NULL THEN 'Not Applicable'
+				ELSE STP.TransportEligibility END) AS TransportEligibility,
+		ISNULL(MC_B.CDescription,'') AS SpecialCaseReason,      
+		ISNULL(MC.CDescription,'') AS Status,      
+		ISNULL(STP.InputRemarks,'') AS Remarks,ISNULL(STP.RejectionReason,'') AS RejectionReason,
+		CONVERT(VARCHAR,MD.ProjectValidFrom,101) AS ProjectValidFrom,CONVERT(VARCHAR,MD.ProjectValidTo,101) 
+		AS ProjectValidTo,
+		STP.Amount AS Amount, STP.CreatedBy AS UploaderID,ISNULL(STP.HCMSchedule,'') AS HCMSchedule,
+		 STP.Status as StatusCode
+		INTO #TEMP1
+		FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+		inner join MasterCodes MC with(nolock) on cuserdefined1='PR' and MC.CCodeID=STP.Status and MC.RowStatus=1
+		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+		INNER JOIN #MINDATE MD WITH(NOLOCK) ON MD.ComponentID=STP.Fk_ComponentID AND MD.ProjectID=STP.ProjectID
+		LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CCodeId=SpecialCaseReason AND MC_B.CParentRef=2 
+		AND MC_B.RowStatus=1      
+		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))   
+		AND ((STP.ProjectID=@ProjectId AND ISNULL(@ProjectId,'')<>'') or (ISNULL(@ProjectId,'')=''))
+		ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC   
+	   
+	
+		IF @sortOrder = 1
+			BEGIN
+				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID
+		,ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,      
+	    Status,Remarks,RejectionReason,ProjectValidFrom,ProjectValidTo,Amount,UploaderID,HCMSchedule,
+		StatusCode FROM 
+		(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' ASC) AS [RowNo],* FROM #TEMP1) t
+					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+		ELSE
+			BEGIN
+				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID
+		,ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,      
+	    Status,Remarks,RejectionReason,ProjectValidFrom,ProjectValidTo,Amount,UploaderID,HCMSchedule,
+		StatusCode
+		FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' DESC) AS [RowNo],* FROM #TEMP1) t
+					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+
+			SELECT @totrec=count(1) FROM #TEMP1
+			
+			IF (@totrec%@iDisplayLength)=0
+				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+			ELSE
+				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+
+			DROP TABLE #TEMP1
+	END
+	ELSE
+	   BEGIN
+		SELECT @totrec=count(1) FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+		INNER JOIN #MINDATE MD WITH(NOLOCK) ON MD.ComponentID=STP.Fk_ComponentID AND MD.ProjectID=STP.ProjectID
+		LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CCodeId=SpecialCaseReason AND MC_B.CParentRef=2 
+		AND MC_B.RowStatus=1      
+		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))   
+		AND ((STP.ProjectID=@ProjectId AND ISNULL(@ProjectId,'')<>'') or (ISNULL(@ProjectId,'')=''))
+
+		IF (@totrec%@iDisplayLength)=0
+			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+		ELSE
+			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+	END	
+END      
+	ELSE
+		BEGIN
+		SELECT @Description = CDescription FROM MasterCodes WITH (NOLOCK) 
+		WHERE CParentRef = 8 AND CCodeId = @COMPONENTGROUPID AND CUserDefined1 = @ddlData AND RowStatus = 1
+	
+	
+		BEGIN
+		IF(@getPages=0)
+		BEGIN
+			SELECT STP.PK_ITShiftAllowanceID,STP.AssociateID,CM.PK_ComponentId AS AllowanceID,
+			CM.ComponentName AS Allowance,STM.PK_ShiftTypeID AS ShiftTypeID,
+			STM.ShiftTypeName,STP.ProjectID,CONVERT(VARCHAR,STP.StartDate,101) AS StartDate,
+			CONVERT(VARCHAR(5),STP.StartTime,108) AS StartTime,
+			CONVERT(VARCHAR,STP.EndDate,101) AS EndDate,CONVERT(VARCHAR(5),STP.EndTime,108) AS EndTime,
+			(CASE WHEN STP.TransportEligibility='Yes' THEN 'Yes' WHEN STP.TransportEligibility='No' 
+			THEN 'No' WHEN STP.TransportEligibility IS NULL THEN 'Not Applicable'
+				ELSE STP.TransportEligibility END) AS TransportEligibility,
+			ISNULL(MC_B.CDescription,'') AS SpecialCaseReason,      
+			ISNULL(MC.CDescription,'') AS Status,     
+			ISNULL(STP.InputRemarks,'') AS Remarks,ISNULL(STP.RejectionReason,'') AS RejectionReason,
+			CONVERT(VARCHAR,MD.ProjectValidFrom,101) AS ProjectValidFrom,
+			CONVERT(VARCHAR,MD.ProjectValidTo,101) AS ProjectValidTo,STP.Amount AS Amount, 
+			STP.CreatedBy AS UploaderID,ISNULL(STP.HCMSchedule,'') AS HCMSchedule, STP.Status as StatusCode
+			INTO #TEMP16
+			FROM PR.ITShiftAllowance STP WITH(NOLOCK)  
+			inner join MasterCodes MC with(nolock) on cuserdefined1='PR' and MC.CCodeID=STP.Status 
+			and MC.RowStatus=1
+			INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+			INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+			INNER JOIN #MINDATE MD WITH(NOLOCK) ON MD.ComponentID=STP.Fk_ComponentID AND MD.ProjectID=STP.ProjectID
+			LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CCodeId=SpecialCaseReason 
+			AND MC_B.CParentRef=2 AND MC_B.RowStatus=1      
+			WHERE STP.ROWSTATUS=1 AND STP.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) 
+			AND STP.CreatedBy LIKE LTRIM(RTRIM('%' + @searchData2 + '%')) AND 
+			STATUS IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,',')) 
+			AND ((STP.ProjectID=@ProjectId AND ISNULL(@ProjectId,'')<>'') or (ISNULL(@ProjectId,'')=''))
+			ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC
+	   
+	   
+		IF @sortOrder = 1
+			BEGIN
+				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,
+			ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason
+			,Status,Remarks,RejectionReason,
+			ProjectValidFrom,ProjectValidTo,Amount,UploaderID,HCMSchedule,
+			StatusCode FROM (SELECT ROW_NUMBER() OVER (ORDER BY '
+			+ @orderBy+' ASC) AS [RowNo],* FROM #TEMP16) t
+					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+		ELSE
+			BEGIN
+				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,
+			ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,
+			Status,Remarks,RejectionReason,
+			ProjectValidFrom,ProjectValidTo,Amount,UploaderID,HCMSchedule,
+			StatusCode FROM (SELECT ROW_NUMBER() OVER (ORDER BY '
+			+ @orderBy+' DESC) AS [RowNo],* FROM #TEMP16) t
+					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+
+			SELECT @totrec=count(1) FROM #TEMP16
+			
+			IF (@totrec%@iDisplayLength)=0
+				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+			ELSE
+				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+
+			DROP TABLE #TEMP16
+	END
+	ELSE
+	BEGIN
+		SELECT @totrec=count(1) FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
+			INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
+			INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
+			INNER JOIN #MINDATE MD WITH(NOLOCK) ON MD.ComponentID=STP.Fk_ComponentID AND MD.ProjectID=STP.ProjectID
+			LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON  MC_B.CCodeId=SpecialCaseReason AND MC_B.CParentRef=2 
+			AND MC_B.RowStatus=1      
+			WHERE STP.ROWSTATUS=1 AND STP.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) 
+			AND STP.CreatedBy LIKE LTRIM(RTRIM('%' + @searchData2 + '%')) AND 
+			STATUS IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))
+			AND ((STP.ProjectID=@ProjectId AND ISNULL(@ProjectId,'')<>'') or (ISNULL(@ProjectId,'')=''))
+
+		IF (@totrec%@iDisplayLength)=0
+			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+		ELSE
+			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+	END
+	
+END
+	
+END
+END
+	END

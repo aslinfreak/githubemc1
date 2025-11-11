@@ -1,9 +1,4 @@
-	ELSE IF (@RoleID=3)
-	BEGIN
-	     IF((ISNULL(@searchData, '') = '') AND (ISNULL(@searchData2, '') = '') AND (ISNULL(@searchData3, '') = ''))      
-		BEGIN  
-		IF(@getPages=0)
-	    BEGIN   
+
 		INSERT INTO #TEMP13 (PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,ShiftTypeName,
 		ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,Status,Remarks,
 		RejectionReason,Amount,UploaderID,HCMSchedule,CreatedDate,ModifiedDate,StatusCode)
@@ -49,36 +44,9 @@
 		and MC_B.Cuserdefined1='PR'      
 		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (4,21,15,12,35) and CM.PK_ComponentId IN (51)) temp
 		ORDER BY temp.CreatedDate DESC,temp.ModifiedDate DESC
-	
-		IF @sortOrder = 1
-			BEGIN
-				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID
-		,ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,      
-	    Status,Remarks,RejectionReason,Amount,UploaderID,HCMSchedule,StatusCode FROM 
-		(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' ASC) AS [RowNo],* FROM #TEMP13) t
-					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-		ELSE
-			BEGIN
-				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID
-		,ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,      
-	    Status,Remarks,RejectionReason,Amount,UploaderID,HCMSchedule,StatusCode FROM (SELECT ROW_NUMBER() 
-		OVER (ORDER BY '
-		+ @orderBy+' DESC) AS [RowNo],* FROM #TEMP13) t
-					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-
-			SELECT @totrec=count(1) FROM #TEMP13
-			
-			IF (@totrec%@iDisplayLength)=0
-				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-			ELSE
-				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
 
 			--DROP TABLE #TEMP13
-	END
-	ELSE
-	   BEGIN
+
 
 		Insert into #totrec (PK_ID)
 		SELECT PK_ITShiftAllowanceID AS PK_ID FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
@@ -96,20 +64,6 @@
 		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (4,21,15,35,12) and CM.PK_ComponentId IN (51) 
 		
 	
-		SELECT @totrec =COUNT(1) FROM #totrec 
-
-		IF (@totrec%@iDisplayLength)=0
-			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-		ELSE
-			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
-	END	
-END      
-	ELSE
-		BEGIN
-		SELECT @Description = CDescription FROM MasterCodes WITH (NOLOCK) 
-		WHERE CParentRef = 8 AND CCodeId = @COMPONENTGROUPID AND CUserDefined1 = @ddlData AND RowStatus = 1
-
-		BEGIN
 		IF(@getPages=0)
 		BEGIN
 		INSERT INTO #TEMP13 (PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,ShiftTypeName,
@@ -165,36 +119,12 @@ END
 		AND STP.Status IN (4,21,15,12,35) and CM.PK_ComponentId IN (51)) temp
 		ORDER BY temp.CreatedDate DESC,temp.ModifiedDate DESC
 	  
-		IF @sortOrder = 1
-			BEGIN
-				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,
-			ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,
-			Status,Remarks,RejectionReason,StatusCode,
-			Amount,UploaderID,HCMSchedule FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' ASC) AS [RowNo],*
-			FROM #TEMP13) t
-					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-		ELSE
-			BEGIN
-				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,
-			ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,
-			Status,Remarks,RejectionReason,StatusCode,
-			Amount,UploaderID,HCMSchedule FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' DESC) AS [RowNo],*
-			FROM #TEMP13) t
-					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
+		
 
-			SELECT @totrec=count(1) FROM #TEMP13
 			
-			IF (@totrec%@iDisplayLength)=0
-				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-			ELSE
-				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
 
 			--DROP TABLE #TEMP14
-	END
-	ELSE
-	BEGIN
+	
 
 	        Insert into #totrec (PK_ID)
 		    SELECT PK_ITShiftAllowanceID AS PK_ID FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
@@ -217,21 +147,9 @@ END
 			AND STP.ProjectID LIKE LTRIM(RTRIM('%' + @searchData3 + '%')) AND 
 			STP.Status IN (4,21,15,35,12) and CM.PK_ComponentId IN (51)
 
-			Select @totrec = Count(1) from #totrec
-
-		IF (@totrec%@iDisplayLength)=0
-			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-		ELSE
-			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
-	END	
-END
-END
-	END
-
-	ELSE
+			
 	BEGIN
-	IF((ISNULL(@searchData, '') = '') AND (ISNULL(@searchData2, '') = ''))      
-		BEGIN   
+	
 		IF(@getPages=0)
 	    BEGIN    
 		SELECT  STP.PK_ITShiftAllowanceID,STP.AssociateID,CM.PK_ComponentId AS AllowanceID,
@@ -262,35 +180,7 @@ END
 		ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC   
 	   
 	
-		IF @sortOrder = 1
-			BEGIN
-				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID
-		,ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,      
-	    Status,Remarks,RejectionReason,ProjectValidFrom,ProjectValidTo,Amount,UploaderID,HCMSchedule,
-		StatusCode FROM 
-		(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' ASC) AS [RowNo],* FROM #TEMP1) t
-					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-		ELSE
-			BEGIN
-				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID
-		,ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,      
-	    Status,Remarks,RejectionReason,ProjectValidFrom,ProjectValidTo,Amount,UploaderID,HCMSchedule,
-		StatusCode
-		FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' DESC) AS [RowNo],* FROM #TEMP1) t
-					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-
-			SELECT @totrec=count(1) FROM #TEMP1
-			
-			IF (@totrec%@iDisplayLength)=0
-				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-			ELSE
-				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
-
-			DROP TABLE #TEMP1
-	END
-	ELSE
+		
 	   BEGIN
 		SELECT @totrec=count(1) FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
 		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
@@ -301,13 +191,7 @@ END
 		WHERE STP.ROWSTATUS=1 AND  STP.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))   
 		AND ((STP.ProjectID=@ProjectId AND ISNULL(@ProjectId,'')<>'') or (ISNULL(@ProjectId,'')=''))
 
-		IF (@totrec%@iDisplayLength)=0
-			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-		ELSE
-			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
-	END	
-END      
-	ELSE
+		
 		BEGIN
 		SELECT @Description = CDescription FROM MasterCodes WITH (NOLOCK) 
 		WHERE CParentRef = 8 AND CCodeId = @COMPONENTGROUPID AND CUserDefined1 = @ddlData AND RowStatus = 1
@@ -346,38 +230,10 @@ END
 			ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC
 	   
 	   
-		IF @sortOrder = 1
-			BEGIN
-				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,
-			ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason
-			,Status,Remarks,RejectionReason,
-			ProjectValidFrom,ProjectValidTo,Amount,UploaderID,HCMSchedule,
-			StatusCode FROM (SELECT ROW_NUMBER() OVER (ORDER BY '
-			+ @orderBy+' ASC) AS [RowNo],* FROM #TEMP16) t
-					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-		ELSE
-			BEGIN
-				EXEC('SELECT Rowno,PK_ITShiftAllowanceID,AssociateID,AllowanceID,Allowance,ShiftTypeID,
-			ShiftTypeName,ProjectID,StartDate,StartTime,EndDate,EndTime,TransportEligibility,SpecialCaseReason,
-			Status,Remarks,RejectionReason,
-			ProjectValidFrom,ProjectValidTo,Amount,UploaderID,HCMSchedule,
-			StatusCode FROM (SELECT ROW_NUMBER() OVER (ORDER BY '
-			+ @orderBy+' DESC) AS [RowNo],* FROM #TEMP16) t
-					  WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-
-			SELECT @totrec=count(1) FROM #TEMP16
-			
-			IF (@totrec%@iDisplayLength)=0
-				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-			ELSE
-				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+		
 
 			DROP TABLE #TEMP16
-	END
-	ELSE
-	BEGIN
+	
 		SELECT @totrec=count(1) FROM PR.ITShiftAllowance STP WITH(NOLOCK)      
 			INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID
 			INNER JOIN ComponentMaster CM WITH(NOLOCK) ON STP.Fk_ComponentID=CM.PK_ComponentId
@@ -389,14 +245,4 @@ END
 			STATUS IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))
 			AND ((STP.ProjectID=@ProjectId AND ISNULL(@ProjectId,'')<>'') or (ISNULL(@ProjectId,'')=''))
 
-		IF (@totrec%@iDisplayLength)=0
-			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-		ELSE
-			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
-	END
-	
-END
-	
-END
-END
-	END
+		

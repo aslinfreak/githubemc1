@@ -1,32 +1,462 @@
- <div class=" popup_uploadwrap disp" id="divshift_editpopup">
-     <div class="close_uploadpopup">
-         <img class='spriteImage' style="--x:-2201px;--y:-1414px;width:13px;height:13px" />
-     </div>
-     <div class="popup_uploadtop"></div>
-     <div class="popup_uploadmid middle">
-         <div class="headwrap">Edit Data</div>
-         <div class="clear"></div>
-         <div class="pop_upinner_cont clearfix" style="width: 900px !important">
-             <div class="tblpopadd_upwrap mb-5" id="divpopup_edit" style="border: 1px solid #c8c8c8;">
-                 <table class="tblpopadd_upload shifttime" id="tblpopedit" cellpadding="0" cellspacing="0" style="width: 898px !important">
+    else if (componentGroupId == 4) {
+        $("#divApprovalmsg1").show();
+        $("#divApprovalmsg1").css("margin-left", "0px");
+        //$("#ulRecord").css("margin-left", "0px");
+        //$("#ulRecord").css("margin-top", "0px");
+        //$("#ulRecord li").css("margin-left", "350px");
+        //$("#ulRecord li").css("margin-top", "-30px");
+        $("#ulQuarter").hide();
+        $("#CBADetails").hide();
+        $(".tbl_upload_holder").hide();
+        $("#customize").show();
+        $('#mailattach').hide();
+        $("#tbl_trt").hide();
+        $("#refDetails").hide();
+        $("#itshiftDetails").hide();
+        $("#shiftDetails").show();
+        $("#Bpsdetails").hide();
+        $("#Ubsdetails").hide();
+        $("#Transdetails").hide();
+        $("#CoreLogicdetails").hide();
+        $("#Gymdetails").hide();
+        $('#tblShiftAllowance').find('tbody').html('');
+        $('#tblShiftAllowance').css('display', 'block');
+        $('#tblShiftAllowanceHead').css('display', 'block');
+        $('#tblShiftAllowance_wrapper').css('display', 'block');
+        $('.dataTableScroll').css('display', 'block');
+        $('#tblReferral').css('display', 'none');
+        $('#tblReferralHead').css('display', 'none');
+        $('#tblReferral_wrapper').css('display', 'none');
+        $('#Joiningbonus .dataTableScroll').css('display', 'none');
+        $('#Joiningbonus .viewport').css('display', 'none');
+        $('#NOticepay .dataTableScroll').css('display', 'none');
+        $('#NOticepay .viewport').css('display', 'none');
+        $('#tblJoining').css('display', 'none');
+        $('#tblNoticepay').css('display', 'none');
+        $('#itshiftdetails .dataTableScroll').css('display', 'none');
+        $('#itshiftdetails .refPage').css('display', 'none');
+        $("#disLabel").css("margin-left", "315px");
+        $("#customize").css("left", "305px");
+        $('.new_btn').css("margin-left", "40px");
+        //$("#ulRecord li").css("width", "");
+        //$("#ulRecord li").css("margin-top", "1px");
+        //$("#ulRecord li").addClass("mleft50");
+        $('.mleft50').css('margin-top', '0px');
+        $("#upload").css("margin-left", "250px");
 
-                     <thead>
-                         <tr>
-                             <th class="ptd11">Associate ID </th>
-                             <th class="ptd12">Allowance</th>
-                             <th class="ptd3">Shift</th>
-                             <th class="ptd4">Start Date</th>
-                             <th class="ptd7">End Date</th>
-                             <th class="ptd5">Start Time</th>
-                             <th class="ptd6">End Time</th>
-                             <!-- <th class="ptd8">Travel Allowance</th>-->
-                             <th class="ptd9">
-                                 <img class='spriteImage' style="--x:-2343px;--y:-1110px;width:20px;height:20px" />
-                             </th>
-                             <th class="ptd101">Status</th>
-                             <th class="ptd8 Shiftstartdate">ShiftStartDate</th>
-                         </tr>
-                     </thead>
-                     <tbody></tbody>
-                 </table>
-             </div>
+        //getTotalPages();
+        $("#NoData").remove();
+
+        $('#uploadData').attr({ "enabled": "enabled", "onclick": "OnUploadButtonClick()", "href": "javascript:OnUploadButtonClick();" });
+        $('#emptyTemplte').css({ "pointer-events": "", "cursor": "pointer" }).attr({ "enabled": "enabled", "onclick": "opentemplate()" });
+        $('#upload_img').attr('src', '../Images/upload_folder.png');
+        const AprStatuscodeHM_PM = [21, 15, 12];// Approved by HM / PM
+        const AprStatuscode_PFSS = [12, 15];
+        //$('#tblShiftAllowanceHead thead tr th:nth-child(10)').text('Rejection Reason');
+        if (CustomizeSA != '~1~2~3~5~6~7~8~10~12') {
+            var htmldata = '';
+            htmldata += '<tr><th class="std1"><input type="checkbox" id="svalid" /></th>';
+            htmldata += ' <th class="sort std2" column="AssociateID">Associate ID </th>';
+            htmldata += ' <th class="sort std3" column="Allowance">Allowance</th>';
+            htmldata += ' <th class="sort std4" column="ShiftTypeName">Shift</th>';
+            htmldata += ' <th class="sort std5" column="StartDate">Start Date</th>';
+            htmldata += ' <th class="sort std8" column="EndDate">End Date</th>';
+            htmldata += ' <th class="sort std6" column="StartTime">Start Time</th>';
+            htmldata += ' <th class="sort std7" column="EndTime">End Time</th>';
+            htmldata += ' <th class="std8" column="HCMSchedule">HCM Shift</th>';
+            if (CustomizeSA.indexOf("~4~") > -1) {
+                htmldata += ' <th class="std11" column="ProjectID">Project ID</th>'
+            }
+            if (CustomizeSA.indexOf("~9~") > -1) {
+                htmldata += ' <th class="std11" column="Amount">Amount</th>'
+            }
+            if (CustomizeSA.indexOf("~11~") > -1) {
+                htmldata += ' <th class="std11" column="UploaderID">UploaderID</th>'
+            }
+            htmldata += ' <th class="std11">Reject Reason</th>';
+            htmldata += ' <th class="sort std10" column="Status">Status</th>';
+            if (RoleId == 19) {
+                htmldata += ' <th class="sort std12 shiftcis" column="ShiftStartDate">ShiftStartDate</th></tr > ';
+            }
+
+            $('#tblShiftAllowance').find('thead').html('').html(htmldata);
+        }
+        else {
+            var htmldata = '';
+            htmldata += '<tr><th class="std1"><input type="checkbox" id="svalid" /></th>';
+            htmldata += ' <th class="sort std2" column="AssociateID">Associate ID </th>';
+            htmldata += ' <th class="sort std3" column="Allowance">Allowance</th>';
+            htmldata += ' <th class="sort std4" column="ShiftTypeName">Shift</th>';
+            htmldata += ' <th class="sort std5" column="StartDate">Start Date</th>';
+            htmldata += ' <th class="sort std8" column="EndDate">End Date</th>';
+            htmldata += ' <th class="sort std6" column="StartTime">Start Time</th>';
+            htmldata += ' <th class="sort std7" column="EndTime">End Time</th>';
+            htmldata += ' <th class="std8" column="HCMSchedule">HCM Shift</th>';
+
+            htmldata += ' <th class="std11">Reject Reason</th>';
+            htmldata += ' <th class="sort std10" column="Status">Status</th>';
+            if (RoleId == 19) {
+                htmldata += ' <th class="sort std12 shiftcis" column="ShiftStartDate">ShiftStartDate</th></tr > ';
+            }
+
+            $('#tblShiftAllowance').find('thead').html('').html(htmldata);
+        }
+        // $('#tblShiftAllowanceHead thead tr th:nth-child(10)').text('Status');
+
+        var htmldata = '';
+        if (msg.d.length > 0) {
+            $("#shiftDetails .refPage").css("display", "block");
+
+            $('.btnlist').show();
+            $('#itshiftdetails .btnlist').css('display', 'none');
+            $("#divApprovalmsg1").css("margin-left", "-451px");
+            var d = new Date();
+            var today = d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear();
+
+            //Cut-off end date //
+            var cutoffdatesplit = cutoffdate.split('/');
+            // Month is zero-indexed so subtract one from the month inside the constructor
+            var date = new Date(cutoffdatesplit[2], cutoffdatesplit[1] - 1, cutoffdatesplit[0]); //Y M D
+            var cutoff_date = date.getTime();
+
+            //cut off start  date //
+            var cutoffstartdatesplit = cutoffStartdate.split('/');
+            // Month is zero-indexed so subtract one from the month inside the constructor
+            var date = new Date(cutoffstartdatesplit[2], cutoffstartdatesplit[1] - 1, cutoffstartdatesplit[0]); //Y M D
+            var cutoffStart_date = date.getTime();
+
+            var reworkendcutoffdatesplit = reworkendcutoff.split('/');
+            // Month is zero-indexed so subtract one from the month inside the constructor
+            var reworkenddate = new Date(reworkendcutoffdatesplit[2], reworkendcutoffdatesplit[1] - 1, reworkendcutoffdatesplit[0]); //Y M D
+            var reworkendcutoff_date = reworkenddate.getTime();
+
+            var reworkstartcutoffdatesplit = reworkstartcutoff.split('/');
+            // Month is zero-indexed so subtract one from the month inside the constructor
+            var reworkstartdate = new Date(reworkstartcutoffdatesplit[2], reworkstartcutoffdatesplit[1] - 1, reworkstartcutoffdatesplit[0]); //Y M D
+            var reworkstartcutoff_date = reworkstartdate.getTime();
+
+            var todaysplit = today.split('/');
+            // Month is zero-indexed so subtract one from the month inside the constructor
+            var Date1 = new Date(todaysplit[2], todaysplit[1] - 1, todaysplit[0]); //Y M D
+            var today_date = Date1.getTime();
+            var classname = '';
+            if (CustomizeSA != '~1~2~3~5~6~7~8~10~12') {
+                $.each(msg.d, function (i, data) {
+                    if ((i % 2) == 0) {
+                        classname = 'even';
+                    }
+                    else {
+                        classname = 'odd';
+                    }
+                    var remarks = '';
+                    //var TravelAllowance = (data.TravelAllowance == "true") ? '<input type="checkbox" class="travelallow" disabled="disabled" checked="checked"/>' : '<input type="checkbox" class="travelallow" disabled="disabled" />';
+                    var allowanceType = (data.Allowance.length > 14) ? data.Allowance.substring(0, 14) + '...' : data.Allowance;
+                    var RejectionReason = (data.RejectionReason.length > 20) ? data.RejectionReason.substring(0, 20) + '...' : data.RejectionReason;
+                    var shift = (data.ShiftTypeName.length > 16) ? data.ShiftTypeName.substring(0, 6) + '..' : data.ShiftTypeName;
+                    data.RejectionReason
+                    if (data.Remarks != null) {
+                        remarks = (data.Remarks.length > 30) ? data.Remarks.substring(0, 30) + '...' : data.Remarks;
+                    }
+
+                    if (data.Allowance.includes('Night') || $('#bonus').val().includes('Night')) { // if grid allowance is NSA time field should ''
+
+                        data.StartTime = '';
+                        data.EndTime = '';
+                        data.HCMSchedule = '';
+                    }
+                    if (cutoff_date == NaN) {
+
+                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
+                        if ((AprStatuscodeHM_PM.includes(data.StatusCode)) && RoleId == 19) {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                        }
+                        else if (AprStatuscode_PFSS.includes(data.StatusCode)) {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                        }
+                        else {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td>';
+                        }
+                        grid_html += '<td class="ref std2">' + data.AssociateID + '</td>';
+                        grid_html += '<td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td>';
+                        grid_html += '<td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std18" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                        grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td>';
+                        grid_html += '<td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td>';
+                        if (CustomizeSA.indexOf("~4~") > -1) {
+                            grid_html += '<td class="std11" style="text-align:left;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                        }
+                        if (CustomizeSA.indexOf("~9~") > -1) {
+                            grid_html += '<td class="std11" style="text-align:left;" Amount="' + data.Amount + '">' + data.Amount + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                        }
+                        if (CustomizeSA.indexOf("~11~") > -1) {
+                            grid_html += '<td class="std11" style="text-align:left;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                        }
+                        grid_html += '<td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                        if (RoleId == 19) {
+                            grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                        }
+                    }
+                    else if (today_date >= cutoffStart_date && today_date <= cutoff_date) {
+
+                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
+                        if ((AprStatuscodeHM_PM.includes(data.StatusCode)) && RoleId == 19) {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                        }
+                        else if (AprStatuscode_PFSS.includes(data.StatusCode)) {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                        }
+                        else {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td>';
+                        }
+                        grid_html += '<td class="ref std2">' + data.AssociateID + '</td>';
+                        grid_html += '<td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td><td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std8" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                        grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td>';
+                        grid_html += '<td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td>';
+                        if (CustomizeSA.indexOf("~4~") > -1) {
+                            grid_html += '<td class="std11" style="text-align:left;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                        }
+                        if (CustomizeSA.indexOf("~9~") > -1) {
+                            grid_html += '<td class="std11" style="text-align:left;" Amount="' + data.Amount + '">' + data.Amount + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                        }
+                        if (CustomizeSA.indexOf("~11~") > -1) {
+                            grid_html += '<td class="std11" style="text-align:left;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                        }
+                        grid_html += '<td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                        if (RoleId == 19) {
+                            grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                        }
+                    }
+                    else {
+                        if (today_date <= reworkendcutoff_date && today_date >= reworkstartcutoff_date) {
+
+                            if (data.Status == "Rejected" || data.Status == "Resubmitted") {
+                                grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
+                                if ((AprStatuscodeHM_PM.includes(data.StatusCode)) && RoleId == 19) {
+                                    grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                                }
+                                else if (AprStatuscode_PFSS.includes(data.StatusCode)) {
+                                    grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                                }
+                                else {
+                                    grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td>';
+                                }
+                                grid_html += '<td class="ref std2">' + data.AssociateID + '</td>';
+                                grid_html += '<td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td>';
+                                grid_html += '<td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std18" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                                if (CustomizeSA.indexOf("~4~") > -1) {
+                                    grid_html += '<td class="std11" style="text-align:left;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                                }
+                                if (CustomizeSA.indexOf("~9~") > -1) {
+                                    grid_html += '<td class="std11" style="text-align:left;" Amount="' + data.Amount + '">' + data.Amount + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                                }
+                                if (CustomizeSA.indexOf("~11~") > -1) {
+                                    grid_html += '<td class="std11" style="text-align:left;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                                }
+                                grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td><td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td><td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                                if (RoleId == 19) {
+                                    grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                                }
+                            }
+                            else {
+
+                                grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '><td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true" /></td><td class="ref std2">' + data.AssociateID + '</td>';
+                                grid_html += '<td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td>';
+                                grid_html += '<td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std18" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                                grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td>';
+                                grid_html += '<td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td>';
+                                if (CustomizeSA.indexOf("~4~") > -1) {
+                                    grid_html += '<td class="std11" style="text-align:left;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                                }
+                                if (CustomizeSA.indexOf("~9~") > -1) {
+                                    grid_html += '<td class="std11" style="text-align:left;" Amount="' + data.Amount + '">' + data.Amount + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                                }
+                                if (CustomizeSA.indexOf("~11~") > -1) {
+                                    grid_html += '<td class="std11" style="text-align:left;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                                }
+                                grid_html += '<td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                                if (RoleId == 19) {
+                                    grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                                }
+                            }
+                        }
+                        else {
+
+                            grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '><td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true" /></td><td class="ref std2">' + data.AssociateID + '</td><td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td>';
+                            grid_html += '<td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td><td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                            grid_html += '<td style="text-align:center;" class="std18" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td><td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+
+                            grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td>';
+                            grid_html += '<td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td>';
+                            if (CustomizeSA.indexOf("~4~") > -1) {
+                                grid_html += '<td class="std11" style="text-align:left;" ProjectID="' + data.ProjectID + '">' + data.ProjectID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                            }
+                            if (CustomizeSA.indexOf("~9~") > -1) {
+                                grid_html += '<td class="std11" style="text-align:left;" Amount="' + data.Amount + '">' + data.Amount + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                            }
+                            if (CustomizeSA.indexOf("~11~") > -1) {
+                                grid_html += '<td class="std11" style="text-align:left;" UploaderID="' + data.UploaderID + '">' + data.UploaderID + '</td>';//  '<td width="100px">' + data.Project_ID + '</td>';
+                            }
+                            grid_html += '<td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                            if (RoleId == 19) {
+                                grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                            }
+                        }
+                    }
+                });
+            }
+            else {
+                $.each(msg.d, function (i, data) {
+                    if ((i % 2) == 0) {
+                        classname = 'even';
+                    }
+                    else {
+                        classname = 'odd';
+                    }
+                    var remarks = '';
+                    //var TravelAllowance = (data.TravelAllowance == "true") ? '<input type="checkbox" class="travelallow" disabled="disabled" checked="checked"/>' : '<input type="checkbox" class="travelallow" disabled="disabled" />';
+                    var allowanceType = (data.Allowance.length > 14) ? data.Allowance.substring(0, 14) + '...' : data.Allowance;
+                    var RejectionReason = (data.RejectionReason.length > 20) ? data.RejectionReason.substring(0, 20) + '...' : data.RejectionReason;
+                    var shift = (data.ShiftTypeName.length > 16) ? data.ShiftTypeName.substring(0, 6) + '..' : data.ShiftTypeName;
+                    data.RejectionReason
+                    if (data.Remarks != null) {
+                        remarks = (data.Remarks.length > 30) ? data.Remarks.substring(0, 30) + '...' : data.Remarks;
+                    }
+
+                    if (data.Allowance.includes('Night') || $('#bonus').val().includes('Night')) { //need to change value 4 if grid allowance is NSA time field should ''
+
+                        data.StartTime = '';
+                        data.EndTime = '';
+                        data.HCMSchedule = '';
+                    }
+                    if (cutoff_date == NaN) {
+
+                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
+                        if ((AprStatuscodeHM_PM.includes(data.StatusCode)) && RoleId == 19) {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                        }
+                        else if (AprStatuscode_PFSS.includes(data.StatusCode)) {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                        }
+                        else {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td>';
+                        }
+                        grid_html += '<td class="ref std2">' + data.AssociateID + '</td>';
+                        grid_html += '<td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td>';
+                        grid_html += '<td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std18" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                        grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td>';
+                        grid_html += '<td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td>';
+                        grid_html += '<td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                        if (RoleId == 19) {
+                            grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                        }
+                    }
+                    else if (today_date >= cutoffStart_date && today_date <= cutoff_date) {
+
+                        grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
+                        if ((AprStatuscodeHM_PM.includes(data.StatusCode)) && RoleId == 19) {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true" /></td>';
+                        }
+                        else if (AprStatuscode_PFSS.includes(data.StatusCode)) {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                        }
+                        else {
+                            grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td>';
+
+                        }
+                        grid_html += '<td class="ref std2">' + data.AssociateID + '</td>';
+                        grid_html += '<td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td><td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std8" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td>';
+                        grid_html += '<td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                        grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td>';
+                        grid_html += '<td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td>';
+                        grid_html += '<td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                        if (RoleId == 19) {
+                            grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                        }
+                    }
+                    else {
+                        if (today_date <= reworkendcutoff_date && today_date >= reworkstartcutoff_date) {
+
+                            if (data.Status == "Rejected" || data.Status == "Resubmitted") {
+                                grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '>';
+                                if ((AprStatuscodeHM_PM.includes(data.StatusCode)) && RoleId == 19) {
+                                    grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true" /></td>';
+                                }
+                                else if (AprStatuscode_PFSS.includes(data.StatusCode)) {
+                                    grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true"/></td>';
+                                }
+                                else {
+                                    grid_html += '<td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' /></td>';
+
+                                }
+                                grid_html += '<td class="ref std2">' + data.AssociateID + '</td>';
+                                grid_html += '<td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td>';
+                                grid_html += '<td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std18" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                                grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td><td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td><td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                                if (RoleId == 19) {
+                                    grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                                }
+                            }
+                            else {
+
+                                grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '><td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true" /></td><td class="ref std2">' + data.AssociateID + '</td>';
+                                grid_html += '<td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td>';
+                                grid_html += '<td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std18" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td>';
+                                grid_html += '<td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                                grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td>';
+                                grid_html += '<td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td>';
+                                grid_html += '<td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                                if (RoleId == 19) {
+                                    grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                                }
+                            }
+                        }
+                        else {
+
+                            grid_html += '<tr class="' + classname + '" pk_id=' + data.PK_ShiftTimePayoutID + ' status=' + data.Status + '><td class="std1"><input type="checkbox" class="shiftvalid" id=' + (i + 1) + ' disabled="true" /></td><td class="ref std2">' + data.AssociateID + '</td><td class="std3" Allowance="' + data.Allowance + '" AllowanceID="' + data.AllowanceID + '">' + allowanceType + '</td>';
+                            grid_html += '<td style="text-align:left;" class="std4" ShiftTypeID="' + data.ShiftTypeID + '" ShiftTypeName="' + data.ShiftTypeName + '">' + shift + '</td><td style="text-align:center;" class="std5" StartDate="' + data.StartDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.StartDate + '</td>';
+                            grid_html += '<td style="text-align:center;" class="std18" EndDate="' + data.EndDate + '" ProjectValidFrom="' + data.ProjectValidFrom + '" ProjectValidTo="' + data.ProjectValidTo + '">' + data.EndDate + '</td><td style="text-align:center;" class="std6"><span class="clsActualTime">' + data.StartTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.StartTime + '" size="10"  /></p></td>';
+                            grid_html += '<td style="text-align:center;" class="std7"><span class="clsActualTime">' + data.EndTime + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.EndTime + '" size="10"  /></p></td><td style="text-align:center;" class="std8"><span class="clsActualTime">' + data.HCMSchedule + '</span><p class="clsTimeHolder"><input type="text" class="defaultEntry abc" value="' + data.HCMSchedule + '" size="10"  /></p></td><td class="std11" style="text-align:left;" title="' + data.RejectionReason + '" RejectionReason="' + data.RejectionReason + '">' + RejectionReason + '</td><td class="std10" title="' + data.Status + '">' + data.Status + '</td>';
+                            if (RoleId == 19) {
+                                grid_html += '<td style="text-align:center;" class="std12 shiftcis" Shiftstartdate="' + data.Shiftstartdate + '">' + data.Shiftstartdate + '</td></tr>';
+                            }
+                        }
+                    }
+                });
+            }
+
+            $('#tblShiftAllowance').find('tbody').html('').html(grid_html);
+
+        }
+        else {
+            $("#tblShiftAllowance").append("<tr class='even' id='NoData'><td colspan='12' class='text-center'>No data available</td></tr>");
+            $(".dataTableScroll .scrollbar").hide();
+            $('.btnlist').hide();
+        }
+        if ($(".shiftvalid").length == $(".shiftvalid:disabled").length) {
+            $("#svalid").attr("disabled", "disabled");
+        }
+        else {
+            $("#svalid").removeAttr("disabled");
+        }
+    }

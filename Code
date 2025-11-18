@@ -1,4 +1,911 @@
-                      
+USE [OneC_SPay]
+GO
+Declare
+@KeyID INT ='1626166' ,     
+@ComponentId INT=5,  
+@ProjectId VARCHAR(20)='1000386270',  
+@AssociateID INT='266332',  
+@ShiftType INT=3,  
+@startDate VARCHAR(20)='09/19/2025',  
+@endDate VARCHAR(20)='09/19/2025',  
+@starttime VARCHAR(20)='22:00',  
+@endtime VARCHAR(20)='23:00',  
+@LoginID INT='266332',  
+@isTravel INT = NULL,  
+@ShiftstartDate VARCHAR(20)='09/19/2025',
+@FlagAI INT = NULL
+
+-------------- Local variable----------  
+ Declare @ComponentCountrymappingID int,@CountryID int=1  
+  
+ Select @ComponentCountrymappingID=PK_ComponentCountrymappingID   
+ from ComponentCountryMapping with (nolock)  
+ where FK_ComponentCountryID=@CountryID and FK_ComponentID=@ComponentID and RowStatus=1  
+      
+    CREATE TABLE #STPEXCEPTION (EXCEPTIONREASON VARCHAR(8000) NULL)  
+  
+    DECLARE @Location VARCHAR(20),  
+    @BU VARCHAR(7),  
+    @Grade VARCHAR(8),  
+    @DepartmentID VARCHAR(10),  
+    @MinEligibleDate DATETIME,  
+    @MaxEligibleDate DATETIME,  
+    @StartDateTime DATETIME,  
+    @EndDateTime DATETIME,  
+    @Amount INT,  
+    @GradeLevelID VARCHAR(10),  
+    @EmplType VARCHAR(15),  
+    @EmplStatus VARCHAR(5),  
+    @EmplID INT,  
+    @HCMDEPID VARCHAR(20),  
+    @EFFDT DATETIME,  
+   @EffectiveDate date, ---- V1.0  
+   @sixthdayEffDAte date,  
+   @City Varchar(1000)  
+-------------- Local variable----------  
+  select @EffectiveDate =KeyValue   
+  from dbo.SPaykeys where FK_ComponentID in (4) and KeyCode='6DAEffective' ---- V1.0  
+-------------- Local variable----------  
+   declare @HCMStartDate date  
+Select @HCMStartDate=convert(date,Keyvalue) from Spaykeys  
+where FK_ComponentID=6 and KeyCode='HCM Shift Schedule' and RowStatus=1  
+  
+-------------- Local variable----------  
+declare @Shiftstartdates date  
+Select @Shiftstartdates=convert(date,Keyvalue) from Spaykeys   
+where FK_ComponentID=5 and KeyCode='HCM Shift Schedule' and RowStatus=1  
+  
+-------------- Local variable----------  
+declare @AutomateStartDate date  
+Select @AutomateStartDate=CONVERT(DATE,Keyvalue) FROM Spaykeys WITH (NOLOCK)   
+WHERE FK_ComponentID=6 and KeyCode='CIS Automate NSA' and RowStatus=1  
+  
+DECLARE @EndDateException varchar(100)='';  
+DECLARE @OCAENDDate date =(SELECT Cast(KeyValue AS DATE) FROM SPaykeys   
+WHERE FK_ComponentID=5 AND KeyCode='OCA'AND KeyDescription='End Date for CIS OCA')  
+  
+DECLARE @6DAENDDate date =(SELECT Cast(KeyValue AS DATE) FROM SPaykeys   
+WHERE FK_ComponentID=4 AND KeyCode='6DA'AND KeyDescription='End Date for CIS 6DA')  
+  
+SET @EndDateException = CASE WHEN @ComponentID = 5 AND CAST(@StartDate AS DATE) > @OCAENDDate THEN  
+'On Call Allowance ceased to exist from '+FORMAT(@OCAENDDate, 'dd-MMM-yyyy')+  
+'. Please refer to new policy on Standby Incentive.'   
+  
+WHEN @ComponentID = 4 AND CAST(@StartDate AS DATE) > @6DAENDDate THEN  
+'6th Day Allowance ceased to exist from '+FORMAT(@6DAENDDate, 'dd-MMM-yyyy')+  
+'. Please refer to new policy on Discretionary Incentive.' ELSE '' END  
+  
+--SELECT @EndDateException='Comp off processed for the same date. Hence 6th Day Allowance cannot be processed'  
+-- FROM PR.ShiftTimePayout STP WITH (NOLOCK)  
+--    INNER JOIN CentralRepository.dbo.vw_CentralRepository_EAM_IND_Comp_Off CF   
+-- ON CF.EMPLID = STP.AssociateID   
+-- WHERE CF.HOLIDAY_WORKED_DT = @StartDate AND STP.PK_ShiftTimePayoutID = @KeyID  
+-- GROUP BY PK_ShiftTimePayoutID, AssociateID, StartDate  
+	Declare @StatusofRecord int,@StatusofRecordOCA int=1
+  
+if(@ComponentId=4)
+	BEGIN
+	Select @StatusofRecord = (Case When PM.PROJECT_MANAGER = @AssociateID then 34 else 1 end)
+			from  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM With(nolock) Where
+			PM.Project_ID = @ProjectID  --and @ComponentId=4
+
+	SELECT @EndDateException = 'Comp off processed for the same date. Hence 6th Day Allowance cannot be processed'  
+	FROM CentralRepository.dbo.vw_CentralRepository_EAM_IND_Comp_Off CF   
+	WHERE CF.HOLIDAY_WORKED_DT =Convert(Date, @StartDate )AND CF.EMPLID = Convert(char,@AssociateID)
+	AND ISNULL(@EndDateException, '') = ''  
+	--AND @ComponentId=4  
+	END
+	ELSE
+	BEGIN
+		Select @StatusofRecordOCA = (Case When PM.PROJECT_MANAGER = @AssociateID then 34 else 1 end)
+		from  CentralRepository.dbo.vw_CentralRepository_Current_ProjectManager PM With(nolock) Where
+		PM.Project_ID = @ProjectID  and @ComponentId=5
+		Select @StatusofRecord = 1
+	END          
+
+  
+IF(@EndDateException='')  
+BEGIN  
+-------------- Temp table variable----------  
+INSERT INTO #STPEXCEPTION(EXCEPTIONREASON)  
+     SELECT 'Associate''s DOJ should be lesser than claim date'  
+     FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+     WHERE AD.Associate_ID=Convert(char,@AssociateID)   
+     AND Convert(Date,AD.DATEOFJOINING)>CONVERT(DATE,@StartDate)  
+ -------------- Temp table variable----------        
+         
+        SELECT @HCMDEPID=FHD.HCM_DEPTID  
+     FROM  CentralRepository.dbo.vw_CentralRepository_Project PR WITH(NOLOCK)   
+    INNER JOIN CentralRepository.dbo.vw_CentralRepository_FMS_HCM_Department FHD WITH(NOLOCK)   
+    ON ISNUMERIC(PR.Project_ID)=1   
+    AND convert(varchar,FHD.FMS_DEPTID)=PR.Resp_Code  
+    WHERE ISNUMERIC(PR.Project_ID)=1 AND Convert(varchar,PR.Project_ID)=@ProjectID  
+  
+    --------------- check exception----  
+ IF NOT EXISTS(SELECT TOP 1 1 FROM #STPEXCEPTION WITH (NOLOCK))  
+    BEGIN  
+  
+   SELECT @StartDateTime=CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '  
+   +CONVERT(VARCHAR,@StartTime))),  
+   @EndDateTime =CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '+CONVERT(VARCHAR,@EndTime))),  
+   @Amount=NULL,  
+   @MinEligibleDate= DATEADD (D,-5,CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '  
+   +CONVERT(VARCHAR,@EndTime)))) ,   
+   @MaxEligibleDate =DATEADD (D,5,CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '  
+   +CONVERT(VARCHAR,@StartTime))))   
+  
+------------------- fetch data--------------  
+ SELECT B.EMPLID ,B.EMPL_RCD ,B.EFFDT ,B.EFFSEQ ,B.ACTION ,B.ACTION_REASON ,B.ACTION_DT ,  
+ B.EMPL_STATUS,B.DEPTID ,B.JOBCODE ,B.LOCATION ,                    
+ B.COMPANY,B.HR_STATUS,B.BUSINESS_UNIT,B.SUPERVISOR_ID,B.PER_ORG  into  #Temp  
+ FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock)   
+ WHERE b.emplid=convert(char,@AssociateID)   
+ AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)    
+ FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock)   
+ WHERE B.EMPLID = B_B.EMPLID   
+  and B_B.action <> 'INA'   AND B.EMPL_RCD = B_B.EMPL_RCD   AND B_B.EFFDT = B.EFFDT)  
+------------------- fetch data--------------  
+  SELECT B.EMPLID,B.LOCATION,B.BUSINESS_UNIT,B.JOBCODE, B.DEPTID,B.PER_ORG,B.EMPL_STATUS,B.EFFDT  
+  into #Temp1 FROM #Temp B with (nolock)     
+  WHERE B.EFFDT = ( SELECT MAX(B_A.EFFDT)    
+  FROM  CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock)   
+  WHERE B.EMPLID = B_A.EMPLID    
+  AND B.EMPL_RCD=B_A.EMPL_RCD   and B_A.action <> 'INA'   AND B_A.EFFDT<= convert(date,@StartDate))    
+  AND B.HR_STATUS = 'A'   AND (B.EMPL_STATUS IN ('A','L','P','W')      
+  OR (B.EMPL_STATUS = 'S'   AND B.ACTION <> 'OGA'))   and b.action <> 'INA'   
+  ------------------- fetch data--------------  
+  UNION ALL  
+  
+  SELECT A.EMPLID,A.LOCATION,A.BUSINESS_UNIT,A.JOBCODE, A.DEPTID,A.PER_ORG,A.EMPL_STATUS,A.EFFDT  
+  FROM #Temp A with (nolock)   
+  WHERE  A.EFFDT = ( SELECT MAX(B_A.EFFDT)   
+  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock)  
+  WHERE A.EMPLID = B_A.EMPLID     
+  AND B_A.EFFDT<= convert(date,@StartDate))     
+  AND A.EMPL_RCD = ( SELECT MAX(C_A.EMPL_RCD)   
+  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference C_A with (nolock)  
+  WHERE C_A.EMPLID = A.EMPLID     
+  and C_A.action <> 'INA'   AND C_A.EFFDT = A.EFFDT)   AND A.HR_STATUS = 'I'     
+  AND NOT EXISTS ( SELECT 'X'    
+  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock)  
+  WHERE A.EMPLID = B.EMPLID    
+  AND B.EFFDT = ( SELECT MAX(B_A.EFFDT)   
+  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A   
+  WHERE B.EMPLID = B_A.EMPLID   AND B.EMPL_RCD=B_A.EMPL_RCD     
+     and b.action <> 'INA'   AND B_A.EFFDT<= convert(date,@StartDate))  
+  AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)  
+  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock)   
+  WHERE B.EMPLID = B_B.EMPLID   AND B.EMPL_RCD = B_B.EMPL_RCD              
+     and b.action <> 'INA'   AND B_B.EFFDT = B.EFFDT)      
+     AND B.HR_STATUS = 'A'   AND (B.EMPL_STATUS IN ('A','L','P','W')     
+  OR (B.EMPL_STATUS = 'S'   AND B.ACTION <> 'OGA'))  
+)  
+  
+select @EmplID=emplid,@Location=LOCATION,@BU=BUSINESS_UNIT,@Grade=JOBCODE,  
+@DepartmentID=DEPTID,@EmplType=PER_ORG,@EmplStatus=EMPL_STATUS,@EFFDT = EFFDT from #Temp1  
+  
+Select @City=UPPER(LTRIM(RTRIM(CITY))) --v1.0  
+ from CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION with (nolock)  
+ where HCMLocationCode=@Location  
+  
+DROP TABLE #Temp  
+drop table #Temp1  
+  
+   DECLARE @GetAssoProjDetail TABLE (AssociateID INT, ProjId VARCHAR(25))  
+------------------- fetch data--------------  
+        INSERT INTO @GetAssoProjDetail(AssociateID , ProjId )  
+    SELECT CONVERT(INT,CheckPAD.Associate_ID), RTRIM(CheckPAD.Project_ID) AS Project_ID  
+    FROM CentralRepository..vw_CentralRepository_Allocation CheckPAD WITH (NOLOCK)  
+    WHERE CheckPAD.Associate_ID = @AssociateID AND convert(date,@startdate)  
+    between convert(date,Allocation_start_date) and Convert(date,Allocation_End_Date)  
+    GROUP BY CheckPAD.Associate_ID, CheckPAD.Project_ID  
+      
+------------------- fetch data--------------  
+    SELECT @GradeLevelID=Job_Family   
+    FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Designation WITH(NOLOCK)  
+    WHERE Convert(varchar,JobCode)=@Grade AND Bussiness_unit=@BU  
+      
+------------------- fetch data--------------  
+    INSERT INTO #STPEXCEPTION(EXCEPTIONREASON)  
+    SELECT DISTINCT 'Associate Details not available in CRS' WHERE @AssociateID<>@EmplID  
+  
+     CREATE TABLE #PROJ(ComponentID INT,ProjectID VARCHAR(20),ProjectStartdate DATETIME,  
+     MINEXPIRYDATE DATETIME,Exceptionremarks VARCHAR(8000),VerificationStatus int)  
+  
+------------------- fetch data--------------  
+INSERT INTO #PROJ(ComponentID,ProjectID,ProjectStartdate,MINEXPIRYDATE,VerificationStatus)  
+      SELECT DISTINCT AP.Fk_ComponentID,AP.ProjectID,CP.Project_Start_Date,MIN(COL),  
+      Ap.VerificationStatus  
+      FROM  Approval_Projects AP WITH(NOLOCK)   
+      INNER JOIN [CentralRepository].DBO.[vw_CentralRepository_Project]  CP WITH(NOLOCK)   
+      ON ISNUMERIC(CP.Project_ID)=1 AND  CONVERT(VARCHAR,CP.Project_ID)=AP.ProjectID  
+      CROSS APPLY (SELECT AP.VALIDTILL UNION ALL SELECT CP.Project_End_Date) A(COL)  
+      WHERE ISNUMERIC(CP.Project_ID)=1 AND AP.RowStatus=1 AND AP.ProjectID =@ProjectID  
+      AND AP.FK_ComponentID =@ComponentID  
+      GROUP BY AP.ProjectID,CP.Project_End_Date,AP.FK_ComponentID,CP.Project_Start_Date,  
+      AP.VerificationStatus  
+  
+------------------- fetch data--------------  
+  
+    IF(@AssociateID=@EmplID)  
+    BEGIN  
+   CREATE TABLE #LEAVE (WF_Status VARCHAR(10),EXCEPTIONREASON VARCHAR(100), LeaveType varchar(50))  
+ IF(@COMPONENTID IN (4,6))  
+     BEGIN  
+     ;WITH CTE AS  
+   (  
+   SELECT PLD.WF_Status,case when PLD.WF_Status='A' then 'Associate is on leave as on claim date' 
+   else '' end as reaosn,
+	  'Leave' as LeaveType,
+	  ROW_NUMBER() OVER (PARTITION BY ELD.Empl_ID,ELD.BGN_DT ORDER BY ELD.ReceivedDateTime DESC) AS rn
+	  FROM CentralRepository.dbo.vw_CentralRepository_EAM_LeaveData ELD WITH (NOLOCK) 
+	  inner join CentralRepository.dbo.vw_CentralRepository_EAM_perdayLeaveData PLD WITH (NOLOCK)
+	  on ELD.empl_id=PLD.emplid
+	  WHERE ((convert(date,@STARTDATE) BETWEEN Convert(date,ELD.BGN_DT) AND convert(date,ELD.END_DT)
+	  OR convert(date,@STARTDATE)=Convert(date,ELD.BGN_DT))) AND  
+	  ELD.LeaveType not like upper(lower('%Loss of Pay%')) 
+	  and ELD.LeaveType not like upper(lower('%Compensatory Off%')) AND @AssociateID=@EmplID 
+	  AND ELD.Empl_Id=Convert(varchar,@AssociateID) and pld.absence_date=convert(date,@STARTDATE)
+	  and pld.ct_total_hrs <>0 ),  
+  
+    LOP AS  
+    (  
+    SELECT WF_Status,case when WF_Status='A'   
+    then 'Associate is on Loss of Pay as on claim date'  else '' end as reaosn , 'LOP' as LeaveType,  
+    ROW_NUMBER() OVER (PARTITION BY ELD.Empl_ID,ELD.BGN_DT ORDER BY ELD.ReceivedDateTime DESC) AS rn  
+    FROM CentralRepository.dbo.vw_CentralRepository_EAM_LeaveData ELD WITH (NOLOCK)        
+    WHERE ((convert(date,@STARTDATE) BETWEEN Convert(date,ELD.BGN_DT) AND convert(date,ELD.END_DT)  
+    OR convert(date,@STARTDATE)=Convert(date,ELD.BGN_DT))) AND   
+    ELD.LeaveType like upper(lower('%Loss of Pay%'))   
+    and  ELD.LeaveType not like upper(lower('%Compensatory Off%'))  AND @AssociateID=@EmplID  
+    AND ELD.Empl_Id=Convert(varchar,@AssociateID)  ),    
+      
+    COMP AS  
+    (  
+    SELECT WF_Status,case when WF_Status='A' then 'Associate is on Compensatory off as on claim date'    
+    else '' end as reaosn ,'COMP' as LeaveType,ROW_NUMBER() OVER (PARTITION BY ELD.Empl_ID,ELD.BGN_DT   
+    ORDER BY ELD.ReceivedDateTime DESC) AS rn  
+    FROM CentralRepository.dbo.vw_CentralRepository_EAM_LeaveData ELD WITH (NOLOCK)      
+    WHERE ((convert(date,@STARTDATE) BETWEEN Convert(date,ELD.BGN_DT) AND convert(date,ELD.END_DT)  
+    OR convert(date,@STARTDATE)=Convert(date,ELD.BGN_DT))) and   
+    ELD.LeaveType not like upper(lower('%Loss of Pay%'))   
+    and ELD.LeaveType like upper(lower('%Compensatory Off%')) AND @AssociateID=@EmplID   
+    AND ELD.Empl_Id=Convert(varchar,@AssociateID))  
+  
+    INSERT INTO #LEAVE (WF_Status ,EXCEPTIONREASON, LeaveType )  
+    SELECT WF_Status , reaosn ,LeaveType  
+    FROM CTE where rn=1  
+    UNION ALL  
+    SELECT WF_Status , reaosn ,LeaveType  
+    FROM LOP where rn=1  
+    UNION ALL  
+    SELECT WF_Status , reaosn ,LeaveType  
+    FROM COMP where rn=1     
+  
+    END  
+  
+     ELSE IF(@COMPONENTID = 5)  
+     BEGIN  
+     ;WITH CTE AS  
+   (  
+   SELECT PLD.WF_Status,case when PLD.WF_Status='A' then 'Associate is on leave as on claim date' 
+   else '' end as reaosn,
+	  'Leave' as LeaveType,
+	  ROW_NUMBER() OVER (PARTITION BY ELD.Empl_ID,ELD.BGN_DT ORDER BY ELD.ReceivedDateTime DESC) AS rn
+	  FROM CentralRepository.dbo.vw_CentralRepository_EAM_LeaveData ELD WITH (NOLOCK) 	
+	  	  inner join CentralRepository.dbo.vw_CentralRepository_EAM_perdayLeaveData PLD WITH (NOLOCK)
+	  on ELD.empl_id=PLD.emplid
+	  WHERE ((convert(date,@ShiftStartDate) BETWEEN Convert(date,ELD.BGN_DT) AND convert(date,ELD.END_DT)
+	  OR convert(date,@ShiftStartDate)=Convert(date,ELD.BGN_DT))) AND  
+	  ELD.LeaveType not like upper(lower('%Loss of Pay%')) 
+	  and ELD.LeaveType not like upper(lower('%Compensatory Off%')) AND @AssociateID=@EmplID 
+	  AND ELD.Empl_Id=Convert(varchar,@AssociateID) and pld.absence_date=convert(date,@STARTDATE) 
+	  and pld.ct_total_hrs <>0),  
+  
+    LOP AS  
+    (  
+    SELECT WF_Status,case when WF_Status='A'   
+    then 'Associate is on Loss of Pay as on claim date'  else '' end as reaosn , 'LOP' as LeaveType,  
+    ROW_NUMBER() OVER (PARTITION BY ELD.Empl_ID,ELD.BGN_DT ORDER BY ELD.ReceivedDateTime DESC) AS rn  
+    FROM CentralRepository.dbo.vw_CentralRepository_EAM_LeaveData ELD WITH (NOLOCK)        
+    WHERE ((convert(date,@ShiftStartDate) BETWEEN Convert(date,ELD.BGN_DT) AND convert(date,ELD.END_DT)  
+    OR convert(date,@ShiftStartDate)=Convert(date,ELD.BGN_DT))) AND   
+    ELD.LeaveType like upper(lower('%Loss of Pay%'))   
+    and  ELD.LeaveType not like upper(lower('%Compensatory Off%'))  AND @AssociateID=@EmplID  
+    AND ELD.Empl_Id=Convert(varchar,@AssociateID)  ),    
+      
+    COMP AS  
+    (  
+    SELECT WF_Status,case when WF_Status='A' then 'Associate is on Compensatory off as on claim date'    
+    else '' end as reaosn ,'COMP' as LeaveType,ROW_NUMBER() OVER (PARTITION BY ELD.Empl_ID,ELD.BGN_DT   
+    ORDER BY ELD.ReceivedDateTime DESC) AS rn  
+    FROM CentralRepository.dbo.vw_CentralRepository_EAM_LeaveData ELD WITH (NOLOCK)      
+    WHERE ((convert(date,@ShiftStartDate) BETWEEN Convert(date,ELD.BGN_DT) AND convert(date,ELD.END_DT)  
+    OR convert(date,@ShiftStartDate)=Convert(date,ELD.BGN_DT))) and   
+    ELD.LeaveType not like upper(lower('%Loss of Pay%'))   
+    and ELD.LeaveType like upper(lower('%Compensatory Off%')) AND @AssociateID=@EmplID   
+    AND ELD.Empl_Id=Convert(varchar,@AssociateID))  
+      
+    INSERT INTO #LEAVE (WF_Status ,EXCEPTIONREASON, LeaveType )  
+    SELECT WF_Status , reaosn ,LeaveType  
+    FROM CTE where rn=1  
+    UNION ALL  
+    SELECT WF_Status , reaosn ,LeaveType  
+    FROM LOP where rn=1  
+    UNION ALL  
+    SELECT WF_Status , reaosn ,LeaveType  
+    FROM COMP where rn=1     
+  
+    END  
+   
+        INSERT INTO #STPEXCEPTION(EXCEPTIONREASON)  
+        SELECT DISTINCT COALESCE((CASE WHEN ((@EmplStatus NOT IN ('A','L','T')  
+        AND LEN(@AssociateID) in (6,7)) OR (AD.ASSOCIATE_ID IS NULL   
+        AND LEN(@AssociateID) in (6,7)))   
+        THEN 'AssociateID is InActive,' ELSE NULL END), '')   
+        +  
+        COALESCE((CASE WHEN @ComponentId =6 and ISDATE(@Startdate)=1    
+        and Convert(date,@Startdate)> @AutomateStartDate   
+        THEN 'NSA is automated cannot be editable,' ELSE NULL END), '')   
+           +  
+         COALESCE((CASE WHEN @EmplStatus <> 'A' and @EmplStatus = 'T'   
+         and ( DATEDIFF(DD,@EFFDT,@StartDate ) > 0 )     
+         THEN 'AssociateID is InActive' ELSE NULL END), '')   
+           +  
+         COALESCE((CASE WHEN @EmplStatus <> 'A' and @EmplStatus = 'T'  
+         and ( DATEDIFF(DD,CONVERT(DATE,@EFFDT) , getdate()) > 60 )    
+         THEN 'Associate''s termination date is greater than 60 days - can''t be processed,'  
+         ELSE NULL END), '')   
+        +  
+        COALESCE((CASE WHEN (AD.COMPANY IS NULL AND LEN(@AssociateID) in (6,7))   
+          THEN 'Associate Company Unavailable,' ELSE NULL END), '')    
+        +  
+        COALESCE((CASE WHEN (AD.BUSINESS_UNIT IS NULL AND LEN(@AssociateID) in (6,7))   
+          THEN 'Associate SetId Unavailable,' ELSE NULL END), '')     
+        +  
+        COALESCE((CASE WHEN (ISDATE(@EndDate+' '+ @EndTime)=1 AND ISDATE(@EndDate)=1   
+          AND CONVERT(DATETIME,(@EndDate+' '+ @EndTime))  
+          <CONVERT(DATETIME,(@StartDate+' '+ @StartTime))  
+          AND ISDATE(@StartDate+' '+ @StartTime)=1 AND ISDATE(@Startdate)=1  )   
+           THEN 'End Time Should be greater than Start Time,' ELSE NULL END), '')   
+        +  
+        COALESCE((CASE WHEN (ISDATE(@StartDate+' '+ @StartTime)=1 AND ISDATE(@Startdate)=1   
+        AND ISDATE(@EndDate+' '+ @EndTime)=1 AND ISDATE(@EndDate)=1 AND   
+        DATEDIFF(HH,CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '  
+        +CONVERT(VARCHAR,@StartTime))),  
+        CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '  
+        +CONVERT(VARCHAR,@EndTime)))) >24)  
+        THEN 'Difference Between StartTime and EndTime should not exceed 24 hours, '  
+        ELSE NULL END),'')  
+        +  
+        COALESCE((CASE WHEN ISDATE(@Startdate)=1 AND   
+        (CONVERT(DATE,@StartDate)<CONVERT(DATE,(DATEADD(M, -6,  
+        CONVERT(DATE,CONVERT(VARCHAR,YEAR(GETDATE()))+'-'  
+        +CONVERT(VARCHAR,MONTH(GETDATE()))+'-'+'01')))))    
+        THEN 'Allowance claim date exceeds Six months ,' ELSE NULL END), '')  
+         +  
+         COALESCE((CASE WHEN ISDATE(@ShiftstartDate)=1 AND @ComponentId = 5 AND   
+        (CONVERT(DATE,@ShiftstartDate)<CONVERT(DATE,(DATEADD(M, -3,  
+        CONVERT(DATE,CONVERT(VARCHAR,YEAR(GETDATE()))+'-'  
+        +CONVERT(VARCHAR,MONTH(GETDATE()))+'-'+'01')))))    
+        THEN 'Allowance claim date exceeds Three months ,' ELSE NULL END), '')   
+        +  
+         COALESCE((CASE WHEN ISDATE(@ShiftstartDate)<>1 AND @ComponentId = 5   
+         THEN 'Invalid Shiftstartdate format.Valid format is MM/DD/YYYY,' ELSE NULL END), '')   
+        +  
+        COALESCE((CASE WHEN (ISDATE(@ShiftstartDate)=1 AND @ComponentId = 5   
+        AND @ShiftstartDate > CONVERT(DATE, DATEADD(DAY, -(DAY(GETDATE())), GETDATE())))  
+                          THEN 'Claim cannot be Raised for Future Dates,' ELSE NULL END), '')   
+        +  
+        COALESCE((CASE WHEN  ISDATE(@Startdate)=1 AND   
+        convert(date,AD.DATEOFJOINING)>CONVERT(DATE,@StartDate)      
+         THEN 'Associate''s DOJ should be lesser than claim date,' ELSE NULL END), '')  
+         
+        +  
+        COALESCE((CASE WHEN @EmplType='EMP' THEN NULL ELSE 'Associate is a contractor,' END), '')  
+        +  
+        COALESCE((CASE WHEN (ISDATE(@StartDate+' '+@StartTime)=1 AND ISDATE(@Startdate)=1   
+        AND ISDATE(@EndDate+' '+@EndTime)=1 AND ISDATE(@EndDate)=1)  
+        AND ((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,@Startdate)+' '  
+        +CONVERT(VARCHAR,@Starttime))))%5)<>0  OR   
+        ((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '  
+        +CONVERT(VARCHAR,@EndTime))))%5)<>0 ))   
+       THEN 'Time should be in multiples of 5,' ELSE NULL END), '')      
+  
+        FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)     
+       WHERE AD.Associate_ID=Convert(char,@AssociateID) AND AD.Associate_ID=Convert(char,@EmplID)   
+  
+        UNION ALL  
+  
+         SELECT DISTINCT 'Associate not active in India Payroll as on claim date,' WHERE   
+        UPPER(@BU) NOT LIKE '%IND%'  
+  
+        UNION ALL  
+  
+                             SELECT DISTINCT ((CASE   
+        WHEN (ISDATE(@Startdate)=1 AND @Startdate >convert(date,(EOMONTH (GETDATE(), -1))))  
+                             OR(ISDATE(@EndDate)=1 AND @EndDate >  
+        Convert(date,DATEADD(DAY, 1, EOMONTH(getdate(), -1))))  
+                             THEN 'Claim cannot be Raised for Future Dates,' ELSE NULL END))   
+  
+     UNION ALL  
+  
+------------------- fetch data--------------  
+               SELECT DISTINCT 'NSA cannot be edited,'  
+     FROM PR.Shifttimepayout Where PK_ShiftTimePayoutID =  @KeyID   
+     and FK_ComponentID =6 and Rowstatus  = 1 and Status =1  
+          
+               UNION ALL  
+------------------- fetch data--------------  
+			  select case when WF_Status='A' and LeaveType='Leave'  then 'Associate is on leave as on claim date' 
+		  when WF_Status='A' and LeaveType='LOP'   then 'Associate is on LOP as on claim date' 
+		  when WF_Status='A' and LeaveType='Comp'   then 'Associate is on Compensatory off as on claim date' 
+		  end 
+		  from #LEAVE    
+ ------------------- fetch data--------------  
+                   
+     UNION ALL  
+  ------------------- fetch data--------------  
+        SELECT DISTINCT 'Associate Should belong to the project as on claim date'  
+        FROM CentralRepository..vw_CentralRepository_Allocation CheckPAD WITH (NOLOCK)  
+        WHERE CheckPAD.Associate_ID = convert(char,@AssociateID)  
+        AND CheckPAD.Associate_ID NOT IN (SELECT AssociateID FROM @GetAssoProjDetail check_A  
+        WHERE Convert(char,check_A.AssociateID) = CheckPAD.Associate_ID   
+     AND ProjId = @ProjectID)  
+  
+    UNION ALL  
+  
+  ------------------- fetch data--------------  
+  SELECT DISTINCT 'Ineligible Department' WHERE @DepartmentID not in   
+  (Select DepartmentId from Policy.DepartmentMaster WITH (nolock)   
+  where Fk_ComponentID = @ComponentId and Rowstatus=1)  
+  
+    UNION ALL  
+                
+     SELECT DISTINCT CASE WHEN PK_ShiftTimePayoutID<>@KeyID AND STATUS in (1,34)  
+     THEN 'Data already uploaded' WHEN PK_ShiftTimePayoutID<>@KeyID AND STATUS=5   
+     THEN 'Data already processed' ELSE '' END FROM pr.ShiftTimePayout WITH (NOLOCK)  
+     WHERE RowStatus=1 AND Fk_componentid=@ComponentID AND   
+     (StartDateTime BETWEEN @StartDateTime AND @EndDateTime   
+     OR EndDateTime BETWEEN @StartDateTime AND @EndDateTime)  
+     AND AssociateID=@AssociateID and Fk_componentid<>5  
+  
+     UNION ALL  
+                                  
+     SELECT DISTINCT 'Allowance claim date doesn''t lie between Project validity date '  
+     FROM  #PROJ P WITH (NOLOCK)  
+     WHERE  ((convert(date,@StartDate) NOT BETWEEN Convert(date,P.ProjectStartdate)  
+     AND Convert(date,P.MINEXPIRYDATE)) OR (convert(date,@EndDate)  
+     NOT BETWEEN convert(date,P.ProjectStartdate) AND convert(date,P.MINEXPIRYDATE))  
+     or p.VerificationStatus=1)  
+     AND P.ComponentID= @ComponentID AND P.ProjectID=@ProjectID  
+  
+     UNION ALL  
+------------------- fetch data --------------  
+    SELECT DISTINCT  
+    (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID=@ProjectId  
+    THEN 'Difference between the allowance data uploaded for the associate and '+   
+    'the current claim date is less than 5 days'   
+    WHEN B.STATUS=5  AND B.ProjectID=@ProjectId  
+    THEN 'Difference between the allowance data processed for the associate and '+   
+    'the current claim date is less than 5 days'   
+    WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> @ProjectId  
+    THEN 'Data already uploaded in another project with less than 5 days gap'  
+    WHEN B.STATUS=5  AND B.ProjectID <> @ProjectId  
+    THEN 'Data already processed in another project with less than 5 days gap' END)  
+    FROM PR.ShiftTimePayout B WITH(NOLOCK)  
+    WHERE ((CONVERT(DATE,@startDate) BETWEEN CONVERT(DATE,B.StartDate) AND DATEADD(DD,5,B.StartDate))  
+    OR (CONVERT(DATE,@startDate) BETWEEN  DATEADD(DD,-5,B.StartDate) AND CONVERT(DATE,B.StartDate)))   
+    AND CONVERT(DATE,B.StartDate)<> CONVERT(DATE,@StartDate) AND B.RowStatus=1   
+    AND b.Fk_ComponentID=@ComponentID AND b.AssociateID=@associateid AND PK_ShiftTimePayoutID<>@KeyID  
+    AND @ComponentId=4  
+  
+  UNION ALL  
+------------------- fetch data--------------IT  
+    SELECT DISTINCT  
+    (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID=@ProjectId  
+    THEN 'Data already uploaded for IT 6th DA with less than 5 days gap'   
+    WHEN B.Status =5 AND B.ProjectID=@ProjectId  
+    THEN 'Data already processed for IT 6th DA with less than 5 days gap'   
+    WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> @ProjectId  
+    THEN 'Data already uploaded in another project with less than 5 days gap'  
+    WHEN B.STATUS=5  AND B.ProjectID <> @ProjectId  
+    THEN 'Data already processed in another project with less than 5 days gap' END)  
+    FROM PR.ITShiftAllowance B WITH(NOLOCK)  
+    WHERE ((CONVERT(DATE,@startDate) BETWEEN CONVERT(DATE,B.StartDate) AND DATEADD(DD,5,B.StartDate))  
+    OR (CONVERT(DATE,@startDate) BETWEEN  DATEADD(DD,-5,B.StartDate) AND CONVERT(DATE,B.StartDate)))   
+    AND CONVERT(DATE,B.StartDate)<> CONVERT(DATE,@StartDate) AND B.RowStatus=1  
+    AND b.Fk_ComponentID=50 AND b.AssociateID=@associateid AND @ComponentId=4  
+  
+  UNION ALL  
+------------------- fetch data--------------ADM  
+    SELECT DISTINCT  
+    (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID=@ProjectId  
+    THEN 'Data already uploaded for ADM 6th DA with less than 5 days gap'   
+    WHEN B.Status =5 AND B.ProjectID=@ProjectId  
+    THEN 'Data already processed for ADM 6th DA with less than 5 days gap'   
+    WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> @ProjectId  
+    THEN 'Data already uploaded in another project with less than 5 days gap'  
+    WHEN B.STATUS=5  AND B.ProjectID <> @ProjectId  
+    THEN 'Data already processed in another project with less than 5 days gap' END)  
+    FROM PR.ADMShiftAllowance B WITH(NOLOCK)  
+    WHERE ((CONVERT(DATE,@startDate) BETWEEN CONVERT(DATE,B.StartDate) AND DATEADD(DD,5,B.StartDate))  
+    OR (CONVERT(DATE,@startDate) BETWEEN  DATEADD(DD,-5,B.StartDate) AND CONVERT(DATE,B.StartDate)))   
+    AND CONVERT(DATE,B.StartDate)<> CONVERT(DATE,@StartDate) AND B.RowStatus=1   
+    AND b.Fk_ComponentID=170 AND b.AssociateID=@associateid AND @ComponentId=4  
+  
+  UNION ALL  
+------------------- fetch data--------------BPS  
+    SELECT DISTINCT  
+    (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID=@ProjectId  
+    THEN 'Data already uploaded for BPS 6th DA with less than 5 days gap'   
+    WHEN B.Status =5 AND B.ProjectID=@ProjectId  
+    THEN 'Data already processed for BPS 6th DA with less than 5 days gap'   
+    WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> @ProjectId  
+    THEN 'Data already uploaded in another project with less than 5 days gap'  
+    WHEN B.STATUS=5  AND B.ProjectID <> @ProjectId  
+    THEN 'Data already processed in another project with less than 5 days gap' END)  
+    FROM PR.BPSSDA B WITH(NOLOCK)  
+    WHERE ((CONVERT(DATE,@startDate) BETWEEN CONVERT(DATE,B.StartDate) AND DATEADD(DD,5,B.StartDate))  
+    OR (CONVERT(DATE,@startDate) BETWEEN  DATEADD(DD,-5,B.StartDate)AND CONVERT(DATE,B.StartDate)))   
+    AND CONVERT(DATE,B.StartDate)<> CONVERT(DATE,@StartDate) AND B.RowStatus=1   
+    AND b.AssociateID=@associateid AND @ComponentId=4  
+  
+  UNION ALL  
+  
+   SELECT DISTINCT  
+   (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID=@ProjectId  
+   THEN 'Data was already uploaded for Same date'   
+   WHEN B.STATUS=5 AND B.ProjectID=@ProjectId THEN 'Data was already processed for Same date'  
+   WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> @ProjectId  
+   THEN 'Allowance has already been uploaded under another project'   
+   WHEN B.Status =5 AND B.ProjectID <> @ProjectId  
+   THEN 'Allowance has already been processed under another project' END)  
+   FROM PR.ShiftTimePayout B    
+   WHERE CONVERT(DATE,B.StartDate) = CONVERT(DATE,@startDate) and B.rowstatus = 1  
+   AND B.AssociateID=@associateid AND B.Fk_ComponentID=@ComponentId  
+   AND PK_ShiftTimePayoutID<>@KeyID AND @ComponentId=4  
+  
+  UNION ALL  
+  
+   SELECT DISTINCT  
+   (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID=@ProjectId  
+   THEN 'Allowance has already been uploaded for the same day under IT component'   
+   WHEN B.STATUS=5 AND B.ProjectID=@ProjectId THEN 'Allowance already processed in IT component'  
+   WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> @ProjectId  
+   THEN 'Allowance has already been uploaded under another project'   
+   WHEN B.Status =5 AND B.ProjectID <> @ProjectId  
+   THEN 'Allowance has already been processed under another project' END)  
+   FROM PR.ITShiftAllowance B    
+   WHERE CONVERT(DATE,B.StartDate) = CONVERT(DATE,@startDate) and B.rowstatus = 1  
+   AND B.AssociateID=@associateid AND B.Fk_ComponentID=50  AND @ComponentId=4  
+  
+  UNION ALL  
+  
+   SELECT DISTINCT  
+   (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID=@ProjectId  
+   THEN 'Allowance has already been uploaded for the same day under ADM component'   
+   WHEN B.STATUS=5 AND B.ProjectID=@ProjectId THEN 'Allowance already processed in ADM component'  
+   WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> @ProjectId  
+   THEN 'Allowance has already been uploaded under another project'   
+   WHEN B.Status =5 AND B.ProjectID <> @ProjectId  
+   THEN 'Allowance has already been processed under another project' END)  
+   FROM PR.ADMShiftAllowance B    
+   WHERE CONVERT(DATE,B.StartDate) = CONVERT(DATE,@startDate) and B.rowstatus = 1  
+   AND B.AssociateID=@associateid AND B.Fk_ComponentID=170 AND @ComponentId=4  
+  
+  UNION ALL  
+  
+   SELECT DISTINCT  
+   (CASE WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID=@ProjectId  
+   THEN 'Allowance has already been uploaded for the same day under BPS component'   
+   WHEN B.STATUS=5 AND B.ProjectID=@ProjectId THEN 'Allowance already processed in BPS component'  
+   WHEN B.Status in (1,4,12,21,15,34,35) AND B.ProjectID <> @ProjectId  
+   THEN 'Allowance has already been uploaded under another project'   
+   WHEN B.Status =5 AND B.ProjectID <> @ProjectId  
+   THEN 'Allowance has already been processed under another project' END)  
+   FROM PR.BPSSDA B    
+   WHERE CONVERT(DATE,B.StartDate) = CONVERT(DATE,@startDate) and B.rowstatus = 1  
+   AND B.AssociateID=@associateid AND @ComponentId=4  
+  
+  UNION ALL  
+------------------- fetch data--------------  
+    SELECT DISTINCT COALESCE((CASE WHEN  PGAM.FixedAmount IS NULL   
+    THEN 'Amount is not configured for the Grade,'  ELSE NULL END), '')  
+    FROM CentralRepository.dbo.vw_CentralRepository_Designation AD WITH(NOLOCK)   
+    LEFT OUTER JOIN Policy.GradeMaster PGM WITH(NOLOCK) ON PGM.GradeLevelId=AD.Job_Family   
+    AND PGM.RowStatus=1 AND PGM.FK_ComponentCountryMappingID=@ComponentCountryMappingID  
+    LEFT OUTER JOIN Policy.GradeAmountMaster PGAM WITH(NOLOCK)   
+    ON PGAM.GradeLevelId=AD.Job_Family AND PGAM.RowStatus=1   
+    AND PGAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID   
+    WHERE Convert(varchar,AD.JobCode)=@Grade AND AD.Bussiness_unit=@BU   
+    and PGAM.SixDayAllowanceEffDate  = @sixthdayEffDAte  ---- V1.0  
+                    
+              drop table #PROJ  
+  
+    END  
+  
+     CREATE TABLE #UptoShiftHour(ID INT IDENTITY(1,1),UptoShiftHour varchar(5))  
+     ---- V1.0  
+  IF (@StartDate < @EffectiveDate OR @City IN ('CITYNAME'))   
+  begin   
+  set @sixthdayEffDAte = '1900-01-01'      
+  end  
+  else  
+  begin  
+  set @sixthdayEffDAte = @EffectiveDate   
+  end  
+  ------------------- fetch data--------------  
+    INSERT INTO #UptoShiftHour(UptoShiftHour)  
+    SELECT DISTINCT UptoShiftHour FROM Policy.GradeAmountMaster GAM WITH(NOLOCK)   
+    INNER JOIN ComponentCountryMapping CCM WITH (NOLOCK)   
+    ON CCM.PK_ComponentCountryMappingID=GAM.FK_ComponentCountryMappingID  
+    WHERE CCM.FK_ComponentID=4 and CCM.FK_ComponentCountryID=1 AND CCM.RowStatus=1   
+    AND GAM.RowStatus=1 AND GAM.SixDayAllowanceEffDate  = @sixthdayEffDAte  ---- V1.0  
+    ORDER BY UptoShiftHour   
+  
+    DECLARE @MINHOURS FLOAT  
+    DECLARE @MAXHOURS FLOAT  
+  
+    SELECT @MINHOURS=convert(float,UptoShiftHour) FROM #UptoShiftHour WHERE ID=1   
+    SELECT @MAXHOURS=convert(float,UptoShiftHour) FROM #UptoShiftHour WHERE ID=2  
+                               
+    DECLARE @count INT  
+    SELECT @count= COUNT(1)  FROM #STPEXCEPTION WITH (NOLOCK)  
+      
+      
+   IF EXISTS(SELECT ExceptionReason FROM #STPEXCEPTION WITH (NOLOCK)   
+   WHERE ISNULL(ExceptionReason,'')='' OR @count=0)   
+   
+    BEGIN  
+    ---------------------------VALIDATION FOR SIXTH DAY ALLOWANCE------------  
+    IF(@ComponentId=4)       
+    BEGIN  
+                  
+            ------------------- fetch data--------------    
+      INSERT INTO #STPEXCEPTION(EXCEPTIONREASON)  
+        SELECT DISTINCT  COALESCE((CASE WHEN  GM.GradeLevelId IS NULL   
+        THEN 'Ineligible Grade for 6th Day Allowance,' ELSE NULL END), '')  
+        +  
+        COALESCE((CASE WHEN  (DATEDIFF(minute,@STARTDATETIME,@ENDDATETIME) < 120   
+        AND GM.GradeLevelId IS NOT NULL)   
+         THEN 'Associate should be in office for atleast 2 Hours for 6DA,'   
+         ELSE NULL END), '')   
+        AS ExceptionReason  
+  
+        FROM CentralRepository.dbo.vw_CentralRepository_Designation AD WITH(NOLOCK)  
+        LEFT OUTER JOIN Policy.GradeMaster GM WITH(NOLOCK)   
+        ON GM.FK_ComponentCountryMappingID=@ComponentCountryMappingID  
+        AND GM.GradeLevelId=AD.Job_Family AND GM.RowStatus=1  
+        LEFT OUTER JOIN Policy.GradeAmountMaster GAM WITH(NOLOCK)   
+        ON GAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID   
+        AND GM.GradeLevelId=AD.Job_Family AND GAM.RowStatus=1  
+        WHERE Convert(varchar,AD.JobCode)=@Grade AND AD.Bussiness_unit=@BU   
+        and GAM.SixDayAllowanceEffDate  = @sixthdayEffDAte  ---- V1.0  
+                           
+       UNION ALL  
+     ------------------- fetch data--------------  
+     SELECT DISTINCT   
+   'This ProjectID is not configured for 6DA ' where @ProjectID not in   
+  (select Projectid FROM Approval_Projects AP WITH(NOLOCK)   
+  where  AP.ROWSTATUS=1 AND AP.FK_ComponentID=4)  
+       
+                       
+  UNION ALL  
+------------------- fetch data--------------  
+    SELECT DISTINCT 'Comp off proceeds 6th Day Allowance'  
+    FROM CompOffDetails COD WITH (NOLOCK)  
+    WHERE ((CONVERT(DATE,COD.HolidayWorked)=CONVERT(DATE,@StartDate))   
+    OR (CONVERT(DATE,COD.HolidayWorked) =CONVERT(DATE,@EndDate)))  
+    AND COD.AssociateID=@AssociateID AND COD.CompOffStatus IN ('A','S')   
+    AND COD.RowStatus=1   
+  UNION ALL  
+------------------- fetch data--------------  
+          SELECT DISTINCT 'Weekend shift should be normal'  
+         WHERE DATEPART(DW,@StartDate) IN (1,7) AND @ShiftType=2  
+               
+        UNION ALL  
+------------------- fetch data--------------          
+SELECT DISTINCT 'WeekDay shift should be rotational'    
+WHERE DATEPART(DW,@StartDate) IN (2,3,4,5,6) AND @ShiftType=1  
+------------------- fetch data--------------  
+  
+     SELECT  @Amount=  (CASE WHEN (DATEDIFF(MINUTE,@StartDateTime,@EndDateTime)   
+     BETWEEN 0 AND @MINHOURS *60) AND GM.GradeLevelId IS NOT NULL   
+      THEN (SELECT GAM.FixedAmount FROM Policy.GradeAmountMaster GAM WITH(NOLOCK)   
+      WHERE GAM.RowStatus=1 AND GAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID   
+      AND GAM.UptoShiftHour =@MINHOURS   
+      AND GAM.GradeLevelId=@GradeLevelID and GAM.SixDayAllowanceEffDate  = @sixthdayEffDAte   
+      GROUP BY GAM.FixedAmount)   ---- V1.0   
+      WHEN   
+      DATEDIFF(MINUTE,@StartDateTime,@EndDateTime)>(@MINHOURS *60)   
+      AND GM.GradeLevelId IS NOT NULL THEN  
+      (SELECT GAM.FixedAmount FROM Policy.GradeAmountMaster GAM WITH(NOLOCK)   
+      WHERE GAM.RowStatus=1 AND GAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID   
+      AND GAM.UptoShiftHour =@MAXHOURS   
+      AND GAM.GradeLevelId=@GradeLevelID and GAM.SixDayAllowanceEffDate  = @sixthdayEffDAte   
+      GROUP BY GAM.FixedAmount)      ---- V1.0  
+      END )   
+      FROM  CentralRepository.dbo.vw_CentralRepository_Designation AD WITH(NOLOCK)  
+      LEFT OUTER JOIN Policy.GradeMaster GM WITH(NOLOCK)  
+      ON GM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND GM.GradeLevelId=AD.Job_Family   
+      AND GM.RowStatus=1  
+      LEFT OUTER JOIN Policy.GradeAmountMaster GAM WITH(NOLOCK)  
+      ON GAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID   
+      AND GM.GradeLevelId=Convert(varchar,AD.Job_Family )  
+      AND GAM.RowStatus=1  
+      WHERE Convert(varchar,AD.JobCode)=@Grade  AND AD.Bussiness_unit=@BU   
+      and GAM.SixDayAllowanceEffDate  = @sixthdayEffDAte  ---- V1.0  
+      ------------------- fetch data--------------  
+    
+   Select PST.PK_ShiftTimePayoutID as PRPkID,@AssociateID as AssociateID,@ComponentID as ComponentID,  
+   @Amount as newAmount,PST.Amount as PRAmount  
+   INTO #ProcessedDataCheck1  
+   from PR.ShiftTimePayout PST WITH(NOLOCK)   
+   WHERE PST.AssociateID=@AssociateID AND PST.FK_ComponentID<>@ComponentID AND  
+   (((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)  
+   OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)  
+   OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)   
+   OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) OR (PST.StartDate=@StartDate))   
+   AND ((@StartTime<>PST.StartTime AND @EndTime=PST.EndTime)  
+   OR (@StartTime=PST.StartTime AND @EndTime<>PST.EndTime) OR   
+   (@StartTime<>PST.StartTime AND @EndTime<>PST.EndTime)))   
+   AND @ComponentID=4 AND PST.Fk_ComponentID=6 AND PST.RowStatus=1 AND  
+   PST.Status Not in (2,3,8,9,18,17,23,24,36)  
+  
+   ------------------- fetch data--------------  
+   Insert into Pr.ShiftTimePayout_log(Fk_Shifttimepayoutid,Associateid,Fk_ComponentID,Fk_ShifttypeID,  
+   ProjectID,Startdate,Starttime,Startdatetime,Enddate,  
+   Endtime,Enddatetime,Amount,Grade,SpecialCaseReason,inputremarks,RejectReason,RejectedBy,  
+   Fk_RejectedRoleID,Status,Setid,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,  
+   Rowstatus,LogCreatedby,LogCreateddate,HCMSchedule)  
+   ------------------- fetch data--------------  
+   select PK_ShiftTimePayoutID,PD.AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,  
+   Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,  
+   SpecialCaseReason,inputremarks,RejectionReason,RejectedBy,Fk_RejectedRoleID,Status,Setid,  
+   Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,@LoginID,getdate(),HCMSchedule  
+   from PR.ShiftTimePayout PD WITH(NOLOCK)  
+   INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_ShiftTimePayoutID=PTB.PRPkID  
+   where PD.Amount<PTB.newAmount and PD.RowStatus=1  
+   ------------------- fetch data--------------  
+   INSERT INTO EXP.ShiftTimePayout (AssociateID, Fk_ComponentID, FK_ShiftTypeID, ProjectID,  
+   StartDate, StartTime,   
+   EndDate, EndTime,SpecialCaseReason, InputRemarks, ExceptionReason, CreatedBy, CreatedDate,  
+   RowStatus,HCMSchedule)  
+   SELECT PD.AssociateID,Fk_ComponentID, FK_ShiftTypeID,ProjectID,Startdate,Starttime,Enddate,  
+   Endtime,SpecialCaseReason,  
+   InputRemarks,'Allowance with higher amount processed as per policy',CreatedBy,CreatedDate,1 ,  
+   HCMSchedule  
+   FROM PR.ShiftTimePayout PD WITH(NOLOCK)  
+   INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_ShiftTimePayoutID=PTB.PRPkID  
+   where PD.Amount<PTB.newAmount and PD.RowStatus=1  
+   ------------------- fetch data--------------  
+   Update PD set PD.RowStatus=0  
+   FROM PR.ShiftTimePayout PD WITH(NOLOCK)   
+   INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_ShiftTimePayoutID=PTB.PRPkID  
+   where PD.Amount<PTB.newAmount and PD.RowStatus=1  
+  
+   INSERT INTO #STPEXCEPTION(EXCEPTIONREASON)  
+------------------- fetch data--------------  
+Select 'Overlapping allowance with higher amount available in valid tab' AS ExceptionReason  
+   FROM PR.ShiftTimePayout PD WITH(NOLOCK)   
+   INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_ShiftTimePayoutID=PTB.PRPkID  
+   where PD.Amount>PTB.newAmount and PD.RowStatus=1  
+------------------- fetch data--------------  
+   Select PST.PK_ShiftTimePayoutID as PRPkID,@AssociateID as AssociateID,  
+   @ComponentID as ComponentID,@Amount as newAmount,PST.Amount as PRAmount  
+   INTO #ProcessedDataCheck8  
+   from PR.ShiftTimePayout PST WITH(NOLOCK)   
+   WHERE PST.AssociateID=@AssociateID AND PST.FK_ComponentID<>@ComponentID AND  
+   (((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)  
+   OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)  
+   OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)   
+   OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)   
+   OR (PST.StartDate=@StartDate)) AND   
+   ((@StartTime<>PST.StartTime AND @EndTime=PST.EndTime)   
+   OR (@StartTime=PST.StartTime AND @EndTime<>PST.EndTime) OR   
+   (@StartTime<>PST.StartTime AND @EndTime<>PST.EndTime)))   
+   AND @ComponentID=4 AND PST.Fk_ComponentID=6 AND PST.RowStatus=1 AND PST.Status=5   
+  
+   INSERT INTO #STPEXCEPTION(EXCEPTIONREASON)  
+------------------- fetch data--------------  
+   Select CASE WHEN PTB.PRAmount>PTB.newAmount  
+   THEN 'Overlapping allowance with higher amount processed previously'  
+   ELSE 'Overlapping allowance processed previously' END   
+   AS ExceptionReason  
+   FROM #ProcessedDataCheck8 PTB WITH(NOLOCK)  
+  
+------------------------------SDA and OCA overlaps----------  
+     
+   Select PST.PK_ShiftTimePayoutID as PRPkID,@AssociateID as AssociateID,  
+   @ComponentID as ComponentID,@Amount as newAmount,PST.Amount as PRAmount  
+   INTO #ProcessedDataCheck2  
+   FROM PR.ShiftTimePayout PST WITH(NOLOCK)  
+   WHERE PST.AssociateID=@AssociateID AND PST.FK_ComponentID<>@ComponentID AND  
+   (((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)  
+   OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)  
+   OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)  
+   OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)) AND   
+   ((@StartTime BETWEEN PST.StartTime AND '23:59' OR @StartTime BETWEEN '00:00' AND PST.EndTime)   
+   OR (@EndTime BETWEEN PST.StartTime AND '23:59' OR @EndTime BETWEEN '00:00' AND PST.EndTime)  
+   OR (PST.StartTime BETWEEN @StartTime AND '23:59' OR PST.StartTime BETWEEN '00:00' AND @EndTime)   
+   OR (PST.EndTime BETWEEN @StartTime AND '23:59' OR PST.EndTime BETWEEN '00:00' AND @EndTime)))   
+   AND @ComponentID=4 AND PST.Fk_ComponentID=5  
+   AND PST.RowStatus=1 AND PST.Status Not in (2,3,8,9,18,17,23,24,36)  
+------------------- fetch data--------------  
+   Insert into Pr.ShiftTimePayout_log(Fk_Shifttimepayoutid,Associateid,Fk_ComponentID,Fk_ShifttypeID,  
+   ProjectID,Startdate,Starttime,Startdatetime,Enddate,  
+   Endtime,Enddatetime,Amount,Grade,SpecialCaseReason,inputremarks,RejectReason,RejectedBy,  
+   Fk_RejectedRoleID,Status,  
+   Setid,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,LogCreatedby,  
+   LogCreateddate,HCMSchedule)  
+------------------- fetch data--------------  
+   select PK_ShiftTimePayoutID,PD.AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,  
+   Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,  
+   SpecialCaseReason,inputremarks,RejectionReason,RejectedBy,Fk_RejectedRoleID,Status,Setid,  
+   Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,@LoginID,getdate(),HCMSchedule  
+   FROM PR.ShiftTimePayout PD WITH(NOLOCK)  
+   INNER JOIN #ProcessedDataCheck2 PTB WITH(NOLOCK) on PD.PK_ShiftTimePayoutID=PTB.PRPkID  
+   where PD.Amount<PTB.newAmount and PD.RowStatus=1  
+------------------- fetch data--------------  
+   INSERT INTO EXP.ShiftTimePayout (AssociateID, Fk_ComponentID, FK_ShiftTypeID, ProjectID,  
+   StartDate, StartTime,   
+   EndDate, EndTime,SpecialCaseReason, InputRemarks, ExceptionReason, CreatedBy, CreatedDate,  
+   RowStatus,HCMSchedule)  
+   SELECT PD.AssociateID,Fk_ComponentID, FK_ShiftTypeID,ProjectID,Startdate,Starttime,Enddate,  
+   Endtime,SpecialCaseReason,  
+   InputRemarks,'Allowance with higher amount processed as per policy',CreatedBy,CreatedDate,1 ,  
+   HCMSchedule  
+   FROM PR.ShiftTimePayout PD WITH(NOLOCK)  
+   INNER JOIN #ProcessedDataCheck2 PTB WITH(NOLOCK) on PD.PK_ShiftTimePayoutID=PTB.PRPkID  
+   where PD.Amount<PTB.newAmount and PD.RowStatus=1  
+------------------- Update data--------------  
+   Update PD set PD.RowStatus=0  
+   FROM PR.ShiftTimePayout PD WITH(NOLOCK)   
+   INNER JOIN #ProcessedDataCheck2 PTB WITH(NOLOCK) on PD.PK_ShiftTimePayoutID=PTB.PRPkID  
+   where PD.Amount<PTB.newAmount and PD.RowStatus=1  
+------------------- fetch data--------------  
+   INSERT INTO #STPEXCEPTION(EXCEPTIONREASON)  
+  
+   Select 'Overlapping allowance with higher amount available in valid tab' AS ExceptionReason  
+   FROM PR.ShiftTimePayout PD WITH(NOLOCK)   
+   INNER JOIN #ProcessedDataCheck2 PTB WITH(NOLOCK) on PD.PK_ShiftTimePayoutID=PTB.PRPkID  
+   where PD.Amount>PTB.newAmount and PD.RowStatus=1  
+   ------------------- fetch data--------------  
+   Select PST.PK_ShiftTimePayoutID as PRPkID,@AssociateID as AssociateID,  
+   @ComponentID as ComponentID,@Amount as newAmount,PST.Amount as PRAmount  
+   INTO #ProcessedDataCheck9  
+   FROM PR.ShiftTimePayout PST WITH(NOLOCK)  
+   WHERE PST.AssociateID=@AssociateID AND PST.FK_ComponentID<>@ComponentID AND  
+   (((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)  
+   OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)  
+   OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)   
+   OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) ) AND   
+   ((@StartTime BETWEEN PST.StartTime AND '23:59'   
+   OR @StartTime BETWEEN '00:00' AND PST.EndTime)   
+   OR (@EndTime BETWEEN PST.StartTime AND '23:59'   
+   OR @EndTime BETWEEN '00:00' AND PST.EndTime)  
+   OR (PST.StartTime BETWEEN @StartTime AND '23:59'   
+   OR PST.StartTime BETWEEN '00:00' AND @EndTime)   
+   OR (PST.EndTime BETWEEN @StartTime AND '23:59'   
+   OR PST.EndTime BETWEEN '00:00' AND @EndTime)) )   
+   AND @ComponentID=4 AND PST.Fk_ComponentID=5  
+   AND PST.RowStatus=1 AND PST.Status=5  
+  
+   INSERT INTO #STPEXCEPTION(EXCEPTIONREASON)  
+------------------- fetch data--------------  
+   Select CASE WHEN PTB.PRAmount>PTB.newAmount  
+   THEN 'Overlapping allowance with higher amount processed previously'  
+   ELSE 'Overlapping allowance processed previously' END   
+   AS ExceptionReason  
+   FROM #ProcessedDataCheck9 PTB WITH(NOLOCK)  
+  
+   DROP TABLE #ProcessedDataCheck1  
+   DROP TABLE #ProcessedDataCheck2  
+   DROP TABLE #ProcessedDataCheck8  
+   DROP TABLE #ProcessedDataCheck9        
+   
+END                       
 ELSE IF(@ComponentId=5)  
 BEGIN
 	  CREATE TABLE #HOLIDAYS (HOLIDAY DATE)
@@ -481,4 +1388,3 @@ IF(ISNULL(@SHIFTEXCEPTIONS,'')='')
   SELECT @SHIFTEXCEPTIONS = @EndDateException  
   SELECT @SHIFTEXCEPTIONS AS Status  
  END
- 

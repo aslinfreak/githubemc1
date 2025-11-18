@@ -1,13 +1,25 @@
 USE [OneC_SPay]
 GO
+/****** Object:  StoredProcedure [dbo].[usp_APAC_SP_InsertValidUploaderData]    Script Date: 18-11-2025 17:31:25 ******/
+--SET ANSI_NULLS ON
+--GO
+--SET QUOTED_IDENTIFIER ON
+--GO
+-- =============================================================================================================       
+-- AUTHOR     : TEAM
+-- CREATE DATE: JULY 20, 2020    
+-- DESCRIPTION: Added the documentation for the stored procedure
+-- ============================================================================================================= 
+--ALTER PROCEDURE [dbo].[usp_APAC_SP_InsertValidUploaderData]
+--(
 Declare
     @ComponentGrpID INT=21,
 	@AssociateId varchar(10)='2021518',
 	@ProjectId varchar(20)='1000170323',
 	@DayType varchar(20)=1,
 	@CriteriaType varchar(20)=1,	
-	@StartDate varchar(15)='10/15/2025',
-	@EndDate varchar(15)='10/16/2025',
+	@StartDate varchar(15)='10/01/2025',
+	@EndDate varchar(15)='10/01/2025',
     @StartTime VARCHAR(5)='09:00',
     @EndTime VARCHAR(5)='10:00',	
 	@LoginId varchar(50)='2021518',
@@ -15,6 +27,12 @@ Declare
 	@CountryId int=7,
 	@ComponentCountryMappingId INT ='103',
     @ApproverID varchar(10)=''
+--)
+		
+--AS
+--SET NOCOUNT ON
+--BEGIN
+--BEGIN TRY
 
 		-----------Declaring variables -----------
 DECLARE @ComponentId int
@@ -182,10 +200,19 @@ Select @Effdt=Effdt from CentralRepository.dbo.vw_CentralRepository_JOB_Referenc
 	INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
 	
 		SELECT DISTINCT	 
-		COALESCE((CASE WHEN ((@EmplStatus <> 'A'   AND LEN(@AssociateID) in (6,7)) 
+		--COALESCE((CASE WHEN ((@EmplStatus <> 'A'   AND LEN(@AssociateID) in (6,7)) 
+		--OR (AD.ASSOCIATE_ID IS NULL AND LEN(@AssociateID) in (6,7))) 
+		--									THEN 'AssociateID is InActive,' END), '') 
+
+		COALESCE((CASE WHEN ((@EmplStatus NOT IN ('A','L')   AND LEN(@AssociateID) in (6,7)) 
 		OR (AD.ASSOCIATE_ID IS NULL AND LEN(@AssociateID) in (6,7))) 
 											THEN 'AssociateID is InActive,' END), '') 
 		+
+		COALESCE((CASE WHEN ((@EmplStatus = 'L')   AND LEN(@AssociateID) in (6,7)) 
+											THEN 'AssociateID is in Loss of Pay,' END), '')
+
+		+
+
 	
 		COALESCE((CASE WHEN (AD.COMPANY IS NULL AND LEN(@AssociateID) in (6,7)) 
 												THEN 'Associate Company Unavailable,' END), '')  
@@ -591,3 +618,8 @@ ELSE
 
 DROP TABLE #SPEXCEPTION
 DROP TABLE #PROJECTTAGCHECK
+--END TRY
+-- BEGIN CATCH
+-- SELECT @@ERROR
+-- END CATCH
+--END

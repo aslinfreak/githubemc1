@@ -1,625 +1,136 @@
-USE [OneC_SPay]
-GO
-/****** Object:  StoredProcedure [dbo].[usp_APAC_SP_InsertValidUploaderData]    Script Date: 18-11-2025 17:31:25 ******/
---SET ANSI_NULLS ON
---GO
---SET QUOTED_IDENTIFIER ON
---GO
--- =============================================================================================================       
--- AUTHOR     : TEAM
--- CREATE DATE: JULY 20, 2020    
--- DESCRIPTION: Added the documentation for the stored procedure
--- ============================================================================================================= 
---ALTER PROCEDURE [dbo].[usp_APAC_SP_InsertValidUploaderData]
---(
-Declare
-    @ComponentGrpID INT=21,
-	@AssociateId varchar(10)='2021518',
-	@ProjectId varchar(20)='1000170323',
-	@DayType varchar(20)=1,
-	@CriteriaType varchar(20)=1,	
-	@StartDate varchar(15)='10/01/2025',
-	@EndDate varchar(15)='10/01/2025',
-    @StartTime VARCHAR(5)='09:00',
-    @EndTime VARCHAR(5)='10:00',	
-	@LoginId varchar(50)='2021518',
-	@MailUploadId VARCHAR(50)='CONTEF0AE750EEBD4C97B275D4E0279BB364',
-	@CountryId int=7,
-	@ComponentCountryMappingId INT ='103',
-    @ApproverID varchar(10)=''
---)
-		
---AS
---SET NOCOUNT ON
---BEGIN
---BEGIN TRY
+--Joining Bonus
+ELSE IF(@ComponentGrpID=3)    
+BEGIN        
 
-		-----------Declaring variables -----------
-DECLARE @ComponentId int
-SELECT  @ComponentId=PK_COMPONENTID FROM COMPONENTMASTER WITH(NOLOCK) 
-WHERE FK_COMPONENTGROUPID=@ComponentGrpID
+  IF(@TypeofData=1)    
+   BEGIN        
+         
+    SELECT  PJB.PK_JoiningBonusID As UniqueID, 
+	PJB.ASSOCIATEID,REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-')     
+	AS DOJ,DESG.JOBCODE+' - '+DESG.JOBCODEDESCRIPTION AS GRADE,PJB.AMOUNT,   
+	(CASE WHEN PJB.NoInstallments = '0' THEN NULL 
+	ELSE PJB.NoInstallments END) as NoOfInstallments,ISNULL(PJB.RetentionPeriod,0) AS RetentionPeriod,
+    (CASE WHEN PJB.BGstatus=1 THEN 'Positive'         
+          WHEN PJB.BGstatus=2 THEN 'Negative'        
+                      WHEN PJB.BGstatus=3 THEN 'WIP'              
+                      WHEN PJB.BGstatus=4 THEN 'NA' END) AS BGSTATUS,               
+    (CASE WHEN PJB.RecruitmentType=1 THEN 'Lateral'        
+       WHEN PJB.RecruitmentType=2 THEN 'Campus'
+	  WHEN PJB.RecruitmentType=3 THEN 'Merger and Acquisition' ELSE '' END) AS RECRUITMENTTYPE,                
+	MCJB.CDescription AS SpecialCaseReason,
+    ISNULL(PJB.INPUTREMARKS,'') AS INPUTREMARKS,PJB.PROJECTID,PJB.COMPANYID,PJB.SETID AS SETID,    
+	Case When Status=1 and PJB.RowStatus=1 then 'Valid' when Status=3 and PJB.RowStatus=1 then 'Rejected'    
+	when Status=4 and PJB.RowStatus=1 then 'Resubmitted' when Status=12 and PJB.RowStatus=1 then 'Approved'     
+	WHEN PJB.RowStatus=0 THEN 'Deleted' end Status,    
+	(CASE WHEN PJB.RejectionReason IS NOT NULL THEN PJB.RejectionReason WHEN PJB.RejectionReason IS NULL    
+	THEN ''ELSE '' END) AS RejectionReason,    
+	PJB.CREATEDBY AS UploaderID,PJB.CREATEDDATE AS UploadedDate,    
+	PJB.Approvedby As ApprovedBy,PJB.Approveddate As ApprovedDate,    
+	PJB.MODIFIEDBY AS ActionDoneBy,PJB.MODIFIEDDATE  AS ActionDoneOn           
+    FROM PR.JoiningBonus PJB WITH(NOLOCK)        
+    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)    
+	ON AD.Associate_ID=PJB.AssociateID   
+	--INNER JOIN MasterCodes MC_C WITH (NOLOCK)  
+	--ON MC_C.CCodeId = PJB.NoInstallments and  MC_C.CParentRef=55 AND MC_C.RowStatus=1 and MC_C.CUserDefined1='3'
+	--and MC_C.CUserDefined2 is not null
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)     
+	ON DESG.JobCode=PJB.GRADE        
+    AND DESG.Bussiness_unit=PJB.SetID 
+	 LEFT JOIN MasterCodes MCJB WITH(NOLOCK) ON MCJB.CCodeID=PJB.SpecialCaseReason  
+	AND MCJB.cparentref=2 and MCJB.CUserDefined1=3
+    WHERE  (PJB.Status IN (1,3,4,12) or PJB.RowStatus=0)  AND 
+    (((@Month IS NULL OR MONTH(PJB.CreatedDate)=@Month) AND YEAR(PJB.CreatedDate)=YEAR(@CURRENTDATE))
+    OR  
+    (MONTH(PJB.ModifiedDate)=@Month AND YEAR(PJB.ModifiedDate)=YEAR(@CURRENTDATE)) 
+    OR  (MONTH(ApprovedDate)=@Month  AND YEAR(ApprovedDate)=YEAR(@CURRENTDATE)))    
+            
+   END        
 
-		-----------Declaring variables -----------
-Declare @Emplstatus varchar(20),@location varchar(30),@Country varchar(10),@Jobcode varchar(10),
-@DeptID varchar(20),@Empltype varchar(10),@Effdt varchar(20),@Company varchar(5),
-@Businessunit varchar(6),@GradeLevel varchar(10),@locationCode varchar(60)
-
-		-----------Declaring variables -----------
-DECLARE @CountryName varchar(20),@Countrycode varchar(10)
-
-		-----------Declaring variables -----------
-DECLARE @SETIDLIST TABLE
-	(
-		Business_Unit VARCHAR(5),
-		Country_ID VARCHAR(3)
-	)
-	
-	----------Insert query ---------------
-	INSERT INTO @SETIDLIST(Business_Unit,Country_ID)
-		SELECT DISTINCT Business_Unit,Country_ID 
-		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_HCMLocation WITH(NOLOCK) WHERE ISActive='A'
-
-		
-		-----------Declaring variables -----------
-DECLARE @ApproverStatus varchar(100)
-select @ApproverStatus = isactive from centralrepository.dbo.vw_CentralRepository_Associate_details 
-where associate_id=@ApproverId 
-
-Select @CountryName= Country from ComponentCountryMaster where PK_ComponentCountryID=@CountryID
-select @Countrycode=CountryID from ComponentCountryMaster where PK_ComponentCountryID=@CountryID
-
-CREATE TABLE #PROJECTTAGCHECK(
-ProjectID varchar(20),
-AssociateID varchar(10),
-StartDate DateTime,
-EndDate DateTime
-)
-	----------Insert query ---------------
-Insert into #PROJECTTAGCHECK(ProjectID ,AssociateID ,StartDate ,EndDate )
-select @projectId,@AssociateID,@StartDate,@EndDate
-     
-    CREATE TABLE #SPEXCEPTION
-	(
-		EXCEPTIONREASON VARCHAR(8000) 
-	)
-	
-		-----------Declaring variables -----------
-	DECLARE 
-			@BU VARCHAR(7),
-			@Grade VARCHAR(8),
-			@DepartmentID VARCHAR(10),
-			@MinEligibleDate DATETIME,
-			@MaxEligibleDate DATETIME,
-		    @StartDateTime DATETIME,
-            @EndDateTime DATETIME,
-			@GradeLevelID VARCHAR(10),
-			@EmplID INT
-
-	SELECT  @StartDateTime=CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '+CONVERT(VARCHAR,@StartTime))),
-     @EndDateTime =CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '+CONVERT(VARCHAR,@EndTime)))
-	 
-	----------Insert query ---------------
-    INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
-	SELECT 'Associate''s DOJ should be lesser than claim date' 
-	FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-	WHERE AD.Associate_ID=@AssociateID AND AD.DATEOFJOINING>CONVERT(DATE,@StartDate) 
-
-IF NOT EXISTS(SELECT TOP 1 1 FROM #SPEXCEPTION WITH (NOLOCK))
-    BEGIN
-	-------------------------- fetching data -------------------
-   	SELECT B.EMPLID ,B.EMPL_RCD ,B.EFFDT ,B.EFFSEQ ,B.ACTION ,B.ACTION_REASON ,B.ACTION_DT ,B.EMPL_STATUS,
-	B.DEPTID ,B.JOBCODE ,B.LOCATION ,             
-	B.COMPANY,B.HR_STATUS,B.BUSINESS_UNIT,B.SUPERVISOR_ID,B.PER_ORG into #Temp
-	FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock) 
-	WHERE B.emplid=convert(varchar,@AssociateID)	AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)  
-	FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B with (nolock)
-	WHERE B.EMPLID = B_B.EMPLID 
-	 and B_B.action <> 'INA'   AND B.EMPL_RCD = B_B.EMPL_RCD   AND B_B.EFFDT = B.EFFDT)
--------------------------- fetching data -------------------
-SELECT B.EMPLID,b.LOCATION AS LOCATION,B.BUSINESS_UNIT AS BU,HL.Country_ID AS CountryID,
-	 b.JOBCODE AS Grade,B.DEPTID AS DepartmentId,B.PER_ORG AS EmplType,B.EMPL_STATUS AS EmplStatus,
-	 B.EFFDT AS EFFDT,B.COMPANY
-	 INTO #STTEMP FROM #Temp B with (nolock)  
-	 LEFT OUTER join  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK)
-	 ON HL.HCMLocationCode=B.LOCATION 
-	 WHERE B.EFFDT = ( SELECT MAX(B_A.EFFDT) 
-	 FROM  CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock)
-	 WHERE B.EMPLID = B_A.EMPLID  
-	 AND B.EMPL_RCD=B_A.EMPL_RCD   and B_A.action <> 'INA'   AND B_A.EFFDT<= convert(date,@StartDate))  
-	 AND B.HR_STATUS = 'A'   AND (B.EMPL_STATUS IN ('A','L','P','W') 
-	 OR (B.EMPL_STATUS = 'S'   AND B.ACTION <> 'OGA'))   and b.action <> 'INA' 
-
-	 UNION
-	 -------------------------- fetching data -------------------
-	 SELECT  A.EMPLID,A.LOCATION ,A.BUSINESS_UNIT ,HL.Country_ID,A.JOBCODE ,
-	   A.DEPTID ,A.PER_ORG,A.EMPL_STATUS,A.EFFDT,A.COMPANY FROM #Temp A with (nolock) 
-	  LEFT OUTER join  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
-	  ON HL.HCMLocationCode=A.LOCATION 
-	 WHERE  A.EFFDT = ( SELECT MAX(B_A.EFFDT) 
-	 FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock) 
-	 WHERE A.EMPLID = B_A.EMPLID   
-	 AND B_A.EFFDT<= convert(date,@StartDate))   
-	 AND A.EMPL_RCD = ( SELECT MAX(C_A.EMPL_RCD) 
-	 FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference C_A with (nolock)
-	 WHERE C_A.EMPLID = A.EMPLID   
-	 and C_A.action <> 'INA'   AND C_A.EFFDT = A.EFFDT)   AND A.HR_STATUS = 'I'   
-	 AND NOT EXISTS ( SELECT 'X'  
-	 FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock)
-	 WHERE A.EMPLID = B.EMPLID  
-	 AND B.EFFDT = ( SELECT MAX(B_A.EFFDT)  
-	 FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A 
-	 WHERE B.EMPLID = B_A.EMPLID   AND B.EMPL_RCD=B_A.EMPL_RCD   
-     and b.action <> 'INA'   AND B_A.EFFDT<= convert(date,@StartDate))
-	 AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ) 
-	 FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B 
-	 with (nolock) 
-	 WHERE B.EMPLID = B_B.EMPLID   AND B.EMPL_RCD = B_B.EMPL_RCD            
-     and b.action <> 'INA'   AND B_B.EFFDT = B.EFFDT)    
-     AND B.HR_STATUS = 'A'   AND (B.EMPL_STATUS IN ('A','L','P','W')    OR (B.EMPL_STATUS = 'S'  
-	 AND B.ACTION <> 'OGA')))
--------------------------- fetching data -------------------
-    select @EmplID=EMPLID,@Emplstatus=EmplStatus,
-	@locationCode=location,@Grade=Grade,
-	@Country=CountryID,@BU=BU,
-	@Jobcode=Grade,@DeptID=DepartmentId,
-	@Empltype=EmplType,@Company=COMPANY,@Businessunit=BU from #STTEMP
-
-DROP TABLE #Temp
-
--------------------------- fetching data -------------------
-Select @Effdt=Effdt from CentralRepository.dbo.vw_CentralRepository_JOB_Reference with(nolock) 
-	where Action='TER'
-    And Emplid=convert(varchar(10),@AssociateId) and @Emplstatus<>'A'
-  
-  -------------------------- fetching data -------------------
-   SELECT @GradeLevelID=Job_Family  
-   FROM CentralRepository.dbo.vw_CentralRepository_Designation WITH(NOLOCK)
-   WHERE JobCode=@Grade AND Bussiness_unit=@BU
-		
-	----------Insert query ---------------
-	INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
-	SELECT DISTINCT 'Associate Details not available in CRS' 
-	WHERE ISNULL(@AssociateID,'')<>ISNULL(@EmplID,'')
-
-	
-    IF(@AssociateID=@EmplID)
-	BEGIN
-
-	if(@ComponentGrpID = 21 and @CountryId = 7)
-	BEGIN
-	----------Insert query ---------------
-	INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
-		Select Distinct COALESCE((CASE WHEN @DayType IS NULL 
-		or @DayType=-1 THEN 'Invalid Day Type,' ELSE NULL END), '') 
-		+
-		 COALESCE((CASE WHEN @CriteriaType IS NULL or @CriteriaType=-1 
-		 THEN 'Invalid Criteria Type,' ELSE NULL END), '')
-	   
-	END	
-	----------Insert query ---------------
-	INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
-	
-		SELECT DISTINCT	 
-		--COALESCE((CASE WHEN ((@EmplStatus <> 'A'   AND LEN(@AssociateID) in (6,7)) 
-		--OR (AD.ASSOCIATE_ID IS NULL AND LEN(@AssociateID) in (6,7))) 
-		--									THEN 'AssociateID is InActive,' END), '') 
-
-		COALESCE((CASE WHEN ((@EmplStatus NOT IN ('A','L')   AND LEN(@AssociateID) in (6,7)) 
-		OR (AD.ASSOCIATE_ID IS NULL AND LEN(@AssociateID) in (6,7))) 
-											THEN 'AssociateID is InActive,' END), '') 
-		+
-		COALESCE((CASE WHEN ((@EmplStatus = 'L')   AND LEN(@AssociateID) in (6,7)) 
-											THEN 'AssociateID is in Loss of Pay,' END), '')
-
-		+
-
-	
-		COALESCE((CASE WHEN (AD.COMPANY IS NULL AND LEN(@AssociateID) in (6,7)) 
-												THEN 'Associate Company Unavailable,' END), '')  
-		+
-		COALESCE((CASE WHEN (AD.BUSINESS_UNIT IS NULL AND LEN(@AssociateID) in (6,7)) 
-												THEN 'Associate SetId Unavailable,'END), '') 
-			                                       
-		+
-		 COALESCE((CASE WHEN @EmplType<>'EMP' THEN 'Associate is a contractor,'  END), '')
-		+
-		COALESCE((CASE WHEN Convert(datetime,@EndDate)<Convert(datetime,@StartDate) 
-		THEN 'End Date Should be greater than Start Date' ELSE NULL END),'')
-		
-		+
-         COALESCE((CASE WHEN @Emplstatus <> 'A' and @Emplstatus = 'T' 
-		 and ( DATEDIFF(DD,CONVERT(DATE,@Effdt) ,getdate()) > 30 )   
-		 THEN 'Associate''s termination date is greater than 30 days - can''t be processed,' ELSE NULL END), '') 
-	   +
-        COALESCE((CASE WHEN (ISDATE(@StartDate+' '+ @StartTime)=1 AND ISDATE(@Startdate)=1 
-		AND ISDATE(@EndDate+' '+ @EndTime)=1 AND ISDATE(@EndDate)=1 AND 
-        DATEDIFF(mi,CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '
-		+CONVERT(VARCHAR,@StartTime))),CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '
-        +CONVERT(VARCHAR,@EndTime)))) >1440)
-        THEN 'Difference Between StartTime and EndTime should not exceed 24 hours, ' END),'')
-        +
-		 COALESCE((CASE WHEN (ISDATE(@EndDate+' '+ @EndTime)=1 AND ISDATE(@EndDate)=1 
-		AND CONVERT(DATETIME,(@EndDate+' '+ @EndTime)) < CONVERT(DATETIME,(@StartDate+' '+ @StartTime))
-		AND ISDATE(@StartDate+' '+ @StartTime)=1 AND ISDATE(@StartDate)=1  ) 
-		THEN 'End Time Should be greater than Start Time,' ELSE NULL END), '') 
-	   +
-        COALESCE((CASE WHEN (ISDATE(@StartDate+' '+@StartTime)=1 AND ISDATE(@Startdate)=1
-		AND ISDATE(@EndDate+' '+@EndTime)=1 AND ISDATE(@EndDate)=1)
-        AND ((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,@Startdate)+' '+CONVERT(VARCHAR,@Starttime))))%5)<>0
-		OR 
-        ((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '+CONVERT(VARCHAR,@EndTime))))%5)<>0 )) 
-                   THEN 'Time should be in multiples of 5,' END), '')                 
-        +
-          COALESCE((CASE WHEN (ISDATE(@StartDate)=1 
-		  AND @StartDate >convert(date,(CONVERT(VARCHAR,year(getdate()))+'-'
-		  +CONVERT(VARCHAR,month(getdate()))+'-'+'18')))
-        OR(ISDATE(@Enddate)=1 AND @Enddate >convert(date,(CONVERT(VARCHAR,year(getdate()))+'-'
-		+CONVERT(VARCHAR,month(getdate()))+'-'+'19')))
-        THEN 'Claim cannot be Raised for Future Dates,' ELSE NULL END), '') 
-        +
-        COALESCE((CASE WHEN @StartDate=@EndDate AND @STARTTIME=@ENDtIME 
-		THEN 'StartDateTime and EndDateTime is Equal' ELSE '' END), '') 
-         +
-		COALESCE((CASE WHEN LEN(@ProjectID) <> 10 OR (SELECT COUNT(1) 
-		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus WITH (NOLOCK)
-		WHERE Project_Status='A' and EFF_STATUS = 'A' AND effdt = 
-		(select max(effdt) from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus
-		where project_Id=CONVERT(VARCHAR(10),@ProjectID))
-		AND EFFSEQ = (select max(EFFSEQ) 
-		from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
-		where project_Id=CONVERT(VARCHAR(10),@ProjectID)) AND PROJECT_ID=CONVERT(VARCHAR(10),@ProjectID))=0  
-		THEN 'ProjectId is Invalid,' ELSE NULL END), '')    
-              +
-       COALESCE((CASE WHEN @ApproverID is not null and ((@ApproverStatus <> 'A'  AND LEN(@ApproverID) in (6,7)) 
-	   OR (AD.ASSOCIATE_ID IS NULL AND LEN(@ApproverID) in (6,7))) 
-	   THEN 'ApproverID is InActive,' END), '')
-												    
-       FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-       WHERE AD.Associate_ID=CONVERT(VARCHAR,@AssociateID) AND AD.Associate_ID=CONVERT(CHAR,@EmplID) 
-
-	   
-	UNION ALL
-	-------------------------- fetching data -------------------
-          SELECT DISTINCT 'Setid is not configured for this component' WHERE @BU 
-		  not in (Select Setid from Policy.SetIdMaster WITH (nolock) 
-		  where  Rowstatus=1 and FK_ComponentCountryMappingId= @ComponentcountryMappingID)
-    UNION ALL
-	-------------------------- fetching data -------------------
-           SELECT DISTINCT 'Ineligible Grade' WHERE @GradeLevelID 
-		   not in (Select GradeLevelId from Policy.GradeMaster WITH (nolock) 
-		   where  Rowstatus=1 and FK_ComponentCountryMappingId= 103)
-	UNION ALL
-	-------------------------- fetching data -------------------
-          SELECT DISTINCT (CASE WHEN (CONVERT(DATE,@StartDate)<=
-		  (CONVERT(DATE,(DATEADD(MM, -6,CONVERT(DATE,CONVERT(VARCHAR,YEAR(GETDATE()))+'-'+
-		  CONVERT(VARCHAR,MONTH(GETDATE()))+'-'+'18'))))))
-          THEN 'Allowance claim date exceeds Six months from Previous month,'END)
-    UNION ALL
-	-------------------------- fetching data -------------------
-		  SELECT  DISTINCT (CASE WHEN @StartDate > getdate() 
-		  THEN 'Allowance claim cannot be raised for future Dates ,' else null END) 
-	UNION ALL
-	-------------------------- fetching data ------------------
-		  select distinct 'Associate is on leave as on claim date' 
-		  from CentralRepository.dbo.vw_CentralRepository_EAM_Leavedata with (nolock)
-	      where Empl_Id=CONVERT(varchar(10),@AssociateID) and @StartDate 
-		  between BGN_Dt and End_DT and WF_Status='A'	
-	
-	UNION ALL
-	-------------------------- fetching data ------------------
-          SELECT DISTINCT 'Selected Date does not belong to Statutory Holiday' WHERE  
-		   (CONVERT(DATE,@StartDate)) not in (Select PM.ShiftTime from Policy.PolicyMaster PM WITH (nolock)
-		   where  PM.IsActive = 1 and PM.Rowstatus=1 
-		   and PM.FK_ComponentCountryMappingId= @ComponentCountryMappingId
-		    and (ISNULL(PM.ShiftTime,'')<>''))
-
-		UNION ALL
--------------------------- fetching data ------------------
-SELECT DISTINCT 
-		COALESCE((CASE WHEN SL.Country_ID IS NULL THEN 'Associate not active in '
-		+Country+' Payroll as on claim date,' ELSE NULL END), '')
-		AS ExceptionReason
-		FROM ComponentCountryMaster CCM LEFT OUTER JOIN @SETIDLIST SL
-		ON (SL.Country_ID=CCM.SETIDDivision OR SL.Country_ID=CCM.CountryID) 
-		and BUSINESS_UNIT=@Businessunit
-		where PK_ComponentCountryID=@CountryID 
-	UNION ALL	
-              -------------------------- fetching data ------------------ 
-          SELECT DISTINCT (CASE WHEN STATUS=1 THEN 'Data has been already uploaded' 
-		  WHEN STATUS=5 THEN 'Data has been already processed'
-          WHEN STATUS=14 THEN 'Already Approved By PFSS Admin'
-		  WHEN STATUS=21 THEN 'Already Approved By Home Manager'
-          END) FROM pr.OnCall_OverTime_Allowance WITH (NOLOCK)
-          WHERE RowStatus=1  
-		  and FK_Componentcountrymappingid=@ComponentCountryMappingId
-		   AND ProjectId=@Projectid 
-		   AND ((@StartDateTime BETWEEN StartDateTime AND EndDateTime ) 
-		   OR( @EndDateTime BETWEEN StartDateTime AND EndDateTime)
-		   or (@StartDate BETWEEN StartDate AND EndDate ) OR( @EndDate BETWEEN StartDate AND EndDate)) 
-          AND AssociateID=@AssociateID
-
-	UNION ALL
-	 -------------------------- fetching data ------------------ 
-		  SELECT DISTINCT (CASE WHEN STATUS=1 THEN 'Data has been already uploaded for Different ProjectId'
-		  WHEN STATUS=5 
-		  THEN 'Data has been already processed for Different ProjectId'
-          WHEN STATUS=14 THEN 'Data has been already Approved for Different ProjectId'
-		  WHEN STATUS=21 THEN 'Already Approved By Home Manager for Different ProjectId'
-          END) FROM pr.OnCall_OverTime_Allowance WITH (NOLOCK)
-          WHERE RowStatus=1  and FK_Componentcountrymappingid=@ComponentCountryMappingId
-		   AND ProjectId<>@Projectid 
-		   AND ((@StartDateTime BETWEEN StartDateTime AND EndDateTime )OR( @EndDateTime BETWEEN StartDateTime 
-		   AND EndDateTime)	  
-		    or (@StartDate BETWEEN StartDate AND EndDate ) OR( @EndDate BETWEEN StartDate AND EndDate)) 
-          AND AssociateID=@AssociateID
-    UNION ALL
- -------------------------- fetching data ------------------ 
- SELECT DISTINCT 	 
-	   'Associate should be tagged to the project as on claim date' AS ExceptionReason
-	   FROM #PROJECTTAGCHECK SSTM WITH(NOLOCK)
-	   LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ALLOCATION CAL WITH(NOLOCK)
-	   ON CAL.Project_ID=SSTM.ProjectID 
-	   AND CAL.Associate_ID=SSTM.AssociateID AND ((CONVERT(DATE,SSTM.StartDate)
-	   BETWEEN CONVERT(DATE,CAL.Allocation_Start_Date) AND CONVERT(DATE,CAL.Allocation_End_Date)) 
-	   OR   (CONVERT(DATE,SSTM.EndDate) BETWEEN CONVERT(DATE,CAL.Allocation_Start_Date) 
-	   AND CONVERT(DATE,CAL.Allocation_End_Date)))
-	   WHERE CAL.Associate_ID IS NULL 
-END	
-
- DECLARE @Amount float,@TimeDifference varchar(10)
-
- Select @TimeDifference=datediff(hh,@StartDateTime,@EndDateTime) 
-if(@CountryId=7)
-BEGIN
- IF(@CriteriaType=1)
- BEGIN
-		
-		IF(@TimeDifference<4)
-			set  @Amount=(select Distinct Amount from policy.policymaster 
-			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=7 and MinEligibleHours=4)
-		ELSE if(@TimeDifference>=4 and @TimeDifference <8)
-			set  @Amount=(select Distinct Amount from policy.policymaster 
-			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=7 and MinEligibleHours=8)
-		ELSE 
-			set  @Amount=(select Distinct Amount from policy.policymaster 
-			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=7 and MaxEligibleHours=8)
-	END
-	ELSE IF(@CriteriaType=2)
-	BEGIN  
-		DECLARE @MonthlyBaseSalary float,@WeeklyBaseSalary float,@Policyamount float,@RoughAmount float
-
-		SELECT TOP 1 @MonthlyBaseSalary=CASE WHEN CompFrquency='A' THEN CAST(CompRate AS FLOAT)/12.0 
-		WHEN CompFrquency='M' THEN CompRate END 
-		FROM HCMCompensationData WITH(NOLOCK) WHERE associateid=@AssociateID AND country=@Countrycode 
-		AND effectivedate< @StartDate
-		ORDER BY Effectivedate DESC,EffectiveSequence DESC
-
-		Select @Policyamount= Amount from policy.PolicyMaster
-		where fk_componentcountrymappingid=@ComponentCountryMappingId and CriteriaType=8 
-
-		Select @RoughAmount= (((@MonthlyBaseSalary/21.75)/8) * @Policyamount) 
-		set @Amount= ROUND(@RoughAmount*@TimeDifference,2)
-	END
-END
-else if(@CountryId=4)
-begin
-set  @Amount=(select Distinct Amount from policy.policymaster 
-where fk_ComponentCountrymappingid=@ComponentCountryMappingId)	
-end
-
-	----------Insert query ---------------
-Insert into #SPEXCEPTION(EXCEPTIONREASON)
-   SELECT DISTINCT 'Amount is not configured' Where   
-   (convert(float,@Amount)<=0 or convert(int,@Amount) is null or @Amount='') 
-
-END
-		Select PST.PK_SGPShiftTimePayoutID as PRPkID,@AssociateID as AssociateID,@Amount as newAmount,
-		PST.Amount as PRAmount
-			INTO #ProcessedDataCheck1
-			from PR.SGPShiftTimePayout PST WITH(NOLOCK) 
-			INNER JOIN ComponentCountryMapping CCM with (nolock) 
-			ON CCM.PK_ComponentCountryMappingID=PST.FK_ComponentCountryMappingID
-			WHERE PST.AssociateID=@AssociateID AND 
-			(((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)
-			OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)
-			OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
-			OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
-			OR (PST.StartDateTime=@StartDateTime and PST.EndDateTime=@EndDateTime))) 
-			AND (CCM.FK_ComponentID in (56) and CCM.FK_ComponentCountryID in (7))
-			AND PST.RowStatus=1 AND PST.Status=1 
-			
-	----------Insert query ---------------
-			Insert into Pr.SGPShiftTimePayout_log(Fk_SGPShiftTimepayoutID,Associateid,Fk_ShifttypeID,
-			ProjectID,Startdate,Starttime,Startdatetime,Enddate,
-			Endtime,Enddatetime,Amount,Grade,inputremarks,RejectReason,RejectedBy,Fk_RejectedRoleID,Status,
-			Setid,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,LogCreatedby,
-			LogCreateddate,FK_componentcountrymappingid)
-
-			select PK_SGPShiftTimePayoutID,PD.Associateid,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-			Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,
-			inputremarks,RejectionReason,RejectedBy,Fk_RejectedRoleID,Status,Setid,Createdby,Createddate,
-			Modifiedby,Modifieddate,Remarks,Rowstatus,@LoginId,getdate(),
-			FK_componentcountrymappingid
-			FROM PR.SGPShiftTimePayout PD WITH(NOLOCK)
-			INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_SGPShiftTimePayoutID=PTB.PRPkID
-			where PD.Amount<PTB.newAmount and PD.RowStatus=1
-			
-	----------Insert query ---------------
-			INSERT INTO EXP.SGPShiftTimePayout (AssociateID, ShiftType, ProjectID, StartDate, StartTime, 
-			EndDate, EndTime, InputRemarks, ExceptionReason,SpecialCaseMail, CreatedBy, CreatedDate,RowStatus,
-			FK_componentcountrymappingid)
-			SELECT PD.AssociateID, FK_ShiftTypeID,ProjectID,Startdate,Starttime,Enddate,Endtime,
-			InputRemarks,'Allowance with higher amount processed as per policy',SpecialCaseMail,CreatedBy,
-			CreatedDate,1,FK_componentcountrymappingid 
-			FROM PR.SGPShiftTimePayout PD WITH(NOLOCK) 
-			INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_SGPShiftTimePayoutID=PTB.PRPkID
-			where PD.Amount<PTB.newAmount and PD.RowStatus=1
-
-			Update PD set PD.RowStatus=0
-			FROM PR.SGPShiftTimePayout PD WITH(NOLOCK) 
-			INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_SGPShiftTimePayoutID=PTB.PRPkID
-			where PD.Amount<PTB.newAmount and PD.RowStatus=1
-			
-	----------Insert query ---------------
-			INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
-
-			Select 'Overlapping allowance with higher amount available in valid tab' AS ExceptionReason
-			FROM PR.SGPShiftTimePayout PD WITH(NOLOCK) 
-			INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_SGPShiftTimePayoutID=PTB.PRPkID
-			where PD.Amount>=PTB.newAmount and PD.RowStatus=1
-			
-			Select PST.PK_SGPShiftTimePayoutID as PRPkID,@AssociateID as AssociateID,@Amount as newAmount,
-			PST.Amount as PRAmount
-			INTO #ProcessedDataCheck2
-			from PR.SGPShiftTimePayout PST WITH(NOLOCK) 
-			INNER JOIN ComponentCountryMapping CCM with (nolock)
-			ON CCM.PK_ComponentCountryMappingID=PST.FK_ComponentCountryMappingID
-			WHERE PST.AssociateID=@AssociateID AND 
-			(((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)
-			OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)
-			OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
-			OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
-			OR (PST.StartDate=@StartDate)) 
-			) 
-			AND (CCM.FK_ComponentID in (56) and CCM.FK_ComponentCountryID in (7))
-			AND PST.RowStatus=1 AND PST.Status in (5,12,14,15,21) 
-			
-	----------Insert query ---------------
-			INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
-
-			Select CASE WHEN PTB.PRAmount>=PTB.newAmount
-			THEN 'Overlapping allowance with higher amount processed previously'
-			ELSE 'Overlapping allowance processed previously' END 
-			AS ExceptionReason
-			FROM #ProcessedDataCheck2 PTB WITH(NOLOCK)
-			
-	      Select PST.PK_OnCall_OverTime_AllowanceID as PRPkID,@AssociateID as AssociateID,
-		  @Amount as newAmount,PST.Amount as PRAmount
-			INTO #ProcessedDataCheck3
-			from PR.OnCall_OverTime_Allowance PST WITH(NOLOCK) 
-			INNER JOIN ComponentCountryMapping CCM with (nolock)
-			ON CCM.PK_ComponentCountryMappingID=PST.FK_ComponentCountryMappingID
-			WHERE PST.AssociateID=@AssociateID AND 
-			(((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)
-			OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)
-			OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
-			OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)
-			 OR (PST.StartDateTime=@StartDateTime and PST.EndDateTime=@EndDateTime))) 
-				AND ((CCM.FK_ComponentID in (89) and CCM.FK_ComponentCountryID in (7)) or 
-			(CCM.FK_ComponentID in (106) and CCM.FK_ComponentCountryID=7))
-			AND PST.RowStatus=1 AND PST.Status=1 
-			
-	----------Insert query ---------------
-			Insert into Pr.OnCall_OverTime_Allowancelog(Pk_OnCall_OverTime_AllowanceID,Associateid,
-			DayType,Criteria,ProjectID,Startdate,Starttime,Startdatetime,Enddate,
-			Endtime,Enddatetime,Amount,RejectedBy,Fk_RejectedRoleID,Status,
-			Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,LogCreatedby,LogCreateddate,
-			FK_componentcountrymappingid)
-
-			select Pk_OnCall_OverTime_AllowanceID,PD.Associateid,DayType,Criteria,ProjectID,Startdate,
-			Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,
-			RejectedBy,Fk_RejectedRoleID,Status,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,
-			Rowstatus,@LoginId,getdate(),FK_componentcountrymappingid
-			FROM PR.OnCall_OverTime_Allowance PD WITH(NOLOCK) 
-			INNER JOIN #ProcessedDataCheck3 PTB WITH(NOLOCK) on PD.Pk_OnCall_OverTime_AllowanceID=PTB.PRPkID
-			where PD.Amount<PTB.newAmount and PD.RowStatus=1
-			
-	----------Insert query ---------------
-			INSERT INTO EXP.OnCall_OverTime_Allowance (AssociateID, DayType, Criteria,ProjectID, StartDate, 
-			StartTime, 
-			EndDate, EndTime,ExceptionRemarks,FileUploadID, CreatedBy, CreatedDate,RowStatus,
-			FK_componentcountrymappingid)
-			SELECT PD.AssociateID, DayType,Criteria,ProjectID,Startdate,Starttime,Enddate,Endtime,
-			'Allowance with higher amount processed as per policy',FileUploadID,CreatedBy,CreatedDate,1,
-			FK_componentcountrymappingid
-			FROM PR.OnCall_OverTime_Allowance PD WITH(NOLOCK) 
-			INNER JOIN #ProcessedDataCheck3 PTB WITH(NOLOCK) on PD.Pk_OnCall_OverTime_AllowanceID=PTB.PRPkID
-			where PD.Amount<PTB.newAmount and PD.RowStatus=1
-
-			Update PD set PD.RowStatus=0
-			FROM PR.OnCall_OverTime_Allowance PD WITH(NOLOCK) 
-			INNER JOIN #ProcessedDataCheck3 PTB WITH(NOLOCK) on PD.Pk_OnCall_OverTime_AllowanceID=PTB.PRPkID
-			where PD.Amount<PTB.newAmount and PD.RowStatus=1
-			
-	----------Insert query ---------------
-			INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
-
-			Select 'Overlapping allowance with higher amount available in valid tab' AS ExceptionReason
-			FROM PR.OnCall_OverTime_Allowance PD WITH(NOLOCK) 
-			INNER JOIN #ProcessedDataCheck3 PTB WITH(NOLOCK) on PD.Pk_OnCall_OverTime_AllowanceID=PTB.PRPkID
-			where PD.Amount>=PTB.newAmount and PD.RowStatus=1
+   ELSE IF(@TypeofData=2)    
+   BEGIN        
+       ------select EXP.JoiningBonus table----   
+          SELECT  Distinct EJB.ASSOCIATEID,    
+          REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS DOJ,    
+          DESG.JOBCODE+' - '+DESG.JOBCODEDESCRIPTION AS GRADE,EJB.AMOUNT, isnull(EJB.noinstallments,'') as NoOfInstallments,              
+          (CASE WHEN EJB.BGstatus=1 THEN 'Positive'         
+          WHEN EJB.BGstatus=2 THEN 'Negative'        
+                      WHEN EJB.BGstatus=3 THEN 'WIP'              
+                      WHEN EJB.BGstatus=4 THEN 'NA' END) AS BGSTATUS,                     
+          (CASE WHEN EJB.RecruitmentType=1 THEN 'Lateral'        
+          WHEN EJB.RecruitmentType=2 THEN 'Campus'  
+		  WHEN EJB.RecruitmentType=3 THEN 'Merger and Acquisition' ELSE '' END) AS RECRUITMENTTYPE,        
+	     MCJB.CDescription AS SpecialCaseReason,
+    ISNULL(EJB.INPUTREMARKS,'') AS INPUTREMARKS,EJB.PROJECTID,EJB.EXCEPTIONREASON AS EXCEPTION,    
+     (CASE WHEN EJB.CREATEDBY=0 THEN 'CHIRE' ELSE STR(EJB.CREATEDBY) END) AS CREATEDBY,    
+	  EJB.CREATEDDATE CREATEDDATE,EJB.MODIFIEDBY, EJB.MODIFIEDDATE MODIFIEDDATE                
+    FROM EXP.JoiningBonus EJB WITH(NOLOCK)     
+    LEFT OUTER  JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)     
+	ON AD.Associate_ID=EJB.AssociateID        
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK)    
+	ON ISNUMERIC(EMPLID)=1 AND         
+    JR.EFFDT=AD.DateOfJoining AND JR.EMPLID=EJB.AssociateID        
+    LEFT OUTER  JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)     
+	ON DESG.JobCode=EJB.Grade        
+    AND DESG.Bussiness_unit=JR.BUSINESS_UNIT 
+	LEFT JOIN MasterCodes MCJB WITH(NOLOCK) ON MCJB.CCodeID=EJB.SpecialCaseReason  
+	AND MCJB.cparentref=2 and MCJB.CUserDefined1=3
+    WHERE EJB.RowStatus=1 AND (@Month IS NULL OR MONTH(EJB.CreatedDate)=@Month) AND YEAR(EJB.CreatedDate)=YEAR(@CURRENTDATE)       
+	and EJB.Isactive=1       
+            
+   END        
+        
+END     
 
 
-			Select PST.PK_OnCall_OverTime_AllowanceID as PRPkID,@AssociateID as AssociateID,
-			@Amount as newAmount,PST.Amount as PRAmount
-			INTO #ProcessedDataCheck4
-			from PR.OnCall_OverTime_Allowance PST WITH(NOLOCK) 
-			INNER JOIN ComponentCountryMapping CCM with (nolock) 
-			ON CCM.PK_ComponentCountryMappingID=PST.FK_ComponentCountryMappingID
-			WHERE PST.AssociateID=@AssociateID AND 
-			(((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)
-			OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)
-			OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
-			OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)
-			OR (PST.StartDateTime=@StartDateTime and PST.EndDateTime=@EndDateTime)) 
-			) 
-			AND ((CCM.FK_ComponentID in (89) and CCM.FK_ComponentCountryID in (7)) or 
-			(CCM.FK_ComponentID in (106) and CCM.FK_ComponentCountryID=7))
-			AND PST.RowStatus=1 AND PST.Status in (5,12,14,15,21) 
-			
-	----------Insert query ---------------
-			INSERT INTO #SPEXCEPTION(EXCEPTIONREASON)
 
-			Select CASE WHEN PTB.PRAmount>=PTB.newAmount 
-			THEN 'Overlapping allowance with higher amount processed previously'
-			ELSE 'Overlapping allowance processed previously' END 
-			AS ExceptionReason
-			FROM #ProcessedDataCheck4 PTB WITH(NOLOCK)
-
-
-			DROP TABLE #ProcessedDataCheck1
-			DROP TABLE #ProcessedDataCheck2
-			DROP TABLE #ProcessedDataCheck3
-			DROP TABLE #ProcessedDataCheck4
-
- DECLARE @OTEXCEPTION VARCHAR(8000)
-	SELECT @OTEXCEPTION = COALESCE(@OTEXCEPTION + ',', '') + ExceptionReason FROM #SPEXCEPTION 
-	WHERE ExceptionReason<>''
-	SELECT @OTEXCEPTION=REPLACE(@OTEXCEPTION,',,',',')
- 		
-IF(@OTEXCEPTION IS NULL OR @OTEXCEPTION='')  
-	BEGIN
-	
-    UPDATE EXP.OnCall_OverTime_Allowance
-	SET RowStatus=0,ModifiedBy=@loginId,ModifiedDate=GETDATE()
-	WHERE AssociateID=@AssociateID AND StartDate=@startDate 
-    and FK_Componentcountrymappingid=@ComponentCountryMappingId
-    AND EndDate=@endDate 
-	AND ProjectID=@PROJECTid AND RowStatus=1 
-	
-	----------Insert query ---------------
-INSERT INTO PR.OnCall_OverTime_Allowance(AssociateID,ProjectID,StartDate,EndDate,StartTime,EndTime,
-DayType,Criteria,Amount,CreatedBy,CreatedDate,Rowstatus,Status,FileUploadID,FK_Componentcountrymappingid,
-StartDateTime,EndDateTime,ApproverId,NoofHours)
-SELECT @AssociateID,@ProjectId,CONVERT(VARCHAR,convert(date,@StartDate),101),
-CONVERT(VARCHAR,convert(date,@EndDate),101),@StartTime,@EndTime,@DayType,@CriteriaType,@Amount,
-@LoginID,GETDATE(),1,1,@MailUploadId,@ComponentCountryMappingId,@StartDateTime,@EndDateTime,@ApproverId,
-@TimeDifference
-
-SELECT 'success' AS Status	
-
-END
-	
-ELSE
-	BEGIN
-		SELECT @OTEXCEPTION AS 'Status' 
-	END
-	
-
-DROP TABLE #SPEXCEPTION
-DROP TABLE #PROJECTTAGCHECK
---END TRY
--- BEGIN CATCH
--- SELECT @@ERROR
--- END CATCH
---END
+----Notice Pay Buy out-payout----    
+IF(@ComponentGrpID=1)    
+BEGIN        
+        
+  IF(@TypeofData=1)    
+  BEGIN        
+    SELECT  PNP.ASSOCIATEID,PNP.AMOUNT,PNP.PROJECTID,    
+    (CASE WHEN PNP.SpecialCaseReason=7 THEN 'Approved Payment'ELSE '' END) AS SPECIALCASEREASON,    
+    PNP.INPUTREMARKS AS REMARKS,REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS DOJ,        
+    LOC.LOCATIONDESCRIPTION AS LOCATION,        
+    AD.JOBCODE+' - '+DESG.JOBCODEDESCRIPTION AS GRADE,AD.COMPANY AS COMPANY,    
+    AD.BUSINESS_UNIT AS SETID,Case When Status=1 and PNP.RowStatus=1 then 'Valid' when Status=3     
+    and PNP.RowStatus=1 then 'Rejected' when Status=4 and PNP.RowStatus=1 then 'Resubmitted' when Status=12     
+    and PNP.RowStatus=1 then 'Approved' WHEN PNP.RowStatus=0 THEN 'Deleted' end Status,    
+    (CASE WHEN PNP.RejectionReason IS NOT NULL THEN PNP.RejectionReason WHEN PNP.RejectionReason IS NULL     
+    THEN ''ELSE '' END) AS RejectionReason,    
+    PNP.CREATEDBY As UploaderID,PNP.CREATEDDATE As UploadedDate,    
+    PNP.Approvedby As ApprovedBy,PNP.Approveddate As ApprovedDate,    
+    PNP.MODIFIEDBY AS ActionDoneBy,PNP.MODIFIEDDATE As ActionDoneOn FROM PR.NoticePay PNP WITH(NOLOCK)        
+    INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)     
+    ON AD.Associate_ID=PNP.AssociateID        
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC WITH(NOLOCK)     
+    ON LOC.HCMLocationCode=AD.PresentHCMLocationCode         
+    AND LOC.Business_Unit=AD.Business_Unit         
+    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)     
+    ON DESG.JobCode=AD.JobCode         
+    AND DESG.Bussiness_unit=AD.Business_Unit                
+    WHERE (PNP.Status IN (1,3,4,12) OR PNP.RowStatus=0) AND (@Month IS NULL    
+    OR MONTH(CreatedDate)=@Month) AND YEAR(CreatedDate)=YEAR(@CURRENTDATE)    
+    OR (MONTH(ModifiedDate)=@Month AND YEAR(ModifiedDate)=YEAR(@CURRENTDATE))    
+    OR (MONTH(ApprovedDate)=@Month AND YEAR(ApprovedDate)=YEAR(@CURRENTDATE))        
+  END            
+  ELSE IF(@TypeofData=2)       
+  BEGIN        
+      ---select exp table---
+    SELECT DISTINCT ENP.ASSOCIATEID,ENP.AMOUNT,ENP.PROJECTID,    
+    (CASE WHEN ENP.SpecialCaseReason=7 THEN 'Approved Payment'ELSE '' END) AS SPECIALCASEREASON,    
+    ENP.INPUTREMARKS AS REMARKS,REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS DOJ,        
+    AD.JOBCODE+' - '+DESG.JOBCODEDESCRIPTION AS  GRADE,ENP.EXCEPTIONREMARKS AS EXCEPTION,    
+    (CASE WHEN ENP.CREATEDBY=0 THEN 'CHIRE' ELSE STR(ENP.CREATEDBY) END) AS UploaderID,    
+    ENP.CREATEDDATE AS UploadedDate,ENP.MODIFIEDBY AS ActionDoneBy,ENP.MODIFIEDDATE As ActionDoneOn        
+    FROM EXP.NoticePay ENP WITH(NOLOCK)        
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)     
+    ON AD.Associate_ID=ENP.AssociateID        
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)     
+    ON DESG.JobCode=AD.JobCode         
+    AND DESG.Bussiness_unit=AD.Business_Unit         
+    WHERE ENP.RowStatus=1 AND (@Month IS NULL OR MONTH(CreatedDate)=@Month)    
+    AND YEAR(CreatedDate)=YEAR(@CURRENTDATE)          
+  END            
+END  

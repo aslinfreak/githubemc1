@@ -1,136 +1,155 @@
---Joining Bonus
-ELSE IF(@ComponentGrpID=3)    
-BEGIN        
-
+  ------Referral Bonus-payout-----      
+ELSE IF(@ComponentGrpID=2)    
+BEGIN 
+	
   IF(@TypeofData=1)    
-   BEGIN        
-         
-    SELECT  PJB.PK_JoiningBonusID As UniqueID, 
-	PJB.ASSOCIATEID,REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-')     
-	AS DOJ,DESG.JOBCODE+' - '+DESG.JOBCODEDESCRIPTION AS GRADE,PJB.AMOUNT,   
-	(CASE WHEN PJB.NoInstallments = '0' THEN NULL 
-	ELSE PJB.NoInstallments END) as NoOfInstallments,ISNULL(PJB.RetentionPeriod,0) AS RetentionPeriod,
-    (CASE WHEN PJB.BGstatus=1 THEN 'Positive'         
-          WHEN PJB.BGstatus=2 THEN 'Negative'        
-                      WHEN PJB.BGstatus=3 THEN 'WIP'              
-                      WHEN PJB.BGstatus=4 THEN 'NA' END) AS BGSTATUS,               
-    (CASE WHEN PJB.RecruitmentType=1 THEN 'Lateral'        
-       WHEN PJB.RecruitmentType=2 THEN 'Campus'
-	  WHEN PJB.RecruitmentType=3 THEN 'Merger and Acquisition' ELSE '' END) AS RECRUITMENTTYPE,                
-	MCJB.CDescription AS SpecialCaseReason,
-    ISNULL(PJB.INPUTREMARKS,'') AS INPUTREMARKS,PJB.PROJECTID,PJB.COMPANYID,PJB.SETID AS SETID,    
-	Case When Status=1 and PJB.RowStatus=1 then 'Valid' when Status=3 and PJB.RowStatus=1 then 'Rejected'    
-	when Status=4 and PJB.RowStatus=1 then 'Resubmitted' when Status=12 and PJB.RowStatus=1 then 'Approved'     
-	WHEN PJB.RowStatus=0 THEN 'Deleted' end Status,    
-	(CASE WHEN PJB.RejectionReason IS NOT NULL THEN PJB.RejectionReason WHEN PJB.RejectionReason IS NULL    
-	THEN ''ELSE '' END) AS RejectionReason,    
-	PJB.CREATEDBY AS UploaderID,PJB.CREATEDDATE AS UploadedDate,    
-	PJB.Approvedby As ApprovedBy,PJB.Approveddate As ApprovedDate,    
-	PJB.MODIFIEDBY AS ActionDoneBy,PJB.MODIFIEDDATE  AS ActionDoneOn           
-    FROM PR.JoiningBonus PJB WITH(NOLOCK)        
-    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)    
-	ON AD.Associate_ID=PJB.AssociateID   
-	--INNER JOIN MasterCodes MC_C WITH (NOLOCK)  
-	--ON MC_C.CCodeId = PJB.NoInstallments and  MC_C.CParentRef=55 AND MC_C.RowStatus=1 and MC_C.CUserDefined1='3'
-	--and MC_C.CUserDefined2 is not null
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)     
-	ON DESG.JobCode=PJB.GRADE        
-    AND DESG.Bussiness_unit=PJB.SetID 
-	 LEFT JOIN MasterCodes MCJB WITH(NOLOCK) ON MCJB.CCodeID=PJB.SpecialCaseReason  
-	AND MCJB.cparentref=2 and MCJB.CUserDefined1=3
-    WHERE  (PJB.Status IN (1,3,4,12) or PJB.RowStatus=0)  AND 
-    (((@Month IS NULL OR MONTH(PJB.CreatedDate)=@Month) AND YEAR(PJB.CreatedDate)=YEAR(@CURRENTDATE))
-    OR  
-    (MONTH(PJB.ModifiedDate)=@Month AND YEAR(PJB.ModifiedDate)=YEAR(@CURRENTDATE)) 
-    OR  (MONTH(ApprovedDate)=@Month  AND YEAR(ApprovedDate)=YEAR(@CURRENTDATE)))    
-            
-   END        
-
-   ELSE IF(@TypeofData=2)    
-   BEGIN        
-       ------select EXP.JoiningBonus table----   
-          SELECT  Distinct EJB.ASSOCIATEID,    
-          REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS DOJ,    
-          DESG.JOBCODE+' - '+DESG.JOBCODEDESCRIPTION AS GRADE,EJB.AMOUNT, isnull(EJB.noinstallments,'') as NoOfInstallments,              
-          (CASE WHEN EJB.BGstatus=1 THEN 'Positive'         
-          WHEN EJB.BGstatus=2 THEN 'Negative'        
-                      WHEN EJB.BGstatus=3 THEN 'WIP'              
-                      WHEN EJB.BGstatus=4 THEN 'NA' END) AS BGSTATUS,                     
-          (CASE WHEN EJB.RecruitmentType=1 THEN 'Lateral'        
-          WHEN EJB.RecruitmentType=2 THEN 'Campus'  
-		  WHEN EJB.RecruitmentType=3 THEN 'Merger and Acquisition' ELSE '' END) AS RECRUITMENTTYPE,        
-	     MCJB.CDescription AS SpecialCaseReason,
-    ISNULL(EJB.INPUTREMARKS,'') AS INPUTREMARKS,EJB.PROJECTID,EJB.EXCEPTIONREASON AS EXCEPTION,    
-     (CASE WHEN EJB.CREATEDBY=0 THEN 'CHIRE' ELSE STR(EJB.CREATEDBY) END) AS CREATEDBY,    
-	  EJB.CREATEDDATE CREATEDDATE,EJB.MODIFIEDBY, EJB.MODIFIEDDATE MODIFIEDDATE                
-    FROM EXP.JoiningBonus EJB WITH(NOLOCK)     
-    LEFT OUTER  JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)     
-	ON AD.Associate_ID=EJB.AssociateID        
-    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK)    
-	ON ISNUMERIC(EMPLID)=1 AND         
-    JR.EFFDT=AD.DateOfJoining AND JR.EMPLID=EJB.AssociateID        
-    LEFT OUTER  JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)     
-	ON DESG.JobCode=EJB.Grade        
-    AND DESG.Bussiness_unit=JR.BUSINESS_UNIT 
-	LEFT JOIN MasterCodes MCJB WITH(NOLOCK) ON MCJB.CCodeID=EJB.SpecialCaseReason  
-	AND MCJB.cparentref=2 and MCJB.CUserDefined1=3
-    WHERE EJB.RowStatus=1 AND (@Month IS NULL OR MONTH(EJB.CreatedDate)=@Month) AND YEAR(EJB.CreatedDate)=YEAR(@CURRENTDATE)       
-	and EJB.Isactive=1       
-            
-   END        
-        
-END     
-
-
-
-----Notice Pay Buy out-payout----    
-IF(@ComponentGrpID=1)    
-BEGIN        
-        
-  IF(@TypeofData=1)    
-  BEGIN        
-    SELECT  PNP.ASSOCIATEID,PNP.AMOUNT,PNP.PROJECTID,    
-    (CASE WHEN PNP.SpecialCaseReason=7 THEN 'Approved Payment'ELSE '' END) AS SPECIALCASEREASON,    
-    PNP.INPUTREMARKS AS REMARKS,REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS DOJ,        
-    LOC.LOCATIONDESCRIPTION AS LOCATION,        
-    AD.JOBCODE+' - '+DESG.JOBCODEDESCRIPTION AS GRADE,AD.COMPANY AS COMPANY,    
-    AD.BUSINESS_UNIT AS SETID,Case When Status=1 and PNP.RowStatus=1 then 'Valid' when Status=3     
-    and PNP.RowStatus=1 then 'Rejected' when Status=4 and PNP.RowStatus=1 then 'Resubmitted' when Status=12     
-    and PNP.RowStatus=1 then 'Approved' WHEN PNP.RowStatus=0 THEN 'Deleted' end Status,    
-    (CASE WHEN PNP.RejectionReason IS NOT NULL THEN PNP.RejectionReason WHEN PNP.RejectionReason IS NULL     
-    THEN ''ELSE '' END) AS RejectionReason,    
-    PNP.CREATEDBY As UploaderID,PNP.CREATEDDATE As UploadedDate,    
-    PNP.Approvedby As ApprovedBy,PNP.Approveddate As ApprovedDate,    
-    PNP.MODIFIEDBY AS ActionDoneBy,PNP.MODIFIEDDATE As ActionDoneOn FROM PR.NoticePay PNP WITH(NOLOCK)        
-    INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)     
-    ON AD.Associate_ID=PNP.AssociateID        
-    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC WITH(NOLOCK)     
-    ON LOC.HCMLocationCode=AD.PresentHCMLocationCode         
-    AND LOC.Business_Unit=AD.Business_Unit         
-    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)     
-    ON DESG.JobCode=AD.JobCode         
-    AND DESG.Bussiness_unit=AD.Business_Unit                
-    WHERE (PNP.Status IN (1,3,4,12) OR PNP.RowStatus=0) AND (@Month IS NULL    
-    OR MONTH(CreatedDate)=@Month) AND YEAR(CreatedDate)=YEAR(@CURRENTDATE)    
-    OR (MONTH(ModifiedDate)=@Month AND YEAR(ModifiedDate)=YEAR(@CURRENTDATE))    
-    OR (MONTH(ApprovedDate)=@Month AND YEAR(ApprovedDate)=YEAR(@CURRENTDATE))        
-  END            
+  BEGIN               
+  SELECT  PRB.REFERRORASSOCIATEID AS REFERORID,        
+  RFRRERDESG.JOBCODE+' - '+RFRRERDESG.JOBCODEDESCRIPTION AS REFERORGRADE,        
+  REFERRERDEP.DEPT_DESC AS REFERRERDEPARTMENT,           
+  (CASE WHEN PRB.ReferrorBGstatus=1 THEN 'Positive'         
+     WHEN PRB.ReferrorBGstatus=2 THEN 'Negative'        
+        WHEN PRB.ReferrorBGstatus=3 THEN 'WIP'              
+        WHEN PRB.ReferrorBGstatus=4 THEN 'NA'       
+        ELSE ''  END) AS REFERRORBGSTATUS,            
+  PRB.REFEREEASSOCIATEID AS REFEREEID,            
+  REFREEDESG.JOBCODE+' - '+REFREEDESG.JOBCODEDESCRIPTION AS REFEREEGRADE,            
+  REFEREEDEP.DEPT_DESC AS REFEREEDEPARTMENT,        
+  REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS REFEREEDOJ,        
+  (CASE WHEN PRB.RefereeBGstatus=1 THEN 'Positive'         
+     WHEN PRB.RefereeBGstatus=2 THEN 'Negative'        
+        WHEN PRB.RefereeBGstatus=3 THEN 'WIP'              
+        WHEN PRB.RefereeBGstatus=4 THEN 'NA'         
+        ELSE '' END) AS REFEREEBGSTATUS,        
+  PRB.AMOUNT,
+  MCRB.CDescription AS SpecialCaseReason,
+  PRB.PROJECTID,PRB.INPUTREMARKS AS REMARKS,Case When Status=1 and PRB.RowStatus=1 then 'Valid'     
+  when Status=3 and PRB.RowStatus=1 then 'Rejected' when Status=4 and PRB.RowStatus=1     
+  then 'Resubmitted' when Status=12 and PRB.RowStatus=1 then 'Approved'  WHEN PRB.RowStatus=0     
+  THEN 'Deleted' end Status,    
+  (CASE WHEN PRB.RejectionReason IS NOT NULL THEN PRB.RejectionReason WHEN PRB.RejectionReason IS NULL     
+  THEN ''ELSE '' END) AS RejectionReason,    
+  PRB.CREATEDBY AS UploaderID,PRB.CREATEDDATE  AS UploadedDate,    
+  PRB.Approvedby As ApprovedBy,PRB.Approveddate As ApprovedDate,    
+  PRB.MODIFIEDBY AS ActionDoneBy,PRB.MODIFIEDDATE  AS ActionDoneOn          
+  FROM PR.ReferralBonus PRB WITH(NOLOCK)        
+  INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)    
+  ON AD.Associate_ID=PRB.RefereeAssociateID        
+  INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)    
+  ON CD.Associate_ID=PRB.ReferrorAssociateID        
+  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFREEDESG WITH(NOLOCK)     
+  ON REFREEDESG.JobCode=PRB.RefereeGrade         
+  AND REFREEDESG.Bussiness_unit=PRB.RefereeSetID        
+  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation RFRRERDESG WITH(NOLOCK)     
+  ON RFRRERDESG.JobCode=CD.JobCode         
+  AND RFRRERDESG.Bussiness_unit=PRB.ReferrerSetID        
+  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERDEP WITH(NOLOCK)     
+  on REFERRERDEP.Dept_ID=PRB.ReferrorDepartment        
+  AND REFERRERDEP.Business_Unit=PRB.ReferrerSetID             
+  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFEREEDEP WITH(NOLOCK)     
+  on REFEREEDEP.Dept_ID=PRB.RefereeDepartment        
+  AND REFEREEDEP.Business_Unit=PRB.RefereeSetID  
+  LEFT JOIN MasterCodes MCRB WITH(NOLOCK) ON MCRB.CCodeID=PRB.SpecialCaseReason  
+	AND MCRB.cparentref=2 and MCRB.CUserDefined1=2 and MCRB.remarks IS NULL
+  WHERE (PRB.Status IN (1,3,4,12) or PRB.RowStatus=0) AND (@Month IS NULL OR MONTH(PRB.CreatedDate)=@Month)    
+  AND YEAR(PRB.CreatedDate)=YEAR(@CURRENTDATE)    
+  OR  (MONTH(PRB.ModifiedDate)=@Month AND YEAR(PRB.ModifiedDate)=YEAR(@CURRENTDATE)) OR (MONTH(PRB.ApprovedDate)=@Month     
+  AND YEAR(PRB.ApprovedDate)=YEAR(@CURRENTDATE))             
+  END        
+  
   ELSE IF(@TypeofData=2)       
   BEGIN        
-      ---select exp table---
-    SELECT DISTINCT ENP.ASSOCIATEID,ENP.AMOUNT,ENP.PROJECTID,    
-    (CASE WHEN ENP.SpecialCaseReason=7 THEN 'Approved Payment'ELSE '' END) AS SPECIALCASEREASON,    
-    ENP.INPUTREMARKS AS REMARKS,REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS DOJ,        
-    AD.JOBCODE+' - '+DESG.JOBCODEDESCRIPTION AS  GRADE,ENP.EXCEPTIONREMARKS AS EXCEPTION,    
-    (CASE WHEN ENP.CREATEDBY=0 THEN 'CHIRE' ELSE STR(ENP.CREATEDBY) END) AS UploaderID,    
-    ENP.CREATEDDATE AS UploadedDate,ENP.MODIFIEDBY AS ActionDoneBy,ENP.MODIFIEDDATE As ActionDoneOn        
-    FROM EXP.NoticePay ENP WITH(NOLOCK)        
-    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)     
-    ON AD.Associate_ID=ENP.AssociateID        
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)     
-    ON DESG.JobCode=AD.JobCode         
-    AND DESG.Bussiness_unit=AD.Business_Unit         
-    WHERE ENP.RowStatus=1 AND (@Month IS NULL OR MONTH(CreatedDate)=@Month)    
-    AND YEAR(CreatedDate)=YEAR(@CURRENTDATE)          
-  END            
+              
+    SELECT  DISTINCT ERB.REFERRORASSOCIATEID AS REFERORID,RFRRERDESG.JOBCODE+' - '    
+	+RFRRERDESG.JOBCODEDESCRIPTION AS REFERORGRADE,        
+    REFERRERDEP.DEPT_DESC AS REFERORDEPARTMENT,           
+    (CASE WHEN ERB.ReferrorBGstatus=1 THEN 'Positive'         
+          WHEN ERB.ReferrorBGstatus=2 THEN 'Negative'
+					  WHEN ERB.ReferrorBGstatus=3 THEN 'WIP'              
+                      WHEN ERB.ReferrorBGstatus=4 THEN 'NA'         
+                      ELSE '' END) AS REFERRORBGSTATUS,            
+    ERB.REFEREEASSOCIATEID AS REFEREEID,        
+    REFREEDESG.JOBCODE+' - '+REFREEDESG.JOBCODEDESCRIPTION AS REFEREEGRADE,    
+	REFEREEDEP.DEPT_DESC AS REFEREEDEPARTMENT,        
+	REPLACE(CONVERT(VARCHAR(9), AD.DATEOFJOINING, 6), ' ', '-') AS REFEREEDOJ,    
+    (CASE WHEN ERB.RefereeBGstatus=1 THEN 'Positive'         
+          WHEN ERB.RefereeBGstatus=2 THEN 'Negative'        
+                      WHEN ERB.RefereeBGstatus=3 THEN 'WIP'              
+                      WHEN ERB.RefereeBGstatus=4 THEN 'NA'         
+                      ELSE '' END) AS REFEREEBGSTATUS,           
+    ERB.AMOUNT,        
+	 MCRB.CDescription AS SpecialCaseReason,
+    ERB.EXCEPTIONREASON AS EXCEPTION,ERB.INPUTREMARKS AS REMARKS,    
+    (CASE WHEN ERB.CREATEDBY=0 THEN 'CHIRE' ELSE STR(ERB.CREATEDBY) END) AS CREATEDBY,    
+	ERB.CREATEDDATE CREATEDDATE,ERB.MODIFIEDBY,ERB.MODIFIEDDATE MODIFIEDDATE           
+    FROM EXP.ReferralBonus ERB WITH(NOLOCK)        
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)    
+	ON AD.Associate_ID=ERB.RefereeAssociateID          
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)    
+	ON CD.Associate_ID=ERB.ReferrorAssociateID         
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFREEDESG WITH(NOLOCK)     
+	ON REFREEDESG.JobCode=ERB.RefereeGrade         
+    AND REFREEDESG.Bussiness_unit=ERB.RefereeSetID        
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation RFRRERDESG WITH(NOLOCK)     
+	ON RFRRERDESG.JobCode=ERB.ReferrorGrade        
+    AND RFRRERDESG.Bussiness_unit=ERB.ReferrerSetID        
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERDEP WITH(NOLOCK)     
+	on REFERRERDEP.Dept_ID=ERB.ReferrorDepartment        
+    AND REFERRERDEP.Business_Unit=ERB.ReferrerSetID             
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFEREEDEP WITH(NOLOCK)     
+	on REFEREEDEP.Dept_ID=ERB.RefereeDepartment        
+    AND REFEREEDEP.Business_Unit=ERB.RefereeSetID 
+	LEFT JOIN MasterCodes MCRB WITH(NOLOCK) ON MCRB.CCodeID=ERB.SpecialCaseReason  
+	AND MCRB.cparentref=2 and MCRB.CUserDefined1=2 and MCRB.remarks is null
+    WHERE ERB.RowStatus=1 AND (@Month IS NULL OR MONTH(ERB.CreatedDate)=@Month) AND YEAR(ERB.CreatedDate)=YEAR(@CURRENTDATE)     
+	and ERB.IsActive=1        
+            
+   END        
+   
+   ELSE IF(@TypeofData=3)    
+   BEGIN        
+           
+    SELECT  PRB.REFERRORASSOCIATEID AS REFERORID,        
+    RFRRERDESG.JOBCODE+' - '+RFRRERDESG.JOBCODEDESCRIPTION AS REFERORGRADE,        
+    REFERRERDEP.DEPT_DESC AS REFERRERDEPARTMENT,           
+    (CASE WHEN PRB.ReferrorBGstatus=1 THEN 'Positive'         
+          WHEN PRB.ReferrorBGstatus=2 THEN 'Negative'        
+                      WHEN PRB.ReferrorBGstatus=3 THEN 'WIP'              
+                      WHEN PRB.ReferrorBGstatus=4 THEN 'NA'         
+                      ELSE ''  END) AS REFERRORBGSTATUS,            
+    PRB.REFEREEASSOCIATEID AS REFEREEID,            
+    REFREEDESG.JOBCODE+' - '+REFREEDESG.JOBCODEDESCRIPTION AS REFEREEGRADE,            
+    REFEREEDEP.DEPT_DESC AS REFEREEDEPARTMENT,        
+    REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS REFEREEDOJ,        
+    (CASE WHEN PRB.RefereeBGstatus=1 THEN 'Positive'         
+          WHEN PRB.RefereeBGstatus=2 THEN 'Negative'        
+                      WHEN PRB.RefereeBGstatus=3 THEN 'WIP'
+					  WHEN PRB.RefereeBGstatus=4 THEN 'NA'         
+                      ELSE '' END) AS REFEREEBGSTATUS,        
+    PRB.AMOUNT,
+    MCRB.CDescription AS SpecialCaseReason,
+    PRB.PROJECTID,PRB.INPUTREMARKS AS REMARKS,PRB.CREATEDBY,PRB.CREATEDDATE CREATEDDATE,PRB.MODIFIEDBY,    
+	 PRB.MODIFIEDDATE MODIFIEDDATE           
+    FROM PR.ReferralBonus PRB WITH(NOLOCK)        
+    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)    
+	ON AD.Associate_ID=PRB.RefereeAssociateID        
+    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)    
+	ON CD.Associate_ID=PRB.ReferrorAssociateID        
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFREEDESG WITH(NOLOCK)    
+	ON REFREEDESG.JobCode=PRB.RefereeGrade         
+    AND REFREEDESG.Bussiness_unit=PRB.RefereeSetID        
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation RFRRERDESG WITH(NOLOCK)     
+	ON RFRRERDESG.JobCode=CD.JobCode         
+    AND RFRRERDESG.Bussiness_unit=PRB.ReferrerSetID        
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERDEP WITH(NOLOCK)     
+	on REFERRERDEP.Dept_ID=PRB.ReferrorDepartment        
+    AND REFERRERDEP.Business_Unit=PRB.ReferrerSetID             
+    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFEREEDEP WITH(NOLOCK)    
+	on REFEREEDEP.Dept_ID=PRB.RefereeDepartment        
+    AND REFEREEDEP.Business_Unit=PRB.RefereeSetID
+	LEFT JOIN MasterCodes MCRB WITH(NOLOCK) ON MCRB.CCodeID=PRB.SpecialCaseReason  
+	AND MCRB.cparentref=2 and MCRB.CUserDefined1=2 and MCRB.remarks IS NULL
+    WHERE PRB.RowStatus=1 AND PRB.Status IN (6) AND (@Month IS NULL OR MONTH(PRB.CreatedDate)=@Month)     
+	AND YEAR(PRB.CreatedDate)=YEAR(@CURRENTDATE)       
+   END          
 END  

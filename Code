@@ -1,155 +1,112 @@
-  ------Referral Bonus-payout-----      
-ELSE IF(@ComponentGrpID=2)    
-BEGIN 
-	
-  IF(@TypeofData=1)    
-  BEGIN               
-  SELECT  PRB.REFERRORASSOCIATEID AS REFERORID,        
-  RFRRERDESG.JOBCODE+' - '+RFRRERDESG.JOBCODEDESCRIPTION AS REFERORGRADE,        
-  REFERRERDEP.DEPT_DESC AS REFERRERDEPARTMENT,           
-  (CASE WHEN PRB.ReferrorBGstatus=1 THEN 'Positive'         
-     WHEN PRB.ReferrorBGstatus=2 THEN 'Negative'        
-        WHEN PRB.ReferrorBGstatus=3 THEN 'WIP'              
-        WHEN PRB.ReferrorBGstatus=4 THEN 'NA'       
-        ELSE ''  END) AS REFERRORBGSTATUS,            
-  PRB.REFEREEASSOCIATEID AS REFEREEID,            
-  REFREEDESG.JOBCODE+' - '+REFREEDESG.JOBCODEDESCRIPTION AS REFEREEGRADE,            
-  REFEREEDEP.DEPT_DESC AS REFEREEDEPARTMENT,        
-  REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS REFEREEDOJ,        
-  (CASE WHEN PRB.RefereeBGstatus=1 THEN 'Positive'         
-     WHEN PRB.RefereeBGstatus=2 THEN 'Negative'        
-        WHEN PRB.RefereeBGstatus=3 THEN 'WIP'              
-        WHEN PRB.RefereeBGstatus=4 THEN 'NA'         
-        ELSE '' END) AS REFEREEBGSTATUS,        
-  PRB.AMOUNT,
-  MCRB.CDescription AS SpecialCaseReason,
-  PRB.PROJECTID,PRB.INPUTREMARKS AS REMARKS,Case When Status=1 and PRB.RowStatus=1 then 'Valid'     
-  when Status=3 and PRB.RowStatus=1 then 'Rejected' when Status=4 and PRB.RowStatus=1     
-  then 'Resubmitted' when Status=12 and PRB.RowStatus=1 then 'Approved'  WHEN PRB.RowStatus=0     
-  THEN 'Deleted' end Status,    
-  (CASE WHEN PRB.RejectionReason IS NOT NULL THEN PRB.RejectionReason WHEN PRB.RejectionReason IS NULL     
-  THEN ''ELSE '' END) AS RejectionReason,    
-  PRB.CREATEDBY AS UploaderID,PRB.CREATEDDATE  AS UploadedDate,    
-  PRB.Approvedby As ApprovedBy,PRB.Approveddate As ApprovedDate,    
-  PRB.MODIFIEDBY AS ActionDoneBy,PRB.MODIFIEDDATE  AS ActionDoneOn          
-  FROM PR.ReferralBonus PRB WITH(NOLOCK)        
-  INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)    
-  ON AD.Associate_ID=PRB.RefereeAssociateID        
-  INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)    
-  ON CD.Associate_ID=PRB.ReferrorAssociateID        
-  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFREEDESG WITH(NOLOCK)     
-  ON REFREEDESG.JobCode=PRB.RefereeGrade         
-  AND REFREEDESG.Bussiness_unit=PRB.RefereeSetID        
-  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation RFRRERDESG WITH(NOLOCK)     
-  ON RFRRERDESG.JobCode=CD.JobCode         
-  AND RFRRERDESG.Bussiness_unit=PRB.ReferrerSetID        
-  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERDEP WITH(NOLOCK)     
-  on REFERRERDEP.Dept_ID=PRB.ReferrorDepartment        
-  AND REFERRERDEP.Business_Unit=PRB.ReferrerSetID             
-  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFEREEDEP WITH(NOLOCK)     
-  on REFEREEDEP.Dept_ID=PRB.RefereeDepartment        
-  AND REFEREEDEP.Business_Unit=PRB.RefereeSetID  
-  LEFT JOIN MasterCodes MCRB WITH(NOLOCK) ON MCRB.CCodeID=PRB.SpecialCaseReason  
-	AND MCRB.cparentref=2 and MCRB.CUserDefined1=2 and MCRB.remarks IS NULL
-  WHERE (PRB.Status IN (1,3,4,12) or PRB.RowStatus=0) AND (@Month IS NULL OR MONTH(PRB.CreatedDate)=@Month)    
-  AND YEAR(PRB.CreatedDate)=YEAR(@CURRENTDATE)    
-  OR  (MONTH(PRB.ModifiedDate)=@Month AND YEAR(PRB.ModifiedDate)=YEAR(@CURRENTDATE)) OR (MONTH(PRB.ApprovedDate)=@Month     
-  AND YEAR(PRB.ApprovedDate)=YEAR(@CURRENTDATE))             
-  END        
+USE [OneC_SPay]
+GO  
+Declare
+    @ComponentId INT =170 ,
+	@ProjectId varchar(20)='1000066526',
+	@MSASOWDate varchar =NULL,
+	@DocumentType INT =1,
+	@ApprovalMailId varchar(50)='CONTA044182E3BF94ABBB086B857D4F4E516',
+	@OtherMailId  varchar(50) =NULL,
+	@ValidFrom varchar(20)='11/03/2025',
+	@ValidTo varchar(20)='09/15/2026',
+	@holidayType  INT=NULL,
+	@BaseApprover INT,
+	@CurrentApprover INT='2084470',
+	@LoginID varchar(10) ='2084470'
+
+IF(@OtherMailId='0') BEGIN SET @OtherMailId=NULL END
+IF(@DocumentType=-1) BEGIN SET @DocumentType=NULL END
+IF(@holidayType=-1) BEGIN SET @holidayType=NULL END
+
+
+
+DECLARE @ComponentRoleId INT,
+@Operation int,
+@pk_id int
+
+
+IF((SELECT COUNT(1) FROM Approval_Projects WITH(NOLOCK) WHERE FK_ComponentID=@ComponentId
+AND ProjectID=@ProjectId)=0)
+	BEGIN  
   
-  ELSE IF(@TypeofData=2)       
-  BEGIN        
-              
-    SELECT  DISTINCT ERB.REFERRORASSOCIATEID AS REFERORID,RFRRERDESG.JOBCODE+' - '    
-	+RFRRERDESG.JOBCODEDESCRIPTION AS REFERORGRADE,        
-    REFERRERDEP.DEPT_DESC AS REFERORDEPARTMENT,           
-    (CASE WHEN ERB.ReferrorBGstatus=1 THEN 'Positive'         
-          WHEN ERB.ReferrorBGstatus=2 THEN 'Negative'
-					  WHEN ERB.ReferrorBGstatus=3 THEN 'WIP'              
-                      WHEN ERB.ReferrorBGstatus=4 THEN 'NA'         
-                      ELSE '' END) AS REFERRORBGSTATUS,            
-    ERB.REFEREEASSOCIATEID AS REFEREEID,        
-    REFREEDESG.JOBCODE+' - '+REFREEDESG.JOBCODEDESCRIPTION AS REFEREEGRADE,    
-	REFEREEDEP.DEPT_DESC AS REFEREEDEPARTMENT,        
-	REPLACE(CONVERT(VARCHAR(9), AD.DATEOFJOINING, 6), ' ', '-') AS REFEREEDOJ,    
-    (CASE WHEN ERB.RefereeBGstatus=1 THEN 'Positive'         
-          WHEN ERB.RefereeBGstatus=2 THEN 'Negative'        
-                      WHEN ERB.RefereeBGstatus=3 THEN 'WIP'              
-                      WHEN ERB.RefereeBGstatus=4 THEN 'NA'         
-                      ELSE '' END) AS REFEREEBGSTATUS,           
-    ERB.AMOUNT,        
-	 MCRB.CDescription AS SpecialCaseReason,
-    ERB.EXCEPTIONREASON AS EXCEPTION,ERB.INPUTREMARKS AS REMARKS,    
-    (CASE WHEN ERB.CREATEDBY=0 THEN 'CHIRE' ELSE STR(ERB.CREATEDBY) END) AS CREATEDBY,    
-	ERB.CREATEDDATE CREATEDDATE,ERB.MODIFIEDBY,ERB.MODIFIEDDATE MODIFIEDDATE           
-    FROM EXP.ReferralBonus ERB WITH(NOLOCK)        
-    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)    
-	ON AD.Associate_ID=ERB.RefereeAssociateID          
-    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)    
-	ON CD.Associate_ID=ERB.ReferrorAssociateID         
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFREEDESG WITH(NOLOCK)     
-	ON REFREEDESG.JobCode=ERB.RefereeGrade         
-    AND REFREEDESG.Bussiness_unit=ERB.RefereeSetID        
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation RFRRERDESG WITH(NOLOCK)     
-	ON RFRRERDESG.JobCode=ERB.ReferrorGrade        
-    AND RFRRERDESG.Bussiness_unit=ERB.ReferrerSetID        
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERDEP WITH(NOLOCK)     
-	on REFERRERDEP.Dept_ID=ERB.ReferrorDepartment        
-    AND REFERRERDEP.Business_Unit=ERB.ReferrerSetID             
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFEREEDEP WITH(NOLOCK)     
-	on REFEREEDEP.Dept_ID=ERB.RefereeDepartment        
-    AND REFEREEDEP.Business_Unit=ERB.RefereeSetID 
-	LEFT JOIN MasterCodes MCRB WITH(NOLOCK) ON MCRB.CCodeID=ERB.SpecialCaseReason  
-	AND MCRB.cparentref=2 and MCRB.CUserDefined1=2 and MCRB.remarks is null
-    WHERE ERB.RowStatus=1 AND (@Month IS NULL OR MONTH(ERB.CreatedDate)=@Month) AND YEAR(ERB.CreatedDate)=YEAR(@CURRENTDATE)     
-	and ERB.IsActive=1        
-            
-   END        
-   
-   ELSE IF(@TypeofData=3)    
-   BEGIN        
-           
-    SELECT  PRB.REFERRORASSOCIATEID AS REFERORID,        
-    RFRRERDESG.JOBCODE+' - '+RFRRERDESG.JOBCODEDESCRIPTION AS REFERORGRADE,        
-    REFERRERDEP.DEPT_DESC AS REFERRERDEPARTMENT,           
-    (CASE WHEN PRB.ReferrorBGstatus=1 THEN 'Positive'         
-          WHEN PRB.ReferrorBGstatus=2 THEN 'Negative'        
-                      WHEN PRB.ReferrorBGstatus=3 THEN 'WIP'              
-                      WHEN PRB.ReferrorBGstatus=4 THEN 'NA'         
-                      ELSE ''  END) AS REFERRORBGSTATUS,            
-    PRB.REFEREEASSOCIATEID AS REFEREEID,            
-    REFREEDESG.JOBCODE+' - '+REFREEDESG.JOBCODEDESCRIPTION AS REFEREEGRADE,            
-    REFEREEDEP.DEPT_DESC AS REFEREEDEPARTMENT,        
-    REPLACE(CONVERT(VARCHAR(11), AD.DATEOFJOINING, 106), ' ', '-') AS REFEREEDOJ,        
-    (CASE WHEN PRB.RefereeBGstatus=1 THEN 'Positive'         
-          WHEN PRB.RefereeBGstatus=2 THEN 'Negative'        
-                      WHEN PRB.RefereeBGstatus=3 THEN 'WIP'
-					  WHEN PRB.RefereeBGstatus=4 THEN 'NA'         
-                      ELSE '' END) AS REFEREEBGSTATUS,        
-    PRB.AMOUNT,
-    MCRB.CDescription AS SpecialCaseReason,
-    PRB.PROJECTID,PRB.INPUTREMARKS AS REMARKS,PRB.CREATEDBY,PRB.CREATEDDATE CREATEDDATE,PRB.MODIFIEDBY,    
-	 PRB.MODIFIEDDATE MODIFIEDDATE           
-    FROM PR.ReferralBonus PRB WITH(NOLOCK)        
-    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)    
-	ON AD.Associate_ID=PRB.RefereeAssociateID        
-    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)    
-	ON CD.Associate_ID=PRB.ReferrorAssociateID        
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFREEDESG WITH(NOLOCK)    
-	ON REFREEDESG.JobCode=PRB.RefereeGrade         
-    AND REFREEDESG.Bussiness_unit=PRB.RefereeSetID        
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation RFRRERDESG WITH(NOLOCK)     
-	ON RFRRERDESG.JobCode=CD.JobCode         
-    AND RFRRERDESG.Bussiness_unit=PRB.ReferrerSetID        
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERDEP WITH(NOLOCK)     
-	on REFERRERDEP.Dept_ID=PRB.ReferrorDepartment        
-    AND REFERRERDEP.Business_Unit=PRB.ReferrerSetID             
-    LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFEREEDEP WITH(NOLOCK)    
-	on REFEREEDEP.Dept_ID=PRB.RefereeDepartment        
-    AND REFEREEDEP.Business_Unit=PRB.RefereeSetID
-	LEFT JOIN MasterCodes MCRB WITH(NOLOCK) ON MCRB.CCodeID=PRB.SpecialCaseReason  
-	AND MCRB.cparentref=2 and MCRB.CUserDefined1=2 and MCRB.remarks IS NULL
-    WHERE PRB.RowStatus=1 AND PRB.Status IN (6) AND (@Month IS NULL OR MONTH(PRB.CreatedDate)=@Month)     
-	AND YEAR(PRB.CreatedDate)=YEAR(@CURRENTDATE)       
-   END          
-END  
+		INSERT INTO Approval_Projects  
+		(FK_ComponentID, ProjectID, ValidFrom, ValidTill, CurrentApproverID,BaseApproverID,ApprovalMailUploadID,
+		DocumentType,OtherMailUploadID, IsFirstTimeApproval, IsVerificationRequired, VerifyRequestedBy,
+		VerifyRequestedDate, VerificationStatus, VerifiedBy,VerifiedDate, HolidayType , CreatedBy, CreatedDate,
+		RowStatus)
+		VALUES(@ComponentId,@ProjectId,@ValidFrom,@ValidTo,@CurrentApprover,@BaseApprover,@ApprovalMailId,
+		@DocumentType,
+		@OtherMailId,1,2,@LoginId,GETDATE(),2,@LoginId,GETDATE(),@holidayType ,@LoginId,GETDATE(),1) 
+  
+        set @Operation=1
+		set @pk_id=(select top 1 PK_ApprovalProjectsID from Approval_Projects order by CreatedDate desc)
+
+	END  
+ELSE IF((SELECT COUNT(1) FROM Approval_Projects WITH(NOLOCK) WHERE FK_ComponentID=@ComponentId AND 
+ProjectID=@ProjectId )>0)
+	BEGIN  
+  
+		INSERT INTO Approval_Projects_Log (FK_ApprovalProjectsID, FK_ComponentID,  
+		ProjectID, ValidFrom, ValidTill,CurrentApproverID, BaseApproverID, ApprovalMailUploadID,DocumentType,
+		OtherMailUploadID, IsFirstTimeApproval, IsVerificationRequired, VerifyRequestedBy, VerifyRequestedDate, 
+		VerificationStatus, VerifiedBy, VerifiedDate,HolidayType ,CreatedBy, CreatedDate,ModifiedBy, ModifiedDate, 
+		Remarks,RowStatus)
+		SELECT PK_ApprovalProjectsID, FK_ComponentID, ProjectID, ValidFrom, ValidTill, CurrentApproverID,
+		BaseApproverID,	ApprovalMailUploadID,DocumentType,OtherMailUploadID, IsFirstTimeApproval,
+		IsVerificationRequired, VerifyRequestedBy,VerifyRequestedDate, VerificationStatus, VerifiedBy, VerifiedDate,
+		HolidayType , CreatedBy, CreatedDate, ModifiedBy,ModifiedDate, Remarks, RowStatus
+		FROM Approval_Projects WITH(NOLOCK) WHERE FK_ComponentID=@ComponentId AND ProjectID=@ProjectId
+
+		UPDATE Approval_Projects SET ValidFrom=@ValidFrom, ValidTill=@ValidTo, CurrentApproverID=@CurrentApprover, 
+		BaseApproverID=@BaseApprover,ApprovalMailUploadID=@ApprovalMailId,DocumentType=@DocumentType,
+		OtherMailUploadID=@OtherMailId, IsFirstTimeApproval=1, IsVerificationRequired=1, 
+		VerifyRequestedBy=@LoginId, VerifyRequestedDate=GETDATE(), VerificationStatus=2,HolidayType =@holidayType ,
+		ModifiedBy=@LoginId, ModifiedDate=GETDATE(),RowStatus=1
+		WHERE FK_ComponentID=@ComponentId   AND PROJECTID=@ProjectId
+
+		set @Operation=2;
+		set @pk_id=(select PK_ApprovalProjectsID from Approval_Projects
+		where FK_ComponentID=@ComponentId AND PROJECTID=@ProjectId)
+
+	END  
+     INSERT INTO dbo.SpayAuditLog
+	 ([AssociateID],[PageName],[ActionID],[Action],[ActionDescription],[IPAddress],[ActionTimeStamp])
+	  SELECT @LoginId,'Manage Approvals',@Operation,
+	  (CASE WHEN @Operation=1 THEN 'Add'
+	   WHEN @Operation=0 THEN 'Delete'
+	   WHEN @Operation=5 THEN 'Cancel' 
+	   WHEN @Operation=4 THEN 'Save'
+	   ELSE 'Edit' END)
+	  ,'Component_ID:'+Convert(varchar,ISNULL(@ComponentId,''))+';
+	  ApprovedBy:'+Convert(varchar,ISNULL(@CurrentApprover,''))+';
+	  ValidFrom:'+Convert(varchar,ISNULL(@ValidFrom,''))+';
+	  ValidTo:'+Convert(varchar,ISNULL(@ValidTo,''))+';
+	  PKey:'+Convert(varchar,ISNULL(@pk_id,'')),
+	  '',GETDATE() 
+
+   --END TRY
+ --BEGIN CATCH
+ 
+          DECLARE @ERROR_ID  VARCHAR(8000)    
+          DECLARE @ERROR_MSG  VARCHAR(8000)        
+          DECLARE @ERROR_SEVERITY  VARCHAR(8000)    
+          DECLARE @ERROR_STATE  VARCHAR(100)        
+          DECLARE @ERROR_PROCEDURE  VARCHAR(8000)    
+          DECLARE @ERROR_LINE  VARCHAR(8000)    
+
+          SELECT    
+          @ERROR_ID= ERROR_NUMBER(),    
+          @ERROR_MSG= ERROR_MESSAGE(),    
+          @ERROR_SEVERITY=ERROR_SEVERITY(),    
+          @ERROR_STATE=ERROR_STATE(),    
+          @ERROR_PROCEDURE='[dbo].usp_SaveApprovalWithProjects',    
+          @ERROR_LINE = ERROR_LINE()    
+
+         INSERT INTO ExceptionLog(ErrorSource, ExceptionMessage, ExceptionStackTrace, InnerException, 
+		 ExceptionDateTime,	 CustomMessage)
+         VALUES('usp_SaveApprovalWithProjects',@ERROR_ID+@ERROR_MSG,@ERROR_SEVERITY,@ERROR_STATE,GETDATE(),
+		 @ERROR_LINE)          
+
+         RAISERROR(@ERROR_ID,@ERROR_SEVERITY,@ERROR_STATE,@ERROR_MSG);
+-- END CATCH 
+--END

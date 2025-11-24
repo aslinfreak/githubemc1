@@ -1,81 +1,178 @@
-        public void DownloadFileFromECMForIT(DataSet dsfiles, string fileUploadId, string loginid,
-            int componentGrpId,string projID, string advisedBy,int countryID)
+        public void MoveITSAFilestoDB(DataSet dsfiles, int componentGroupId, string projectID, string advisedBy, DataTable dtexcel)
         {
             try
             {
-                if (dsfiles.Tables[0].Rows.Count > 0)
+                UtilityBAL objBAL = new UtilityBAL();
+
+                /*Get Staging Table Columns*/
+                StagingTable objStagingTbl = new StagingTable();
+                objStagingTbl.ComponentGroupId = componentGroupId;
+                if (componentGroupId == 12)
                 {
-                    try
-                    {
-                        UtilityBAL objUtilityBAL = new UtilityBAL();
-                        string fileName = String.Empty;
-                        /* Convert Excel to DataTable */
-                        DataTable dtexcel = this.ConvertExcelITtoDataTable(fileName, loginid, fileUploadId, componentGrpId);
-                        if (dtexcel.Rows.Count >= 1)
-                        {
-                            if (componentGrpId == 4)
-                            {
-                                ComponentDetails objCompDetails = new ComponentDetails()
-                                {
-                                    ComponentGroupId = componentGrpId,
-                                    FileUploadId = fileUploadId,
-                                    ProjectID = projID
-                                };
+                    objStagingTbl.RoleID = 12;
+                }
+                else if (componentGroupId == 98)
+                {
+                    objStagingTbl.RoleID = 1;
+                }
+                DataSet dsstgcolumns = objBAL.GetStagingTableColumns(objStagingTbl);
 
-                                /*Move files from SAN to DB for Processing*/
-                                this.MoveFilestoDB(dsfiles, componentGrpId, projID, advisedBy, dtexcel);
-                                this.ValidateSAStagingData(objCompDetails);
-                            }
-                            else if (componentGrpId == 12 || componentGrpId == 98)
-                            {
-                                ComponentDetails objCompDetails = new ComponentDetails()
-                                {
-                                    ComponentGroupId = componentGrpId,
-                                    FileUploadId = fileUploadId,
-                                    ProjectID = projID,
-                                };
+                /*Move the Excel Records to Staging Table for Processing*/
+                objBAL.LoadExcelDataintoDB(dtexcel, componentGroupId, projectID, dsstgcolumns, advisedBy);
 
-                                /*Move files from ECM to DB for Processing*/
-                                this.MoveITSAFilestoDB(dsfiles, componentGrpId, projID, advisedBy, dtexcel);
-                                this.ValidateSAStagingData(objCompDetails);
-                            }
-                            this.SendMailtoUploader(fileUploadId, 0, countryID);
-                        }
-                    }
-                    catch (ArgumentException ex)
-                    {
-                        ErrorLogger objLogger = new ErrorLogger();
-                        objLogger.LogError(ex);
-                        this.objReminderMail.SendErrorMaileronFailure("DownloadFileFromECMForIT", ex);
-                    }
-                    catch (FormatException ex)
-                    {
-                        ErrorLogger objLogger = new ErrorLogger();
-                        objLogger.LogError(ex);
-                        this.objReminderMail.SendErrorMaileronFailure("DownloadFileFromECMForIT", ex);
-                    }
-                    catch (OverflowException ex)
-                    {
-                        ErrorLogger objLogger = new ErrorLogger();
-                        objLogger.LogError(ex);
-                        this.objReminderMail.SendErrorMaileronFailure("DownloadFileFromECMForIT", ex);
-                    }
-                    catch (SqlException ex)
-                    {
-                        ErrorLogger objLogger = new ErrorLogger();
-                        objLogger.LogError(ex);
-                        ////objFileUploadDC.LoginID = loginId;
+                /*Set IsProcessed flag to 1 for processed files*/
+                ////StagingTable objStaging = new StagingTable();
+                ////objStaging.FileUploadID = fileUploadID;
+                ////objBAL.SetProcessedFlag(objStaging);
+            }
+            catch
+            {
+                throw;
+            }
+        }
 
-                        int status = 6; int errorFlag = 2;
-                        this.SenderrorMailtoUploader(loginid, fileUploadId, status, errorFlag);
+        public DataTable ConvertExcelITtoDataTable(string fileURL, string loginId, string fileuploadId,int componentGrpId)
+        {            
+            var filename = "";
+            //string OCMCONTENTID = "CONTA2039FE4D71B424FBD60BB8A36C8CF30"; 
+            if (ocmEnable == "1")
+            {
+                OCMService.OCMSharedService ocmservice = new OCMService.OCMSharedService();
+                OCMService.CommonClass.DownloadedFileContent downloadedFile = new OCMService.CommonClass.DownloadedFileContent();
+                //var enviroment = System.Environment.CurrentDirectory;
+                //string projectDirectory = HttpUtility.UrlEncode(Directory.GetParent(enviroment).Parent.FullName);
+                //string MetadataPath = Path.Combine(projectDirectory, @"OCM\SpecialPay.json");
+                string AccessToken = OCM.APITokenGenerator.GetToken();
+                //downloadedFile = ocmservice.DownloadFileContent(AccessToken, fileuploadId, MetadataPath, downloadApi);
+                FileContent = downloadedFile.FileByteArray;
+                filename = downloadedFile.FileName;
+
+                if (AccessToken != null)
+                {
+                    downloadedFile = ocmservice.DownloadFileContent(AccessToken, fileuploadId, "null", downloadApi);
+
+                    FileContent = downloadedFile.FileByteArray;
+                    filename = downloadedFile.FileName;
+                    if (downloadedFile.FileByteArray != null)
+                    {
+                        ErrorLogger.Exceptionlogger("ShiftConsole:OCMDownload", "OCMID:" + fileuploadId, "ConvertExcelITtoDataTable-Success", "Download file success", "CommponentGroupID:" + Convert.ToString(componentGrpId));
+                    }
+                    else
+                    {
+                        ErrorLogger.Exceptionlogger("ShiftConsole:OCMDownload", "OCMID:" + fileuploadId, "OCMDownload -Failed|Body-" + downloadedFile.ResponseBody.ToString(),
+                            "Failed to Download content|HTTpResponseHeader: " + downloadedFile.ResponseHeader.ToString(),
+                            downloadedFile.ToString() + "CommponentGroupID:" + Convert.ToString(componentGrpId));
+                        downloadedFile = null;
                     }
                 }
+                else
+                {
+                    ErrorLogger.Exceptionlogger("ShiftConsole:FileContentDownload Failed", "OCMID:" + fileuploadId,
+                        "ConvertExcelITtoDataTable-Failed", "Failed to generate access token", 
+                        "CommponentGroupID:" + Convert.ToString(componentGrpId));
+                    downloadedFile = null;
+                }
             }
-            catch (ArgumentException ex)
+            else
+            {
+                var ecmAppid = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings["ECMAppID"]);
+                ECMCommon.IdcFile downloadFile = new ECMCommon.IdcFile();
+                WrapperUICheckIn checkIn = new WrapperUICheckIn(ecmAppid);
+                downloadFile = checkIn.DownloadFileContent(fileuploadId, ecmAppid);
+                filename = downloadFile.Filename;
+                string fileType = System.IO.Path.GetExtension(downloadFile.Filename).ToString().ToLower();
+                FileContent = downloadFile.Filecontent;
+            }
+            //byte[] fileContents = File.ReadAllBytes(@"C:\Users\311556\Downloads\OCA_Template(29).xlsm");
+            DataTable datatableExcel = new DataTable();
+            try
+            {
+                if (FileContent != null)
+                {
+                    using (MemoryStream memoryStream = new MemoryStream(FileContent))
+                    {
+                        SpreadsheetDocument spreadSheetDocument = SpreadsheetDocument.Open(memoryStream, false);
+                        WorkbookPart workbookPart = spreadSheetDocument.WorkbookPart;
+                        IEnumerable<Sheet> sheets = spreadSheetDocument.WorkbookPart.Workbook.GetFirstChild<Sheets>().Elements<Sheet>();
+                        string relationshipId = sheets.First().Id.Value;
+                        WorksheetPart worksheetPart = (WorksheetPart)spreadSheetDocument.WorkbookPart.GetPartById(relationshipId);
+                        Worksheet workSheet = worksheetPart.Worksheet;
+                        SheetData sheetData = workSheet.GetFirstChild<SheetData>();
+                        IEnumerable<Row> rows = sheetData.Descendants<Row>();
+
+                        foreach (Cell cell in rows.ElementAt(0))
+                        {
+                            if (cell.CellValue != null)
+                            {
+                                datatableExcel.Columns.Add(GetCellValue(spreadSheetDocument, cell).Trim());
+                                count++;
+                            }
+                        }
+
+                        foreach (Row row in rows)
+                        {
+                            DataRow tempRow = datatableExcel.NewRow();
+                            int columnIndex = 0;
+                            foreach (Cell cell in row.Descendants<Cell>())
+                            {
+                                //// Gets the column index of the cell with data
+                                int cellColumnIndex = (int)GetColumnIndexFromName(GetColumnName(cell.CellReference));
+
+                                if (columnIndex < cellColumnIndex)
+                                {
+                                    do
+                                    {
+                                        tempRow[columnIndex] = string.Empty; ////Insert blank data here;
+                                        columnIndex++;
+                                    }
+                                    while (columnIndex < cellColumnIndex);
+                                }
+
+                                if (columnIndex <= (count - 1))
+                                {
+                                    tempRow[columnIndex] = GetCellValue(spreadSheetDocument, cell);
+                                    columnIndex++;
+                                }
+                            }
+
+                            datatableExcel.Rows.Add(tempRow);
+                        }
+                    }
+
+                    datatableExcel.Rows.RemoveAt(0);
+
+                    count = 0;
+                    ////to remove blank rows
+                    datatableExcel = datatableExcel.Rows.Cast<DataRow>().Where(row => !row.ItemArray.All(field => field is System.DBNull || string.Compare((field as string).Trim(), string.Empty) == 0)).CopyToDataTable();
+                    return datatableExcel;
+                }
+                else
+                {
+                    return null;
+                }
+
+            }
+            catch (Exception ex)
             {
                 ErrorLogger objLogger = new ErrorLogger();
                 objLogger.LogError(ex);
-                //throw ex;
+                ////objFileUploadDC.LoginID = loginId;
+                if (ex.Message.Equals("Cannot find column 7."))
+                {
+                    int status = 2; int ErrorFlag = 0;
+                    this.SenderrorMailtoUploader(loginId, fileuploadId, status, ErrorFlag);
+                }
+
+                if (ex.Message.Equals("The source contains no DataRows."))
+                {
+                    int status = 3; int ErrorFlag = 0;
+                    this.SenderrorMailtoUploader(loginId, fileuploadId, status, ErrorFlag);
+                }
+                else
+                {
+                    int status = 6; int ErrorFlag = 1;
+                    this.SenderrorMailtoUploader(loginId, fileuploadId, status, ErrorFlag);
+                }
+                return new DataTable();
             }
         }
-        #endregion DownloadFileFromSANForIT

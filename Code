@@ -1,37 +1,81 @@
-private void GetADMSAFilesToBeProcessedFromSAN()
-{
-    try
-    {
-        /********************************************************************
-         For processing the file which is not processed from the SAN Storage.
-         *********************************************************************/
-
-        UtilityBAL objUtilityBAL = new UtilityBAL();
-        ComponentDetails objcomp = new ComponentDetails();
-        objcomp.ComponentGroupId = 98;
-        DataSet dsfiles = objUtilityBAL.FetchFilesToBeProcessedITSA(objcomp);
-        if (dsfiles.Tables.Count > 0 && dsfiles.Tables[0].Rows.Count > 0)
+        public void DownloadFileFromECMForIT(DataSet dsfiles, string fileUploadId, string loginid,
+            int componentGrpId,string projID, string advisedBy,int countryID)
         {
-            for (int i = 0; i < dsfiles.Tables[0].Rows.Count; i++)
+            try
             {
-                SANtoSTG objSANtoSTG = new SANtoSTG();
-                //objSANtoSTG.DownloadFileFromSANForIT(dsfiles);
-                string fileUploadId = dsfiles.Tables[0].Rows[i][1].ToString();
-                string loginID = dsfiles.Tables[0].Rows[i][3].ToString();
-                int componentGroupId = Convert.ToInt32(dsfiles.Tables[0].Rows[i][0].ToString());
-                string ProjectID = dsfiles.Tables[0].Rows[i][4].ToString();
-                string advisedBy = dsfiles.Tables[0].Rows[i][3].ToString();
-                int countryID = Convert.ToInt32(dsfiles.Tables[0].Rows[i][7].ToString());
-                objSANtoSTG.DownloadFileFromECMForIT(dsfiles, fileUploadId, loginID,
-                    componentGroupId, ProjectID, advisedBy, countryID);
+                if (dsfiles.Tables[0].Rows.Count > 0)
+                {
+                    try
+                    {
+                        UtilityBAL objUtilityBAL = new UtilityBAL();
+                        string fileName = String.Empty;
+                        /* Convert Excel to DataTable */
+                        DataTable dtexcel = this.ConvertExcelITtoDataTable(fileName, loginid, fileUploadId, componentGrpId);
+                        if (dtexcel.Rows.Count >= 1)
+                        {
+                            if (componentGrpId == 4)
+                            {
+                                ComponentDetails objCompDetails = new ComponentDetails()
+                                {
+                                    ComponentGroupId = componentGrpId,
+                                    FileUploadId = fileUploadId,
+                                    ProjectID = projID
+                                };
+
+                                /*Move files from SAN to DB for Processing*/
+                                this.MoveFilestoDB(dsfiles, componentGrpId, projID, advisedBy, dtexcel);
+                                this.ValidateSAStagingData(objCompDetails);
+                            }
+                            else if (componentGrpId == 12 || componentGrpId == 98)
+                            {
+                                ComponentDetails objCompDetails = new ComponentDetails()
+                                {
+                                    ComponentGroupId = componentGrpId,
+                                    FileUploadId = fileUploadId,
+                                    ProjectID = projID,
+                                };
+
+                                /*Move files from ECM to DB for Processing*/
+                                this.MoveITSAFilestoDB(dsfiles, componentGrpId, projID, advisedBy, dtexcel);
+                                this.ValidateSAStagingData(objCompDetails);
+                            }
+                            this.SendMailtoUploader(fileUploadId, 0, countryID);
+                        }
+                    }
+                    catch (ArgumentException ex)
+                    {
+                        ErrorLogger objLogger = new ErrorLogger();
+                        objLogger.LogError(ex);
+                        this.objReminderMail.SendErrorMaileronFailure("DownloadFileFromECMForIT", ex);
+                    }
+                    catch (FormatException ex)
+                    {
+                        ErrorLogger objLogger = new ErrorLogger();
+                        objLogger.LogError(ex);
+                        this.objReminderMail.SendErrorMaileronFailure("DownloadFileFromECMForIT", ex);
+                    }
+                    catch (OverflowException ex)
+                    {
+                        ErrorLogger objLogger = new ErrorLogger();
+                        objLogger.LogError(ex);
+                        this.objReminderMail.SendErrorMaileronFailure("DownloadFileFromECMForIT", ex);
+                    }
+                    catch (SqlException ex)
+                    {
+                        ErrorLogger objLogger = new ErrorLogger();
+                        objLogger.LogError(ex);
+                        ////objFileUploadDC.LoginID = loginId;
+
+                        int status = 6; int errorFlag = 2;
+                        this.SenderrorMailtoUploader(loginid, fileUploadId, status, errorFlag);
+                    }
+                }
+            }
+            catch (ArgumentException ex)
+            {
+                ErrorLogger objLogger = new ErrorLogger();
+                objLogger.LogError(ex);
+                //throw ex;
             }
         }
-    }
-    catch (ArgumentException ex)
-    {
-        ErrorLogger objLogger = new ErrorLogger();
-        objLogger.LogError(ex);
-        this.objReminderMail.SendErrorMaileronFailure("GetFilesToBeProcessedFromSANADMSA", ex);
-        ////SetJobStatusOnFailure(ex);
-    }
-}
+        #endregion DownloadFileFromSANForIT

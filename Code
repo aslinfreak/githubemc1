@@ -1,117 +1,37 @@
-USE [OneC_SPay]
-GO  
-Declare
-    @ComponentId INT =170 ,
-	@ProjectId varchar(20)='1000066526',
-	@MSASOWDate varchar =NULL,
-	@DocumentType INT =1,
-	@ApprovalMailId varchar(50)='CONTA044182E3BF94ABBB086B857D4F4E516',
-	@OtherMailId  varchar(50) =NULL,
-	@ValidFrom varchar(20)='11/03/2025',
-	@ValidTo varchar(20)='09/15/2026',
-	@holidayType  INT=NULL,
-	@BaseApprover INT,
-	@CurrentApprover INT='2084470',
-	@LoginID varchar(10) ='2084470'
+private void GetADMSAFilesToBeProcessedFromSAN()
+{
+    try
+    {
+        /********************************************************************
+         For processing the file which is not processed from the SAN Storage.
+         *********************************************************************/
 
-IF(@OtherMailId='0') BEGIN SET @OtherMailId=NULL END
-IF(@DocumentType=-1) BEGIN SET @DocumentType=NULL END
-IF(@holidayType=-1) BEGIN SET @holidayType=NULL END
-
-
-
-DECLARE @ComponentRoleId INT,
-@Operation int,
-@pk_id int
-
-
-IF((SELECT COUNT(1) FROM Approval_Projects WITH(NOLOCK) WHERE FK_ComponentID=@ComponentId
-AND ProjectID=@ProjectId)=0)
-	BEGIN  
-  
-		INSERT INTO Approval_Projects  
-		(FK_ComponentID, ProjectID, ValidFrom, ValidTill, CurrentApproverID,BaseApproverID,ApprovalMailUploadID,
-		DocumentType,OtherMailUploadID, IsFirstTimeApproval, IsVerificationRequired, VerifyRequestedBy,
-		VerifyRequestedDate, VerificationStatus, VerifiedBy,VerifiedDate, HolidayType , CreatedBy, CreatedDate,
-		RowStatus)
-		VALUES(@ComponentId,@ProjectId,@ValidFrom,@ValidTo,@CurrentApprover,@BaseApprover,@ApprovalMailId,
-		@DocumentType,
-		@OtherMailId,1,2,@LoginId,GETDATE(),2,@LoginId,GETDATE(),@holidayType ,@LoginId,GETDATE(),1) 
-  
-        set @Operation=1
-		set @pk_id=(select top 1 PK_ApprovalProjectsID from Approval_Projects order by CreatedDate desc)
-
-	END  
-ELSE IF((SELECT COUNT(1) FROM Approval_Projects WITH(NOLOCK) WHERE FK_ComponentID=@ComponentId AND 
-ProjectID=@ProjectId )>0)
-	BEGIN  
-  
-		INSERT INTO Approval_Projects_Log (FK_ApprovalProjectsID, FK_ComponentID,  
-		ProjectID, ValidFrom, ValidTill,CurrentApproverID, BaseApproverID, ApprovalMailUploadID,DocumentType,
-		OtherMailUploadID, IsFirstTimeApproval, IsVerificationRequired, VerifyRequestedBy, VerifyRequestedDate, 
-		VerificationStatus, VerifiedBy, VerifiedDate,HolidayType ,CreatedBy, CreatedDate,ModifiedBy, ModifiedDate, 
-		Remarks,RowStatus)
-		SELECT PK_ApprovalProjectsID, FK_ComponentID, ProjectID, ValidFrom, ValidTill, CurrentApproverID,
-		BaseApproverID,	ApprovalMailUploadID,DocumentType,OtherMailUploadID, IsFirstTimeApproval,
-		IsVerificationRequired, VerifyRequestedBy,VerifyRequestedDate, VerificationStatus, VerifiedBy, VerifiedDate,
-		HolidayType , CreatedBy, CreatedDate, ModifiedBy,ModifiedDate, Remarks, RowStatus
-		FROM Approval_Projects WITH(NOLOCK) WHERE FK_ComponentID=@ComponentId AND ProjectID=@ProjectId
-
-		UPDATE Approval_Projects SET ValidFrom=@ValidFrom, ValidTill=@ValidTo, CurrentApproverID=@CurrentApprover, 
-		BaseApproverID=@BaseApprover,ApprovalMailUploadID=@ApprovalMailId,DocumentType=@DocumentType,
-		OtherMailUploadID=@OtherMailId, IsFirstTimeApproval=1, IsVerificationRequired=1, 
-		VerifyRequestedBy=@LoginId, VerifyRequestedDate=GETDATE(), VerificationStatus=2,HolidayType =@holidayType ,
-		ModifiedBy=@LoginId, ModifiedDate=GETDATE(),RowStatus=1
-		WHERE FK_ComponentID=@ComponentId   AND PROJECTID=@ProjectId
-
-		set @Operation=2;
-		set @pk_id=(select PK_ApprovalProjectsID from Approval_Projects
-		where FK_ComponentID=@ComponentId AND PROJECTID=@ProjectId)
-
-	END  
-     INSERT INTO dbo.SpayAuditLog
-	 ([AssociateID],[PageName],[ActionID],[Action],[ActionDescription],[IPAddress],[ActionTimeStamp])
-	  SELECT @LoginId,'Manage Approvals',@Operation,
-	  (CASE WHEN @Operation=1 THEN 'Add'
-	   WHEN @Operation=0 THEN 'Delete'
-	   WHEN @Operation=5 THEN 'Cancel' 
-	   WHEN @Operation=4 THEN 'Save'
-	   ELSE 'Edit' END)
-	  ,'Component_ID:'+Convert(varchar,ISNULL(@ComponentId,''))+';
-	  ApprovedBy:'+Convert(varchar,ISNULL(@CurrentApprover,''))+';
-	  ValidFrom:'+Convert(varchar,ISNULL(@ValidFrom,''))+';
-	  ValidTo:'+Convert(varchar,ISNULL(@ValidTo,''))+';
-	  PKey:'+Convert(varchar,ISNULL(@pk_id,'')),
-	  '',GETDATE() 
-
-   --END TRY
- --BEGIN CATCH
- 
-          DECLARE @ERROR_ID  VARCHAR(8000)    
-          DECLARE @ERROR_MSG  VARCHAR(8000)        
-          DECLARE @ERROR_SEVERITY  VARCHAR(8000)    
-          DECLARE @ERROR_STATE  VARCHAR(100)        
-          DECLARE @ERROR_PROCEDURE  VARCHAR(8000)    
-          DECLARE @ERROR_LINE  VARCHAR(8000)    
-
-          SELECT    
-          @ERROR_ID= ERROR_NUMBER(),    
-          @ERROR_MSG= ERROR_MESSAGE(),    
-          @ERROR_SEVERITY=ERROR_SEVERITY(),    
-          @ERROR_STATE=ERROR_STATE(),    
-          @ERROR_PROCEDURE='[dbo].usp_SaveApprovalWithProjects',    
-          @ERROR_LINE = ERROR_LINE()    
-
-         INSERT INTO ExceptionLog(ErrorSource, ExceptionMessage, ExceptionStackTrace, InnerException, 
-		 ExceptionDateTime,	 CustomMessage)
-         VALUES('usp_SaveApprovalWithProjects',@ERROR_ID+@ERROR_MSG,@ERROR_SEVERITY,@ERROR_STATE,GETDATE(),
-		 @ERROR_LINE)          
-
-         RAISERROR(@ERROR_ID,@ERROR_SEVERITY,@ERROR_STATE,@ERROR_MSG);
--- END CATCH 
---END
-
-
-
-Msg 2754, Level 16, State 1, Line 131
-Error severity levels greater than 18 can only be specified by members of the sysadmin role, using the WITH LOG option.
+        UtilityBAL objUtilityBAL = new UtilityBAL();
+        ComponentDetails objcomp = new ComponentDetails();
+        objcomp.ComponentGroupId = 98;
+        DataSet dsfiles = objUtilityBAL.FetchFilesToBeProcessedITSA(objcomp);
+        if (dsfiles.Tables.Count > 0 && dsfiles.Tables[0].Rows.Count > 0)
+        {
+            for (int i = 0; i < dsfiles.Tables[0].Rows.Count; i++)
+            {
+                SANtoSTG objSANtoSTG = new SANtoSTG();
+                //objSANtoSTG.DownloadFileFromSANForIT(dsfiles);
+                string fileUploadId = dsfiles.Tables[0].Rows[i][1].ToString();
+                string loginID = dsfiles.Tables[0].Rows[i][3].ToString();
+                int componentGroupId = Convert.ToInt32(dsfiles.Tables[0].Rows[i][0].ToString());
+                string ProjectID = dsfiles.Tables[0].Rows[i][4].ToString();
+                string advisedBy = dsfiles.Tables[0].Rows[i][3].ToString();
+                int countryID = Convert.ToInt32(dsfiles.Tables[0].Rows[i][7].ToString());
+                objSANtoSTG.DownloadFileFromECMForIT(dsfiles, fileUploadId, loginID,
+                    componentGroupId, ProjectID, advisedBy, countryID);
+            }
+        }
+    }
+    catch (ArgumentException ex)
+    {
+        ErrorLogger objLogger = new ErrorLogger();
+        objLogger.LogError(ex);
+        this.objReminderMail.SendErrorMaileronFailure("GetFilesToBeProcessedFromSANADMSA", ex);
+        ////SetJobStatusOnFailure(ex);
+    }
+}

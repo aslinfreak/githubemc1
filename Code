@@ -1,178 +1,178 @@
-        public void MoveITSAFilestoDB(DataSet dsfiles, int componentGroupId, string projectID, string advisedBy, DataTable dtexcel)
-        {
-            try
-            {
-                UtilityBAL objBAL = new UtilityBAL();
+USE [OneC_SPay]
+GO
+/****** Object:  StoredProcedure [dbo].[usp_SGP_GetUploaderExceptionRecord_NSA]    Script Date: 25-11-2025 20:54:06 ******/
+--SET ANSI_NULLS ON
+--GO
+--SET QUOTED_IDENTIFIER ON
+--GO
 
-                /*Get Staging Table Columns*/
-                StagingTable objStagingTbl = new StagingTable();
-                objStagingTbl.ComponentGroupId = componentGroupId;
-                if (componentGroupId == 12)
-                {
-                    objStagingTbl.RoleID = 12;
-                }
-                else if (componentGroupId == 98)
-                {
-                    objStagingTbl.RoleID = 1;
-                }
-                DataSet dsstgcolumns = objBAL.GetStagingTableColumns(objStagingTbl);
+---- ===========================================================================================================================================      
+---- AUTHOR     : CHITRA A(316271)      
+---- CREATE DATE: JUNE 10, 2015      
+---- DESCRIPTION: TO GET THE EXCEPTION DATA TO POPULATE IN THE GRID  FRO TRT SPECIAL INPUTS 
+---- =========================================================================================================================================== 
+      
+--ALTER PROCEDURE  [dbo].[usp_SGP_GetUploaderExceptionRecord_NSA]      
+--(      
+    Declare
+	@COMPONENTGROUPID INT=15,      
+	@searchData VARCHAR(100)=NULL,      
+    @searchData2 VARCHAR(100)=NULL,    
+	@DdlData VARCHAR(100)=NULL,
+	@Month INT=11,
+	@PageNum int=1,
+	@IDisplayLength int=250,
+	@OrderBy varchar(30)='',
+	@SortOrder int=1,
+	@GetPages int=0,
+	@ProjectId VARCHAR(30)='1000319895',
+	@RoleID int=1,
+	@Loginid int='2271764',
+	@ComponentCountryMappingId int = 94
+	 
+--)  
 
-                /*Move the Excel Records to Staging Table for Processing*/
-                objBAL.LoadExcelDataintoDB(dtexcel, componentGroupId, projectID, dsstgcolumns, advisedBy);
+--/******************************************************************
+--This User-defined Stored Procedure
+--used in SPAY  to allow 
+--faster execution and reduce network traffic.
+--****************************************************************/ 
+--AS      
+--BEGIN    
+--BEGIN TRY 
+--SET NOCOUNT ON        
 
-                /*Set IsProcessed flag to 1 for processed files*/
-                ////StagingTable objStaging = new StagingTable();
-                ////objStaging.FileUploadID = fileUploadID;
-                ////objBAL.SetProcessedFlag(objStaging);
-            }
-            catch
-            {
-                throw;
-            }
-        }
+  Declare @Project table (ProjectID varchar(15))
+DECLARE @COMPONENTID INT=(CASE WHEN @COMPONENTGROUPID=15 THEN 55 WHEN @COMPONENTGROUPID=16 THEN 56 
+							   WHEN @COMPONENTGROUPID=41 THEN 110 END )
 
-        public DataTable ConvertExcelITtoDataTable(string fileURL, string loginId, string fileuploadId,int componentGrpId)
-        {            
-            var filename = "";
-            //string OCMCONTENTID = "CONTA2039FE4D71B424FBD60BB8A36C8CF30"; 
-            if (ocmEnable == "1")
-            {
-                OCMService.OCMSharedService ocmservice = new OCMService.OCMSharedService();
-                OCMService.CommonClass.DownloadedFileContent downloadedFile = new OCMService.CommonClass.DownloadedFileContent();
-                //var enviroment = System.Environment.CurrentDirectory;
-                //string projectDirectory = HttpUtility.UrlEncode(Directory.GetParent(enviroment).Parent.FullName);
-                //string MetadataPath = Path.Combine(projectDirectory, @"OCM\SpecialPay.json");
-                string AccessToken = OCM.APITokenGenerator.GetToken();
-                //downloadedFile = ocmservice.DownloadFileContent(AccessToken, fileuploadId, MetadataPath, downloadApi);
-                FileContent = downloadedFile.FileByteArray;
-                filename = downloadedFile.FileName;
+DECLARE @Description VARCHAR(100)      
+DECLARE @COMMONTH VARCHAR(10),@RolePriority int,@CountryID INT 
 
-                if (AccessToken != null)
-                {
-                    downloadedFile = ocmservice.DownloadFileContent(AccessToken, fileuploadId, "null", downloadApi);
+SELECT @CountryID=FK_ComponentCountryID FROM ComponentCountryMapping with (nolock) 
+WHERE Pk_ComponentCountryMappingID=@ComponentCountryMappingId AND Rowstatus=1
 
-                    FileContent = downloadedFile.FileByteArray;
-                    filename = downloadedFile.FileName;
-                    if (downloadedFile.FileByteArray != null)
-                    {
-                        ErrorLogger.Exceptionlogger("ShiftConsole:OCMDownload", "OCMID:" + fileuploadId, "ConvertExcelITtoDataTable-Success", "Download file success", "CommponentGroupID:" + Convert.ToString(componentGrpId));
-                    }
-                    else
-                    {
-                        ErrorLogger.Exceptionlogger("ShiftConsole:OCMDownload", "OCMID:" + fileuploadId, "OCMDownload -Failed|Body-" + downloadedFile.ResponseBody.ToString(),
-                            "Failed to Download content|HTTpResponseHeader: " + downloadedFile.ResponseHeader.ToString(),
-                            downloadedFile.ToString() + "CommponentGroupID:" + Convert.ToString(componentGrpId));
-                        downloadedFile = null;
-                    }
-                }
-                else
-                {
-                    ErrorLogger.Exceptionlogger("ShiftConsole:FileContentDownload Failed", "OCMID:" + fileuploadId,
-                        "ConvertExcelITtoDataTable-Failed", "Failed to generate access token", 
-                        "CommponentGroupID:" + Convert.ToString(componentGrpId));
-                    downloadedFile = null;
-                }
-            }
-            else
-            {
-                var ecmAppid = Convert.ToInt32(System.Configuration.ConfigurationManager.AppSettings["ECMAppID"]);
-                ECMCommon.IdcFile downloadFile = new ECMCommon.IdcFile();
-                WrapperUICheckIn checkIn = new WrapperUICheckIn(ecmAppid);
-                downloadFile = checkIn.DownloadFileContent(fileuploadId, ecmAppid);
-                filename = downloadFile.Filename;
-                string fileType = System.IO.Path.GetExtension(downloadFile.Filename).ToString().ToLower();
-                FileContent = downloadFile.Filecontent;
-            }
-            //byte[] fileContents = File.ReadAllBytes(@"C:\Users\311556\Downloads\OCA_Template(29).xlsm");
-            DataTable datatableExcel = new DataTable();
-            try
-            {
-                if (FileContent != null)
-                {
-                    using (MemoryStream memoryStream = new MemoryStream(FileContent))
-                    {
-                        SpreadsheetDocument spreadSheetDocument = SpreadsheetDocument.Open(memoryStream, false);
-                        WorkbookPart workbookPart = spreadSheetDocument.WorkbookPart;
-                        IEnumerable<Sheet> sheets = spreadSheetDocument.WorkbookPart.Workbook.GetFirstChild<Sheets>().Elements<Sheet>();
-                        string relationshipId = sheets.First().Id.Value;
-                        WorksheetPart worksheetPart = (WorksheetPart)spreadSheetDocument.WorkbookPart.GetPartById(relationshipId);
-                        Worksheet workSheet = worksheetPart.Worksheet;
-                        SheetData sheetData = workSheet.GetFirstChild<SheetData>();
-                        IEnumerable<Row> rows = sheetData.Descendants<Row>();
 
-                        foreach (Cell cell in rows.ElementAt(0))
-                        {
-                            if (cell.CellValue != null)
-                            {
-                                datatableExcel.Columns.Add(GetCellValue(spreadSheetDocument, cell).Trim());
-                                count++;
-                            }
-                        }
+IF(@Month=0 OR @Month='')  
+ BEGIN  
+  SET @COMMONTH=NULL  
+ END  
+ELSE  
+ BEGIN  
+  SET @COMMONTH=@Month  
+ END  
 
-                        foreach (Row row in rows)
-                        {
-                            DataRow tempRow = datatableExcel.NewRow();
-                            int columnIndex = 0;
-                            foreach (Cell cell in row.Descendants<Cell>())
-                            {
-                                //// Gets the column index of the cell with data
-                                int cellColumnIndex = (int)GetColumnIndexFromName(GetColumnName(cell.CellReference));
 
-                                if (columnIndex < cellColumnIndex)
-                                {
-                                    do
-                                    {
-                                        tempRow[columnIndex] = string.Empty; ////Insert blank data here;
-                                        columnIndex++;
-                                    }
-                                    while (columnIndex < cellColumnIndex);
-                                }
+IF(@COMPONENTGROUPID=15 or @COMPONENTGROUPID=16 or @COMPONENTGROUPID=41) -- 6DA,NSA, Shift Allowance
+BEGIN      
+DECLARE @iDisplayStart INT,@iDisplayEnd INT
+DECLARE @totrec INT
+SET @iDisplayEnd=@pageNum*@iDisplayLength
+SET @iDisplayStart=@iDisplayEnd-(@iDisplayLength-1)
+SET @orderBy=(CASE WHEN @orderBy ='' THEN '(SELECT 0)' ELSE @orderBy END)
 
-                                if (columnIndex <= (count - 1))
-                                {
-                                    tempRow[columnIndex] = GetCellValue(spreadSheetDocument, cell);
-                                    columnIndex++;
-                                }
-                            }
+CREATE TABLE #NSA(PrimaryKey int,ShiftType Varchar(100),AssociateID varchar(10),StartDate varchar(20),
+EndDate varchar(20),StartTime varchar(10),EndTime varchar(10),
+ProjectID varchar(20),UploadedBy Varchar(7),ExceptionRemarks varchar(500))
 
-                            datatableExcel.Rows.Add(tempRow);
-                        }
-                    }
+   IF(ISNULL(@searchData,'')='' and ISNULL(@searchData2,'')='')
+	BEGIN 
 
-                    datatableExcel.Rows.RemoveAt(0);
+		INSERT INTO #NSA(PrimaryKey,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,ProjectID,
+		UploadedBy,ExceptionRemarks)
+		 SELECT PK_SGPShiftTimePayoutID,AssociateID,isnull(STM.ShiftTypeName,''),CONVERT(VARCHAR,StartDate,101)
+		 StartDate,CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime
+		 ,CONVERT(VARCHAR(5),EndTime,108) EndTime,STP.ProjectID,STP.CreatedBy UploadedBy,isnull(ExceptionReason,'') 
+		 ExceptionRemarks 
+		 FROM EXP.SGPShiftTimePayout STP WITH (NOLOCK)
+		Left Outer JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.ShiftType=STM.PK_ShiftTypeID
+	 WHERE (STP.ProjectID=@ProjectId)
+	 and STP.Fk_ComponentCountrymappingid=@ComponentCountryMappingId 
+	  AND STP.ROWSTATUS=1 
+	  AND (@COMMONTH IS NULL OR MONTH(STP.CreatedDate)=@COMMONTH) 	AND YEAR(STP.CreatedDate)=YEAR(GETDATE())		  
+      AND (( @ComponentGroupID IN (15,16) AND @CountryID=5 AND STP.CreatedBy=@LoginID )
+      OR ( NOT(@ComponentGroupID IN (15,16) AND @CountryID=5)))
+ 
+		 ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC
 
-                    count = 0;
-                    ////to remove blank rows
-                    datatableExcel = datatableExcel.Rows.Cast<DataRow>().Where(row => !row.ItemArray.All(field => field is System.DBNull || string.Compare((field as string).Trim(), string.Empty) == 0)).CopyToDataTable();
-                    return datatableExcel;
-                }
-                else
-                {
-                    return null;
-                }
 
-            }
-            catch (Exception ex)
-            {
-                ErrorLogger objLogger = new ErrorLogger();
-                objLogger.LogError(ex);
-                ////objFileUploadDC.LoginID = loginId;
-                if (ex.Message.Equals("Cannot find column 7."))
-                {
-                    int status = 2; int ErrorFlag = 0;
-                    this.SenderrorMailtoUploader(loginId, fileuploadId, status, ErrorFlag);
-                }
+	END
+	ELSE 
+BEGIN 
+    IF(ISNULL(@searchData,'')<>'' and ISNULL(@searchData2,'')='')
+    BEGIN
+		INSERT INTO #NSA(PrimaryKey,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,ProjectID,
+		UploadedBy,ExceptionRemarks)
+		SELECT PK_SGPShiftTimePayoutID,AssociateID,ISNULL(STM.ShiftTypeName,''),CONVERT(VARCHAR,StartDate,101) 
+		StartDate,CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime
+		,CONVERT(VARCHAR(5),EndTime,108) EndTime,STP.ProjectID,STP.CreatedBy UploadedBy,isnull(ExceptionReason,'') 
+		ExceptionRemarks 
+		FROM EXP.SGPShiftTimePayout STP WITH (NOLOCK)
+		Left Outer JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.ShiftType=STM.PK_ShiftTypeID
+		WHERE STP.ROWSTATUS=1 AND (@COMMONTH IS NULL OR MONTH(STP.CreatedDate)=@COMMONTH) 	AND 
+		YEAR(STP.CreatedDate)=YEAR(GETDATE())	
+		and STP.Fk_ComponentCountrymappingid=@ComponentCountryMappingId and  STP.AssociateID LIKE
+		LTRIM(RTRIM('%' + @searchData + '%')) and STP.ProjectID=@projectID
+		AND (( @ComponentGroupID IN (15,16) AND @CountryID=5 AND STP.CreatedBy=@LoginID )
+      OR ( NOT(@ComponentGroupID IN (15,16) AND @CountryID=5)))
+		ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC
+    END
+    ELSE IF(ISNULL(@searchData,'')='' and ISNULL(@searchData2,'')<>'')
+      BEGIN
 
-                if (ex.Message.Equals("The source contains no DataRows."))
-                {
-                    int status = 3; int ErrorFlag = 0;
-                    this.SenderrorMailtoUploader(loginId, fileuploadId, status, ErrorFlag);
-                }
-                else
-                {
-                    int status = 6; int ErrorFlag = 1;
-                    this.SenderrorMailtoUploader(loginId, fileuploadId, status, ErrorFlag);
-                }
-                return new DataTable();
-            }
-        }
+		INSERT INTO #NSA(PrimaryKey,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,ProjectID,
+		UploadedBy,ExceptionRemarks)
+		SELECT PK_SGPShiftTimePayoutID,AssociateID,ISNULL(STM.ShiftTypeName,''),CONVERT(VARCHAR,StartDate,101)
+		StartDate,CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime
+		,CONVERT(VARCHAR(5),EndTime,108) EndTime,STP.ProjectID,STP.CreatedBy UploadedBy,isnull(ExceptionReason,'')
+		ExceptionRemarks 
+		FROM EXP.SGPShiftTimePayout STP WITH (NOLOCK)
+		Left Outer JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.ShiftType=STM.PK_ShiftTypeID
+		WHERE STP.ROWSTATUS=1 AND (@COMMONTH IS NULL OR MONTH(STP.CreatedDate)=@COMMONTH) 	AND 
+		YEAR(STP.CreatedDate)=YEAR(GETDATE())	
+		AND STP.Fk_ComponentCountrymappingid=@ComponentCountryMappingId 
+		AND ((STP.ProjectID=@ProjectId AND ISNULL(@ProjectId,'')<>'') or (ISNULL(@ProjectId,'')=''))
+		AND  STP.ProjectID LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))  and STP.ProjectID=@projectID
+		AND (( @ComponentGroupID IN (15,16) AND @CountryID=5 AND STP.CreatedBy=@LoginID )
+      OR ( NOT(@ComponentGroupID IN (15,16) AND @CountryID=5)))
+		ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC
+        END
+        END           
+END 
+	IF(@getPages=0)
+		    BEGIN
+		IF @sortOrder = 1
+			BEGIN
+				EXEC('SELECT Rowno,PrimaryKey,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+				UploadedBy,ExceptionRemarks FROM
+				(SELECT ROW_NUMBER() OVER (ORDER BY '+@orderby+' ASC) AS [RowNo],* FROM #NSA) t
+				WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+		 ELSE
+			BEGIN
+				EXEC('select Rowno,PrimaryKey,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+				UploadedBy,ExceptionRemarks FROM
+				(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderby+' ASC) AS [RowNo],* FROM #NSA) t
+				WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+	END
+		ELSE
+			BEGIN
+		SELECT @totrec=count(*) FROM #NSA --get total record in grid
+		IF (@totrec%@iDisplayLength)=0
+			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+		ELSE
+			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+	END
+		DROP TABLE #NSA
+	--END TRY
+ --BEGIN CATCH
+ --SELECT @@ERROR
+ --END CATCH 
+	--END
+
+/******************************************************************
+This User-defined Stored Procedure
+used in SPAY  to allow 
+faster execution and reduce network traffic.
+****************************************************************/ 

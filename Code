@@ -1,178 +1,796 @@
 USE [OneC_SPay]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_SGP_GetUploaderExceptionRecord_NSA]    Script Date: 25-11-2025 20:54:06 ******/
+/****** Object:  StoredProcedure [dbo].[usp_APAC_OCA_MoveExpToValidUploaderData]    Script Date: 25-11-2025 18:27:13 ******/
 --SET ANSI_NULLS ON
 --GO
 --SET QUOTED_IDENTIFIER ON
 --GO
+-- ===============================================================================================================       
+-- AUTHOR     : TEAM
+-- CREATE DATE: JULY 20, 2020    
+-- DESCRIPTION: Added the documentation for the stored procedure
+-- AUTHOR     : SAIKAT
+-- CREATE DATE: JULY 10, 2023    
+-- DESCRIPTION: ADDED REMARKS 
+-- =============================================================================================================== 
+--ALTER PROCEDURE [dbo].[usp_APAC_OCA_MoveExpToValidUploaderData]
+--(
+Declare
+    @KeyId int=611108,
+    @ComponentGrpID INT=39,
+	@DayType varchar(20)='Scheduled weekly off',
+	@Criteria varchar(20)='Mobile',	
+	@CriteriaType varchar(20)=2,			
+	@StartDate varchar(15)='07/15/2025',
+	@EndDate varchar(15)='07/15/2025',
+    @StartTime VARCHAR(5)='09:00',
+    @EndTime VARCHAR(5)='15:00',
+	@LoginId varchar(50)='2021518',
+	@MailUploadId VARCHAR(50)='CONT6E6893D5206C4BF79A068FA0E97989DA',	
+	@CountryID int=7,
+	@ComponentCountryMappingId INT =193,
+	@ApproverID varchar(10)='',
+	@Remarks varchar(600)='',
+	@ProjectId varchar(50)=''
+--)
+--AS
+--SET NOCOUNT ON
+--BEGIN
+--BEGIN TRY
 
----- ===========================================================================================================================================      
----- AUTHOR     : CHITRA A(316271)      
----- CREATE DATE: JUNE 10, 2015      
----- DESCRIPTION: TO GET THE EXCEPTION DATA TO POPULATE IN THE GRID  FRO TRT SPECIAL INPUTS 
----- =========================================================================================================================================== 
-      
---ALTER PROCEDURE  [dbo].[usp_SGP_GetUploaderExceptionRecord_NSA]      
---(      
-    Declare
-	@COMPONENTGROUPID INT=15,      
-	@searchData VARCHAR(100)=NULL,      
-    @searchData2 VARCHAR(100)=NULL,    
-	@DdlData VARCHAR(100)=NULL,
-	@Month INT=11,
-	@PageNum int=1,
-	@IDisplayLength int=250,
-	@OrderBy varchar(30)='',
-	@SortOrder int=1,
-	@GetPages int=0,
-	@ProjectId VARCHAR(30)='1000319895',
-	@RoleID int=1,
-	@Loginid int='2271764',
-	@ComponentCountryMappingId int = 94
-	 
---)  
+-----------Declaring variables ---------------------
+DECLARE @ComponentId int, @AssociateID int,--@ProjectID varchar(10),
+@StandByHours float=null
+SELECT  @ComponentId=PK_COMPONENTID FROM COMPONENTMASTER WITH(NOLOCK) WHERE FK_COMPONENTGROUPID=@ComponentGrpID
 
---/******************************************************************
---This User-defined Stored Procedure
---used in SPAY  to allow 
---faster execution and reduce network traffic.
---****************************************************************/ 
---AS      
---BEGIN    
---BEGIN TRY 
---SET NOCOUNT ON        
+select @AssociateID= AssociateId,@StandByHours=NoOfHours from exp.OnCall_OverTime_Allowance 
+where PK_OnCall_OverTime_AllowanceID =@KeyId
+--select @ProjectID= ProjectID from exp.OnCall_OverTime_Allowance where PK_OnCall_OverTime_AllowanceID =@KeyId
 
-  Declare @Project table (ProjectID varchar(15))
-DECLARE @COMPONENTID INT=(CASE WHEN @COMPONENTGROUPID=15 THEN 55 WHEN @COMPONENTGROUPID=16 THEN 56 
-							   WHEN @COMPONENTGROUPID=41 THEN 110 END )
+-----------Declaring variables ---------------------
+DECLARE @CountryName varchar(20),@Countrycode varchar(10)
+Select @CountryName= Country from ComponentCountryMaster where PK_ComponentCountryID=@CountryID
+select @Countrycode=CountryID from ComponentCountryMaster where PK_ComponentCountryID=@CountryID
 
-DECLARE @Description VARCHAR(100)      
-DECLARE @COMMONTH VARCHAR(10),@RolePriority int,@CountryID INT 
+-----------Declaring variables ---------------------
+DECLARE @ApproverStatus varchar(100)
+select @ApproverStatus = isactive from centralrepository.dbo.vw_CentralRepository_Associate_details
+where associate_id=@ApproverId 
 
-SELECT @CountryID=FK_ComponentCountryID FROM ComponentCountryMapping with (nolock) 
-WHERE Pk_ComponentCountryMappingID=@ComponentCountryMappingId AND Rowstatus=1
+select @EndDate = case when IsNull(@EndDate, '') = '' then @startDate else @EndDate end 
+where @ComponentGrpID = 101 --StandBy OCA
 
+-----------Declaring variables ---------------------
+declare @Publicholiday varchar(15)=null
 
-IF(@Month=0 OR @Month='')  
- BEGIN  
-  SET @COMMONTH=NULL  
- END  
-ELSE  
- BEGIN  
-  SET @COMMONTH=@Month  
- END  
+    CREATE TABLE #OTEXCEPTION
+	(
+		EXCEPTIONREASON VARCHAR(8000) 
+	)
+-----------Declaring variables ---------------------
+Declare @Emplstatus varchar(20),@location varchar(30),@Country varchar(10),@Jobcode varchar(10),
+@DeptID varchar(20),@Empltype varchar(10),
+@Effdt varchar(20),@Company varchar(5),@Businessunit varchar(6),@GradeLevel varchar(10)
+	
+-----------Declaring variables ---------------------
+	DECLARE @BU VARCHAR(7),
+			@Grade VARCHAR(8),
+			@DepartmentID VARCHAR(10),
+			@MinEligibleDate DATETIME,
+			@MaxEligibleDate DATETIME,
+		    @StartDateTime DATETIME,
+            @EndDateTime DATETIME,
+			@GradeLevelID VARCHAR(10),
+			@EmplID INT
+		
+-----------Declaring variables ---------------------
+	DECLARE @SETIDLIST TABLE
+	(
+		Business_Unit VARCHAR(5),
+		Country_ID VARCHAR(3)
+	)
+	
+	INSERT INTO @SETIDLIST(Business_Unit,Country_ID)
+		SELECT DISTINCT Business_Unit,Country_ID 
+		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_HCMLocation WITH(NOLOCK) WHERE ISActive='A'
+	
+		  SELECT  @StartDateTime=CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '+CONVERT(VARCHAR,@StartTime))),
+           @EndDateTime =CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '+CONVERT(VARCHAR,@EndTime)))
+		   
+-------Insert in temp table -----------
+    INSERT INTO #OTEXCEPTION (EXCEPTIONREASON)
+	SELECT 'Associate''s DOJ should be lesser than claim date,' 
+	FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
+	WHERE AD.Associate_ID=@AssociateID AND AD.DATEOFJOINING>CONVERT(DATE,@StartDate) 
 
-
-IF(@COMPONENTGROUPID=15 or @COMPONENTGROUPID=16 or @COMPONENTGROUPID=41) -- 6DA,NSA, Shift Allowance
-BEGIN      
-DECLARE @iDisplayStart INT,@iDisplayEnd INT
-DECLARE @totrec INT
-SET @iDisplayEnd=@pageNum*@iDisplayLength
-SET @iDisplayStart=@iDisplayEnd-(@iDisplayLength-1)
-SET @orderBy=(CASE WHEN @orderBy ='' THEN '(SELECT 0)' ELSE @orderBy END)
-
-CREATE TABLE #NSA(PrimaryKey int,ShiftType Varchar(100),AssociateID varchar(10),StartDate varchar(20),
-EndDate varchar(20),StartTime varchar(10),EndTime varchar(10),
-ProjectID varchar(20),UploadedBy Varchar(7),ExceptionRemarks varchar(500))
-
-   IF(ISNULL(@searchData,'')='' and ISNULL(@searchData2,'')='')
-	BEGIN 
-
-		INSERT INTO #NSA(PrimaryKey,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,ProjectID,
-		UploadedBy,ExceptionRemarks)
-		 SELECT PK_SGPShiftTimePayoutID,AssociateID,isnull(STM.ShiftTypeName,''),CONVERT(VARCHAR,StartDate,101)
-		 StartDate,CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime
-		 ,CONVERT(VARCHAR(5),EndTime,108) EndTime,STP.ProjectID,STP.CreatedBy UploadedBy,isnull(ExceptionReason,'') 
-		 ExceptionRemarks 
-		 FROM EXP.SGPShiftTimePayout STP WITH (NOLOCK)
-		Left Outer JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.ShiftType=STM.PK_ShiftTypeID
-	 WHERE (STP.ProjectID=@ProjectId)
-	 and STP.Fk_ComponentCountrymappingid=@ComponentCountryMappingId 
-	  AND STP.ROWSTATUS=1 
-	  AND (@COMMONTH IS NULL OR MONTH(STP.CreatedDate)=@COMMONTH) 	AND YEAR(STP.CreatedDate)=YEAR(GETDATE())		  
-      AND (( @ComponentGroupID IN (15,16) AND @CountryID=5 AND STP.CreatedBy=@LoginID )
-      OR ( NOT(@ComponentGroupID IN (15,16) AND @CountryID=5)))
- 
-		 ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC
-
-
-	END
-	ELSE 
-BEGIN 
-    IF(ISNULL(@searchData,'')<>'' and ISNULL(@searchData2,'')='')
+	IF NOT EXISTS(SELECT TOP 1 1 FROM #OTEXCEPTION WITH (NOLOCK))
     BEGIN
-		INSERT INTO #NSA(PrimaryKey,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,ProjectID,
-		UploadedBy,ExceptionRemarks)
-		SELECT PK_SGPShiftTimePayoutID,AssociateID,ISNULL(STM.ShiftTypeName,''),CONVERT(VARCHAR,StartDate,101) 
-		StartDate,CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime
-		,CONVERT(VARCHAR(5),EndTime,108) EndTime,STP.ProjectID,STP.CreatedBy UploadedBy,isnull(ExceptionReason,'') 
-		ExceptionRemarks 
-		FROM EXP.SGPShiftTimePayout STP WITH (NOLOCK)
-		Left Outer JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.ShiftType=STM.PK_ShiftTypeID
-		WHERE STP.ROWSTATUS=1 AND (@COMMONTH IS NULL OR MONTH(STP.CreatedDate)=@COMMONTH) 	AND 
-		YEAR(STP.CreatedDate)=YEAR(GETDATE())	
-		and STP.Fk_ComponentCountrymappingid=@ComponentCountryMappingId and  STP.AssociateID LIKE
-		LTRIM(RTRIM('%' + @searchData + '%')) and STP.ProjectID=@projectID
-		AND (( @ComponentGroupID IN (15,16) AND @CountryID=5 AND STP.CreatedBy=@LoginID )
-      OR ( NOT(@ComponentGroupID IN (15,16) AND @CountryID=5)))
-		ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC
-    END
-    ELSE IF(ISNULL(@searchData,'')='' and ISNULL(@searchData2,'')<>'')
-      BEGIN
 
-		INSERT INTO #NSA(PrimaryKey,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,ProjectID,
-		UploadedBy,ExceptionRemarks)
-		SELECT PK_SGPShiftTimePayoutID,AssociateID,ISNULL(STM.ShiftTypeName,''),CONVERT(VARCHAR,StartDate,101)
-		StartDate,CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime
-		,CONVERT(VARCHAR(5),EndTime,108) EndTime,STP.ProjectID,STP.CreatedBy UploadedBy,isnull(ExceptionReason,'')
-		ExceptionRemarks 
-		FROM EXP.SGPShiftTimePayout STP WITH (NOLOCK)
-		Left Outer JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.ShiftType=STM.PK_ShiftTypeID
-		WHERE STP.ROWSTATUS=1 AND (@COMMONTH IS NULL OR MONTH(STP.CreatedDate)=@COMMONTH) 	AND 
-		YEAR(STP.CreatedDate)=YEAR(GETDATE())	
-		AND STP.Fk_ComponentCountrymappingid=@ComponentCountryMappingId 
-		AND ((STP.ProjectID=@ProjectId AND ISNULL(@ProjectId,'')<>'') or (ISNULL(@ProjectId,'')=''))
-		AND  STP.ProjectID LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))  and STP.ProjectID=@projectID
-		AND (( @ComponentGroupID IN (15,16) AND @CountryID=5 AND STP.CreatedBy=@LoginID )
-      OR ( NOT(@ComponentGroupID IN (15,16) AND @CountryID=5)))
-		ORDER BY STP.CreatedDate DESC,STP.ModifiedDate DESC
-        END
-        END           
-END 
-	IF(@getPages=0)
-		    BEGIN
-		IF @sortOrder = 1
-			BEGIN
-				EXEC('SELECT Rowno,PrimaryKey,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
-				UploadedBy,ExceptionRemarks FROM
-				(SELECT ROW_NUMBER() OVER (ORDER BY '+@orderby+' ASC) AS [RowNo],* FROM #NSA) t
-				WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-		 ELSE
-			BEGIN
-				EXEC('select Rowno,PrimaryKey,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
-				UploadedBy,ExceptionRemarks FROM
-				(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderby+' ASC) AS [RowNo],* FROM #NSA) t
-				WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
-			END
-	END
-		ELSE
-			BEGIN
-		SELECT @totrec=count(*) FROM #NSA --get total record in grid
-		IF (@totrec%@iDisplayLength)=0
-			SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
-		ELSE
-			SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
-	END
-		DROP TABLE #NSA
-	--END TRY
- --BEGIN CATCH
- --SELECT @@ERROR
- --END CATCH 
-	--END
+  	SELECT B.EMPLID ,B.EMPL_RCD ,B.EFFDT ,B.EFFSEQ ,B.ACTION ,B.ACTION_REASON ,B.ACTION_DT ,B.EMPL_STATUS,
+	B.DEPTID ,B.JOBCODE ,B.LOCATION ,         
+	B.COMPANY,B.HR_STATUS,B.BUSINESS_UNIT,B.SUPERVISOR_ID,B.PER_ORG into #Temp
+	FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock) 
+	WHERE B.emplid=convert(varchar,@AssociateID)	AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)  
+	FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B 
+	with (nolock) WHERE B.EMPLID = B_B.EMPLID 
+	 and B_B.action <> 'INA'   AND B.EMPL_RCD = B_B.EMPL_RCD   AND B_B.EFFDT = B.EFFDT)
 
-/******************************************************************
-This User-defined Stored Procedure
-used in SPAY  to allow 
-faster execution and reduce network traffic.
-****************************************************************/ 
+	 SELECT B.EMPLID,b.LOCATION AS LOCATION,B.BUSINESS_UNIT AS BU,HL.Country_ID AS CountryID,b.JOBCODE AS Grade,
+	 B.DEPTID AS DepartmentId,B.PER_ORG AS EmplType,B.EMPL_STATUS AS EmplStatus,B.EFFDT AS EFFDT,B.COMPANY
+	 INTO #STTEMP FROM #Temp B with (nolock)  
+	LEFT OUTER join  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
+	ON HL.HCMLocationCode=B.LOCATION 
+	 WHERE B.EFFDT = ( SELECT MAX(B_A.EFFDT)  
+	 FROM  CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock) WHERE B.EMPLID = B_A.EMPLID  
+	 AND B.EMPL_RCD=B_A.EMPL_RCD   and B_A.action <> 'INA'   AND B_A.EFFDT<= convert(date,@StartDate))  
+	 AND B.HR_STATUS = 'A'   AND (B.EMPL_STATUS IN ('A','L','P','W')   
+	 OR (B.EMPL_STATUS = 'S'   AND B.ACTION <> 'OGA'))   and b.action <> 'INA' 
+
+	 UNION
+
+	  SELECT  A.EMPLID,A.LOCATION ,A.BUSINESS_UNIT,HL.Country_ID,A.JOBCODE ,
+	 A.DEPTID ,A.PER_ORG,A.EMPL_STATUS,A.EFFDT,A.COMPANY FROM #Temp A with (nolock) 
+	LEFT OUTER join  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
+	ON HL.HCMLocationCode=A.LOCATION 
+	 WHERE  A.EFFDT = ( SELECT MAX(B_A.EFFDT)  
+	 FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A with (nolock) WHERE A.EMPLID = B_A.EMPLID   
+	 AND B_A.EFFDT<= convert(date,@StartDate))   
+	 AND A.EMPL_RCD = ( SELECT MAX(C_A.EMPL_RCD) 
+	 FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference C_A with (nolock) WHERE C_A.EMPLID = A.EMPLID   
+	 and C_A.action <> 'INA'   AND C_A.EFFDT = A.EFFDT)   AND A.HR_STATUS = 'I'   
+	 AND NOT EXISTS ( SELECT 'X'  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B with (nolock) 
+	 WHERE A.EMPLID = B.EMPLID  
+	 AND B.EFFDT = ( SELECT MAX(B_A.EFFDT)  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_A 
+	 WHERE B.EMPLID = B_A.EMPLID   AND B.EMPL_RCD=B_A.EMPL_RCD   
+     and b.action <> 'INA'   AND B_A.EFFDT<= convert(date,@StartDate))  
+	 AND B.EFFSEQ= ( SELECT MAX(B_B.EFFSEQ)  FROM CentralRepository.dbo.vw_CentralRepository_JOB_Reference B_B
+	  with (nolock) 
+	 WHERE B.EMPLID = B_B.EMPLID   AND B.EMPL_RCD = B_B.EMPL_RCD            
+     and b.action <> 'INA'   AND B_B.EFFDT = B.EFFDT)    
+     AND B.HR_STATUS = 'A'   AND (B.EMPL_STATUS IN ('A','L','P','W')    
+	 OR (B.EMPL_STATUS = 'S'   AND B.ACTION <> 'OGA')))
+
+    select @EmplID=EMPLID,@Emplstatus=EmplStatus,
+	@location=location,@Grade=Grade,
+	@BU=BU,
+	@Jobcode=Grade,@DeptID=DepartmentId,
+	@Empltype=EmplType,@Company=COMPANY,@Businessunit=BU from #STTEMP
+
+	set @Publicholiday = (SELECT DISTINCT holiday 
+	FROM  CentralRepository.dbo.VW_CentralRepository_HolidayDate HD 		  
+	INNER JOIN CentralRepository.dbo.VW_CentralRepository_HCMLocation HL 
+	with(nolock) on HL.Business_Unit= HD.SetId		
+	where HD.HOLIDAY= @StartDate 
+	and month(HD.HOLIDAY)=month(@StartDate) 
+	and year(HD.HOLIDAY)=year(@StartDate)  
+	and datepart(dw,holiday) not in (1,7) and HD.LOCATION=@Location )
+
+	-------------------Project validity check--------------------
+	Declare @finalflag INT=0
+	CREATE TABLE #PROJECTTAGCHECK(ProjectID varchar(20),AssociateID varchar(10),Date DateTime,flag int)
+	Insert into #PROJECTTAGCHECK(ProjectID ,AssociateID ,Date,flag)
+	SELECT @ProjectId,@AssociateId, DATEADD(DAY, nbr - 1, @StartDate),0
+	FROM    ( SELECT    ROW_NUMBER() OVER ( ORDER BY c.object_id ) AS nbr
+          FROM  sys.columns c
+        ) nbrs
+	WHERE   nbr - 1 <= DATEDIFF(DAY, @StartDate, @EndDate)
+
+	update P set flag=1 from #PROJECTTAGCHECK P
+	INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ALLOCATION CAL WITH(NOLOCK) ON CAL.Project_ID=P.ProjectID 
+	AND CAL.Associate_ID=P.AssociateID AND CONVERT(DATE,P.Date) 
+	BETWEEN CONVERT(DATE,CAL.Allocation_Start_Date) AND CONVERT(DATE,CAL.Allocation_End_Date)
+
+	Select @finalflag=min(flag) from #PROJECTTAGCHECK
+
+	drop table #PROJECTTAGCHECK
+
+	-------------Drop temp table ------------
+DROP TABLE #Temp
+
+    SELECT @Country=Country_ID from CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION with (nolock) 
+	where HCMLocationCode=@Location
+	SELECT @GradeLevelID=Job_Family  FROM CentralRepository.dbo.vw_CentralRepository_Designation WITH(NOLOCK)
+	WHERE JobCode=@grade AND Bussiness_unit=@BU 
+	 	 
+-------Insert in temp table -----------
+	INSERT INTO #OTEXCEPTION(EXCEPTIONREASON)
+	SELECT DISTINCT 'Associate Details not available in CRS,' WHERE ISNULL(@AssociateID,'')<>ISNULL(@EmplID,'')
+
+	 IF(@AssociateID=@EmplID)
+	BEGIN
+	
+----------Check counry id----------
+	IF(@ComponentGrpID = 39 and @CountryId = 7)
+	BEGIN
+	INSERT INTO #OTEXCEPTION(EXCEPTIONREASON)
+		Select Distinct COALESCE((CASE WHEN @DayType IS NULL or @DayType='-1' 
+		THEN 'Invalid Day Type,' ELSE NULL END), '') 
+		+
+		 COALESCE((CASE WHEN @Criteria IS NULL THEN 'Invalid Criteria Type,' ELSE NULL END), '')	   
+	END
+	
+-------Insert in temp table -----------
+	INSERT INTO #OTEXCEPTION(EXCEPTIONREASON)
+	
+		SELECT DISTINCT	 COALESCE((CASE WHEN ((@EmplStatus NOT IN ('A','L','T') AND LEN(@AssociateID) in (6,7))
+		OR (AD.ASSOCIATE_ID IS NULL AND LEN(@AssociateID) in (6,7))) 
+											THEN 'AssociateID is InActive,' END), '') 
+		+
+		COALESCE((CASE WHEN (@MailUploadId IS NULL and @CountryId not in (7,8)) 
+		THEN 'Approval Mail is Mandatory,' ELSE NULL END), '')
+		+
+	
+		COALESCE((CASE WHEN (AD.COMPANY IS NULL AND LEN(@AssociateID) in (6,7)) 
+												THEN 'Associate Company Unavailable,' END), '')  
+		+
+		COALESCE((CASE WHEN (AD.BUSINESS_UNIT IS NULL AND LEN(@AssociateID) in (6,7)) 
+												THEN 'Associate SetId Unavailable,'END), '') 			                                       
+		+
+		 COALESCE((CASE WHEN @EmplType<>'EMP' THEN 'Associate is a contractor,'  END), '')
+		+
+		COALESCE((CASE WHEN AD.IsActive = 'T' and (DATEDIFF(DD,EffDt ,@StartDate) > 30 
+		OR  DATEDIFF(DD,EffDt,@EndDate) > 30)  
+			 THEN 'Associate’s termination date is greater than 30 days. Special pay can’t be processed,' 
+			 ELSE NULL END), 
+			 '')   
+			+
+		COALESCE((CASE WHEN Convert(datetime,@EndDate)<Convert(datetime,@StartDate) and @ComponentGrpID <>101
+		THEN 'End Date Should be greater than Start Date,' ELSE NULL END),'')		
+		+       
+        COALESCE((CASE WHEN (ISDATE(@StartDate+' '+ @StartTime)=1 AND ISDATE(@Startdate)=1
+		AND ISDATE(@EndDate+' '+ @EndTime)=1 AND ISDATE(@EndDate)=1 AND 
+        DATEDIFF(mi,CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '+CONVERT(VARCHAR,@StartTime)))
+		,CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '
+        +CONVERT(VARCHAR,@EndTime)))) >1440) and @CountryId not in (8)
+        THEN 'Difference Between StartTime and EndTime should not exceed 24 hours, ' END),'')
+		+
+		-- COALESCE((CASE WHEN (ISDATE(@StartDate+' '+ @StartTime)=1 AND ISDATE(@Startdate)=1 AND ISDATE(@EndDate+' '
+		--+ @EndTime)=1 AND ISDATE(@EndDate)=1 AND 
+  --      DATEDIFF(mi,CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '+CONVERT(VARCHAR,@StartTime))),
+		--CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '
+  --      +CONVERT(VARCHAR,@EndTime)))) >1440) and  datepart(dw,@StartDate) in (1,7) and @CountryId in (8) 
+		--and @ComponentGrpID <>101
+  --      THEN 'Difference Between StartTime and EndTime should not exceed 24 hours in a Weekend, ' END),'')        
+		--+
+		--COALESCE((CASE WHEN (ISDATE(@StartDate+' '+ @StartTime)=1 AND ISDATE(@Startdate)=1 AND ISDATE(@EndDate+' '
+		--+ @EndTime)=1 AND ISDATE(@EndDate)=1 AND 
+  --      DATEDIFF(mi,CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '+CONVERT(VARCHAR,@StartTime))),
+		--CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '
+  --      +CONVERT(VARCHAR,@EndTime)))) >840) and @CountryId in (8) and  @ComponentGrpID <>101 
+		--and  datepart(dw,@StartDate) not in (1,7)
+		--THEN 'Difference Between StartTime and EndTime should not exceed 14 hours in a Weekday, ' END),'')
+  --      +	
+		COALESCE((CASE WHEN (ISDATE(@Startdate)=1  AND 
+		 (cast(@StandByHours as int)*60)+((@StandByHours-cast(@StandByHours as int))*60)>1440
+		and	datepart(dw,@StartDate) in (1,7) and @CountryId in (8) and @ComponentGrpID =101)
+        THEN 'Maximum number of hours allowed during Weekend are 24, ' END),'') -- Weekend for AUS
+         +
+		COALESCE((CASE WHEN (ISDATE(@Publicholiday)=1  AND 
+		 (cast(@StandByHours as int)*60)+((@StandByHours-cast(@StandByHours as int))*60)>1440
+		and	datepart(dw,@Publicholiday) not in (1,7) and @CountryId in (8) and @ComponentGrpID =101) 
+        THEN 'Maximum number of hours allowed during Public holiday are 24, ' END),'') -- Public holiday for AUS 
+        +
+		COALESCE((CASE WHEN ISDATE(@Startdate)=1 AND isnull(@Publicholiday,'')='' and
+		(cast(@StandByHours as int)*60)+((@StandByHours-cast(@StandByHours as int))*60)>900
+		and @CountryId in (8) and  datepart(dw,@StartDate) not in (1,7)and @ComponentGrpID =101
+        THEN 'The maximum number of hours allowed for weekday is 15, ' END),'') -- Weekday for AUS       
+        +
+        COALESCE((CASE WHEN (ISDATE(@StartDate+' '+@StartTime)=1 AND ISDATE(@Startdate)=1 
+		AND ISDATE(@EndDate+' '+@EndTime)=1 AND ISDATE(@EndDate)=1)
+        AND ((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,@Startdate)+' '
+		+CONVERT(VARCHAR,@Starttime))))%5)<>0  OR 
+        ((DATEPART(MINUTE,CONVERT(DATETIME,(CONVERT(VARCHAR,@EndDate)+' '
+		+CONVERT(VARCHAR,@EndTime))))%5)<>0 )) and @ComponentGrpID <>101
+		AND @CountryId NOT IN (8,9)
+		THEN 'Time should be in multiples of 5,' END), '')                 
+        +
+		 COALESCE((CASE WHEN (ISDATE(@EndDate+' '+ @EndTime)=1 AND ISDATE(@EndDate)=1 
+		AND CONVERT(DATETIME,(@EndDate+' '+ @EndTime)) < CONVERT(DATETIME,(@StartDate+' '+ @StartTime))
+		AND ISDATE(@StartDate+' '+ @StartTime)=1 AND ISDATE(@StartDate)=1  )  and @ComponentGrpID <>101
+		AND @StartDate = @EndDate
+		THEN 'End Time Should be greater than Start Time,' ELSE NULL END), '') 
+	   +
+        COALESCE((CASE WHEN ((ISDATE(@StartDate)=1 AND @StartDate >convert(date,(CONVERT(VARCHAR,year(getdate()))
+		+'-'+CONVERT(VARCHAR,month(getdate()))+'-'+'18')))
+        OR(ISDATE(@Enddate)=1 AND @Enddate >convert(date,(CONVERT(VARCHAR,year(getdate()))+'-'
+		+CONVERT(VARCHAR,month(getdate()))+'-'+'19')))) AND @CountryId NOT IN (8,9)
+        THEN 'Claim cannot be Raised for Future Dates,' ELSE NULL END), '') 
+        +
+        COALESCE((CASE WHEN @StartDate=@EndDate AND @STARTTIME=@ENDtIME and @ComponentGrpID <>101
+		THEN 'StartDateTime and EndDateTime is Equal,' ELSE '' END), '') 
+        +
+		COALESCE((CASE WHEN LEN(@ProjectId) <> 10 OR (SELECT COUNT(1) 
+		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus WITH (NOLOCK)
+		WHERE Project_Status='A' and EFF_STATUS = 'A' AND effdt = 
+		(select max(effdt) from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus
+		where project_Id=CONVERT(VARCHAR(10),@ProjectId))
+		AND EFFSEQ = (select max(EFFSEQ) from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
+		where project_Id=CONVERT(VARCHAR(10),@ProjectId)) AND PROJECT_ID=CONVERT(VARCHAR(10),@ProjectId))=0 
+		THEN 'ProjectId is Invalid,' ELSE NULL END), '')    
+		 +
+  	    COALESCE((CASE WHEN ISNULL(@ApproverId,'')<>'' and ISNULL(@ApproverStatus,'') <> 'A' 
+		THEN 'ApproverID is InActive,' END), '') 		
+		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
+        WHERE AD.Associate_ID=CONVERT(VARCHAR,@AssociateID) 
+	
+	 UNION ALL     
+	  
+            SELECT DISTINCT 'Setid is not configured for this component,' WHERE @BU 
+			not in (Select Setid from Policy.SetIdMaster WITH (nolock) 
+			where Rowstatus=1 and FK_ComponentCountryMappingId= @ComponentcountryMappingID)
+
+     UNION ALL
+
+            SELECT DISTINCT 'Ineligible Grade,' WHERE @GradeLevelID 
+			not in (Select GradeLevelId from Policy.GradeMaster WITH (nolock) 
+			where Rowstatus=1 and FK_ComponentCountryMappingId= @ComponentcountryMappingID)               
+
+	UNION ALL
+
+		SELECT DISTINCT 
+		COALESCE((CASE WHEN SL.Country_ID IS NULL  THEN 'Associate not active in '+Country
+		+' Payroll as on claim date,' ELSE NULL END), '')
+		AS ExceptionReason
+		FROM ComponentCountryMaster CCM LEFT OUTER JOIN @SETIDLIST SL
+		ON (SL.Country_ID=CCM.SETIDDivision OR SL.Country_ID=CCM.CountryID) 
+		and BUSINESS_UNIT=@Businessunit
+		where PK_ComponentCountryID=@CountryId
+
+	 UNION ALL	
+
+          SELECT DISTINCT (CASE WHEN (CONVERT(DATE,@StartDate)<=
+		  (CONVERT(DATE,(DATEADD(MM, -6,CONVERT(DATE,CONVERT(VARCHAR,YEAR(GETDATE()))+'-'+
+		  CONVERT(VARCHAR,MONTH(GETDATE()))+'-'+'18'))))))
+          THEN 'Allowance claim date exceeds Six months from Previous month,'END)   
+		  	  
+      UNION ALL
+				SELECT  DISTINCT (CASE WHEN @StartDate > getdate() 
+				THEN 'Allowance claim cannot be raised for future Dates ,' else null END) 
+     UNION ALL
+
+		  select distinct 'Associate is on leave as on claim date,'
+		  from CentralRepository.dbo.vw_CentralRepository_EAM_Leavedata with (nolock)
+	      where Empl_Id=CONVERT(varchar(10),@AssociateID) and @StartDate
+		  between BGN_Dt and End_DT and WF_Status='A' and @CountryID not in(8,9)	
+
+	 UNION ALL	
+               
+            SELECT DISTINCT (CASE WHEN STATUS=1 THEN 'Data has been already uploaded,' WHEN STATUS=5 
+			THEN 'Data has been already processed,'
+            WHEN STATUS=14 THEN 'Already Approved By PFSS Admin,'
+		    WHEN STATUS=21 THEN 'Already Approved By Home Manager,'
+            END) FROM pr.OnCall_OverTime_Allowance WITH (NOLOCK)
+            WHERE RowStatus=1  
+		    and FK_Componentcountrymappingid=@ComponentCountryMappingId
+		    AND ProjectId=@ProjectId AND ((@StartDateTime BETWEEN StartDateTime AND EndDateTime)
+			OR( @EndDateTime BETWEEN StartDateTime AND EndDateTime))
+            AND AssociateID=@AssociateID
+
+	UNION ALL
+
+		  SELECT DISTINCT (CASE WHEN STATUS=1
+		  THEN 'Data allowance has been already uploaded for Different ProjectId,' 
+		  WHEN STATUS=5 THEN 'Data has been already processed for Different ProjectId,'
+          WHEN STATUS=14 THEN 'Data has been already Approved for Different ProjectId,'
+		   WHEN STATUS=21 THEN 'Already Approved By Home Manager for Different ProjectId,'
+          END) FROM pr.OnCall_OverTime_Allowance WITH (NOLOCK)
+          WHERE RowStatus=1  and FK_Componentcountrymappingid=@ComponentCountryMappingId
+		   AND ProjectId<>@ProjectId AND ((@StartDateTime BETWEEN StartDateTime AND EndDateTime )
+		   OR( @EndDateTime BETWEEN StartDateTime AND EndDateTime))
+          AND AssociateID=@AssociateID
+
+	UNION ALL	
+               
+          SELECT DISTINCT (CASE WHEN STATUS=1 THEN 'Data has been already uploaded'
+		  WHEN STATUS=5 THEN 'Data has been already processed'
+          WHEN STATUS=14 THEN 'Already Approved By PFSS Admin'
+		  WHEN STATUS=21 THEN 'Already Approved By Home Manager'
+          END) FROM pr.OnCall_OverTime_Allowance WITH (NOLOCK)
+          WHERE RowStatus=1  AND ProjectId=@ProjectId AND StartDate=@StartDate	
+          AND AssociateID=@AssociateID and FK_ComponentCountryMappingID=205
+
+	 UNION ALL
+
+		  SELECT DISTINCT (CASE WHEN STATUS=1 THEN 'Data has been already uploaded for Different ProjectId'
+		  WHEN STATUS=5 THEN 'Data has been already processed for Different ProjectId'
+          WHEN STATUS=14 THEN 'Data has been already Approved for Different ProjectId'
+		  WHEN STATUS=21 THEN 'Already Approved By Home Manager for Different ProjectId'
+          END) FROM pr.OnCall_OverTime_Allowance WITH (NOLOCK)
+          WHERE RowStatus=1  AND ProjectId<>@ProjectId AND StartDate=@StartDate
+          AND AssociateID=@AssociateID and FK_ComponentCountryMappingID=205
+
+      UNION ALL
+		--0.1
+       SELECT CASE WHEN @finalflag=1 Then ''  
+	   Else 'Associate should be tagged to the project as on claim date' end AS ExceptionReason
+
+    END	
+	
+-----------Declaring variables ---------------------
+ DECLARE @Amount MONEY,@TimeDifference varchar(10),@checkStartDateTime Datetime,@checkEndDateTime DateTime
+
+set @Criteria = (select case when @Criteria='Mobile' then 1 when @Criteria='Office' then 2 else 0 end)
+
+set @DayType= (select case WHEN @DayType='WeekDay' then 1 WHEN @DayType='Scheduled weekly off' then 2 else 0 end)
+
+if(@StartDate=@Enddate)
+ BEGIN
+	Select  @checkStartDateTime=CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '+CONVERT(VARCHAR,'00:00')))
+
+	Select  @checkEndDateTime=CONVERT(DATETIME,(CONVERT(VARCHAR,CONVERT(DATE,(CONVERT(DATETIME,@StartDate))))+' '
+	+CONVERT(VARCHAR,'06:00')))
+ END
+ ELSE
+ BEGIN
+	Select  @checkStartDateTime=CONVERT(DATETIME,(CONVERT(VARCHAR,@StartDate)+' '+CONVERT(VARCHAR,'23:59')))
+
+	Select  @checkEndDateTime=CONVERT(DATETIME,(CONVERT(VARCHAR,CONVERT(DATE,(CONVERT(DATETIME,@StartDate)+1)))+' '
+	+CONVERT(VARCHAR,'06:00')))
+ END
+ 
+----------Check counry id----------
+ if(@CountryId=7)
+BEGIN
+	IF(@Criteria=1 and @DayType=1)
+	BEGIN    
+			if(((@StartDateTime between @checkStartDateTime and @checkEndDateTime) 
+			or  (@EndDateTime between @checkStartDateTime and @checkEndDateTime)) 
+			or  (@checkStartDateTime>@StartDateTime and @EndDateTime>@checkEndDateTime) )
+		BEGIN
+			set  @Amount=(select Distinct Above1Month from policy.policymaster 
+			where fk_ComponentCountrymappingid=193 and CriteriaType=1)
+		END
+		ELSE
+		BEGIN
+			set  @Amount=(select Distinct Upto1Month from policy.policymaster 
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=1)
+		END		
+	END
+	ELSE IF(@Criteria=1 and @DayType=2)
+	BEGIN
+		Select @TimeDifference=datediff(hh,@StartDateTime,@EndDateTime) 
+		if(@TimeDifference<4)
+			set  @Amount=(select Distinct Amount from policy.policymaster
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=1 and MinEligibleHours=4)
+		ELSE if(@TimeDifference>=4 and @TimeDifference <8)
+			set  @Amount=(select Distinct Amount from policy.policymaster 
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=1 and MinEligibleHours=8)
+		ELSE 
+			set  @Amount=(select Distinct Amount from policy.policymaster 
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=1 and MaxEligibleHours=8)
+	END
+	ELSE IF(@Criteria=2 and @DayType=1)
+	BEGIN    
+		if((@StartDateTime between @checkStartDateTime and @checkEndDateTime) 
+		or  (@EndDateTime between @checkStartDateTime and @checkEndDateTime) 
+			or  (@checkStartDateTime>@StartDateTime and @EndDateTime>@checkEndDateTime) )
+		BEGIN
+			set  @Amount=(select Distinct Above1Month from policy.policymaster 
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=2)
+		END
+		ELSE
+		BEGIN
+			set  @Amount=(select Distinct Upto1Month from policy.policymaster 
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=2)
+		END		
+	END
+
+	ELSE IF(@Criteria=2 and @DayType=2)
+	BEGIN
+		Select @TimeDifference=datediff(hh,@StartDateTime,@EndDateTime) 
+		if(@TimeDifference<4)
+			set  @Amount=(select Distinct Amount from policy.policymaster 
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=2 and MinEligibleHours=4)
+		ELSE if(@TimeDifference>=4 and @TimeDifference <8)
+			set  @Amount=(select Distinct Amount from policy.policymaster
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=2 and MinEligibleHours=8)
+		ELSE 
+			set  @Amount=(select Distinct Amount from policy.policymaster 
+			where fk_ComponentCountrymappingid=@ComponentCountryMappingId and CriteriaType=2 and MaxEligibleHours=8)
+	END
+
+END
+
+----------Check counry id----------
+IF( @CountryId=9)
+	BEGIN
+-----------Declaring variables ---------------------
+		DECLARE @MonthlyBaseSalary float,@WeeklyBaseSalary float,@Policyamount float,@RoughAmount float,
+		@Keyvalue2 varchar(30),	@Keyvalue3 VARCHAR(30),@Keyvalue4 VARCHAR(30),
+		@setcheck INT = NULL,@depcheck int =null,@retFlag int =null
+	
+		SELECT TOP 1 @MonthlyBaseSalary=CASE WHEN CompFrquency='A' THEN CAST(CompRate AS FLOAT)/12.0 
+		WHEN CompFrquency='M' THEN CompRate END 
+		FROM HCMCompensationData WITH(NOLOCK) WHERE associateid=@AssociateID AND country=@Countrycode 
+		AND effectivedate<=@startdate
+		ORDER BY Effectivedate DESC,EffectiveSequence DESC
+	
+		SELECT @Policyamount= Amount from policy.PolicyMaster
+		where fk_componentcountrymappingid=@ComponentCountryMappingId
+	
+		SET @WeeklyBaseSalary= @MonthlyBaseSalary /4.0;
+		SET @RoughAmount= @WeeklyBaseSalary * @Policyamount 	
+		SELECT @Amount= ROUND(@RoughAmount-@WeeklyBaseSalary,2)
+
+		IF(@ComponentGrpID=39)
+		BEGIN
+			--To Check associate is servian/Contino Set Amount is 400 else existing amount
+			Select @Keyvalue2 = CUserDefined1 ,@Keyvalue3=CUserDefined2,@Keyvalue4=CUserDefined3
+			from MasterCodes where CparentRef =53 and CcodeId=1
+
+			SELECT @setcheck = CASE WHEN COUNT(A.Associate_ID)>0 THEN 1 ELSE 0 END 
+			FROM CentralRepository..vw_CentralRepository_Associate_Details A WITH(NOLOCK)
+			INNER JOIN dbo.SplitString(@Keyvalue2,',') B on A.Business_Unit=B.value
+			WHERE A.Associate_ID = @LoginId AND A.isActive IN ('A','L')
+
+			SELECT @depcheck = CASE WHEN COUNT(A.Associate_ID)>0 THEN 1 ELSE 0 END 
+			FROM CentralRepository..vw_CentralRepository_Associate_Details A WITH(NOLOCK)
+			INNER JOIN dbo.SplitString(@Keyvalue4,',') B on A.Dept_ID=B.value
+			WHERE A.Associate_ID = @LoginId AND A.isActive IN ('A','L')
+
+			SELECT @retFlag = CASE when (@setcheck=1 or @depcheck=1) THEN 1 else 0 end		 
+			SELECT  @Amount = CASE WHEN @retFlag=1  THEN @Keyvalue3 ELSE  @Amount END 
+		END
+
+	END
+	
+----------Check counry id----------
+IF(@CountryID=8)
+BEGIN
+
+-----------Declaring variables ---------------------
+	DECLARE @AnnualBasicPay float,@ActualAmount float,@NicheAllowance float,@HourlyRate Float,@Keyvalue varchar(30),
+	@Keyvalue1 VARCHAR(30)
+
+	SELECT TOP 1 @AnnualBasicPay= CompRate 
+	FROM HCMCompensationData WITH(NOLOCK) WHERE CompFrquency='A'
+	and associateid=@AssociateID AND country=@Countrycode AND effectivedate<=@startdate
+	ORDER BY Effectivedate DESC,EffectiveSequence DESC
+
+	select top 1 @NicheAllowance = CompRate 
+	FROM HCMNicheAllowance WITH(NOLOCK) WHERE Comp_Frequency='A' and associateid=@AssociateID  
+	AND effectivedate<=@startdate  AND Region=@Countrycode
+	ORDER BY Effectivedate DESC,EffectiveSequence DESC
+
+	set @HourlyRate=(isnull(@AnnualBasicPay,0) + isnull(@NicheAllowance,0)) /(12*164.667)
+	set @ActualAmount= ROUND(@HourlyRate*(0.2),0)
+	
+	Select @Amount= @ActualAmount*@StandByHours where @ComponentGrpID = 101 --StanBy OCA
+	
+	--To Check associate is servian/Contino Set Amount is 400 else existing amount
+	Select @Keyvalue = CUserDefined1 ,@Keyvalue1=CUserDefined2
+	from MasterCodes where CparentRef =52 and CcodeId=1
+	 
+	SELECT  @Amount = CASE WHEN @ComponentGrpID = 39 THEN @Keyvalue1 ELSE  @Amount END 
+
+END
+
+-------Insert in temp table -----------
+	Insert into #OTEXCEPTION(EXCEPTIONREASON)
+   SELECT DISTINCT 'Amount is not configured' Where   
+   (convert(float,@Amount)<=0 or convert(FLOAT,@Amount) is null or @Amount='') 
+
+END
+
+	Select PST.PK_SGPShiftTimePayoutID as PRPkID,@AssociateID as AssociateID,
+	@Amount as newAmount,PST.Amount as PRAmount
+			INTO #ProcessedDataCheck1
+			from PR.SGPShiftTimePayout PST WITH(NOLOCK) 
+			INNER JOIN ComponentCountryMapping CCM with (nolock)
+			ON CCM.PK_ComponentCountryMappingID=PST.FK_ComponentCountryMappingID
+			WHERE PST.AssociateID=@AssociateID AND 
+			(((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)
+			OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)
+			OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
+			OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
+			OR (PST.StartDateTime=@StartDateTime and PST.EndDateTime=@EndDateTime))) 
+			AND (CCM.FK_ComponentID in (56) and CCM.FK_ComponentCountryID in (7))
+			AND PST.RowStatus=1 AND PST.Status=1 
+
+			Insert into Pr.SGPShiftTimePayout_log(Fk_SGPShiftTimepayoutID,AssociateID,Fk_ShifttypeID,
+			ProjectID,Startdate,Starttime,Startdatetime,Enddate,
+			Endtime,Enddatetime,Amount,Grade,inputremarks,RejectReason,RejectedBy,Fk_RejectedRoleID,Status,
+			Setid,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,LogCreatedby,LogCreateddate,
+			FK_componentcountrymappingid)
+
+			select PK_SGPShiftTimePayoutID,PD.AssociateID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
+			Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,
+			inputremarks,RejectionReason,RejectedBy,Fk_RejectedRoleID,Status,Setid,Createdby,Createddate,
+			Modifiedby,Modifieddate,Remarks,Rowstatus,@LoginId,getdate(),
+			FK_componentcountrymappingid
+			FROM PR.SGPShiftTimePayout PD WITH(NOLOCK)
+			INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_SGPShiftTimePayoutID=PTB.PRPkID
+			where PD.Amount<PTB.newAmount and PD.RowStatus=1
+
+			INSERT INTO EXP.SGPShiftTimePayout (AssociateID, ShiftType, ProjectID, StartDate, StartTime, 
+			EndDate, EndTime, InputRemarks, ExceptionReason, SpecialcaseMail,CreatedBy, CreatedDate,
+			RowStatus,FK_componentcountrymappingid)
+			SELECT PD.AssociateID, FK_ShiftTypeID,ProjectID,Startdate,Starttime,Enddate,Endtime,
+			InputRemarks,'Allowance with higher amount processed as per policy',SpecialcaseMail,CreatedBy,
+			CreatedDate,1,FK_componentcountrymappingid
+			FROM PR.SGPShiftTimePayout PD WITH(NOLOCK) 
+			INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_SGPShiftTimePayoutID=PTB.PRPkID
+			where PD.Amount<PTB.newAmount and PD.RowStatus=1
+
+			Update PD set PD.RowStatus=0
+			FROM PR.SGPShiftTimePayout PD WITH(NOLOCK) 
+			INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_SGPShiftTimePayoutID=PTB.PRPkID
+			where PD.Amount<PTB.newAmount and PD.RowStatus=1
+			
+-------Insert in temp table -----------
+			INSERT INTO #OTEXCEPTION(EXCEPTIONREASON)
+
+			Select 'Overlapping allowance with higher amount available in valid tab' AS ExceptionReason
+			FROM PR.SGPShiftTimePayout PD WITH(NOLOCK) 
+			INNER JOIN #ProcessedDataCheck1 PTB WITH(NOLOCK) on PD.PK_SGPShiftTimePayoutID=PTB.PRPkID
+			where PD.Amount>=PTB.newAmount and PD.RowStatus=1
+
+			Select PST.PK_SGPShiftTimePayoutID as PRPkID,@AssociateID as AssociateID,@Amount as newAmount,
+			PST.Amount as PRAmount
+			INTO #ProcessedDataCheck2
+			from PR.SGPShiftTimePayout PST WITH(NOLOCK) 
+			INNER JOIN ComponentCountryMapping CCM with (nolock) 
+			ON CCM.PK_ComponentCountryMappingID=PST.FK_ComponentCountryMappingID
+			WHERE PST.AssociateID=@AssociateID AND 
+			(((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)
+			OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)
+			OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
+			OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) OR (PST.StartDate=@StartDate))) 
+			AND (CCM.FK_ComponentID in (56) and CCM.FK_ComponentCountryID in (7))
+			AND PST.RowStatus=1 AND PST.Status in (5,12,14,15,21)
+			
+-------Insert in temp table -----------
+			INSERT INTO #OTEXCEPTION(EXCEPTIONREASON)
+
+			Select CASE WHEN PTB.PRAmount>PTB.newAmount 
+			THEN 'Overlapping allowance with higher amount processed previously'
+			ELSE 'Overlapping allowance processed previously' END 
+			AS ExceptionReason
+			FROM #ProcessedDataCheck2 PTB WITH(NOLOCK)
+
+	      Select PST.PK_OnCall_OverTime_AllowanceID as PRPkID,@AssociateID as AssociateID,
+		  @Amount as newAmount,PST.Amount as PRAmount
+			INTO #ProcessedDataCheck3
+			from PR.OnCall_OverTime_Allowance PST WITH(NOLOCK) 
+			INNER JOIN ComponentCountryMapping CCM with (nolock) 
+			ON CCM.PK_ComponentCountryMappingID=PST.FK_ComponentCountryMappingID
+			WHERE PST.AssociateID=@AssociateID AND 
+			(((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)
+			OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)
+			OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
+			OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)
+			OR (PST.StartDateTime=@StartDateTime and PST.EndDateTime=@EndDateTime))) 
+			AND ((CCM.FK_ComponentID in (89) and CCM.FK_ComponentCountryID in (7)) or 
+			(CCM.FK_ComponentID in (88) and CCM.FK_ComponentCountryID=7))
+			AND PST.RowStatus=1 AND PST.Status=1 
+
+			Insert into Pr.OnCall_OverTime_Allowancelog(Pk_OnCall_OverTime_AllowanceID,AssociateID,DayType,
+			Criteria,ProjectID,Startdate,Starttime,Startdatetime,Enddate,
+			Endtime,Enddatetime,Amount,RejectedBy,Fk_RejectedRoleID,Status,
+			Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,LogCreatedby,LogCreateddate,
+			FK_componentcountrymappingid,SetId)
+
+			select Pk_OnCall_OverTime_AllowanceID,PD.AssociateID,DayType,Criteria,ProjectID,Startdate,
+			Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,
+			RejectedBy,Fk_RejectedRoleID,Status,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,
+			Rowstatus,@LoginId,getdate(),FK_componentcountrymappingid,SetId
+			FROM PR.OnCall_OverTime_Allowance PD WITH(NOLOCK) 
+			INNER JOIN #ProcessedDataCheck3 PTB WITH(NOLOCK) on PD.Pk_OnCall_OverTime_AllowanceID=PTB.PRPkID
+			where PD.Amount<PTB.newAmount and PD.RowStatus=1
+
+			INSERT INTO EXP.OnCall_OverTime_Allowance (AssociateID, DayType, Criteria,ProjectID, 
+			StartDate, StartTime, 
+			EndDate, EndTime,ExceptionRemarks, FileUploadid,CreatedBy, CreatedDate,RowStatus,
+			FK_componentcountrymappingid,SetID)
+			SELECT PD.AssociateID, DayType,Criteria,ProjectID,Startdate,Starttime,Enddate,Endtime,
+			'Allowance with higher amount processed as per policy',FileUploadid,CreatedBy,CreatedDate,1,
+			FK_componentcountrymappingid ,SetId
+			FROM PR.OnCall_OverTime_Allowance PD WITH(NOLOCK) 
+			INNER JOIN #ProcessedDataCheck3 PTB WITH(NOLOCK) on PD.Pk_OnCall_OverTime_AllowanceID=PTB.PRPkID
+			where PD.Amount<PTB.newAmount and PD.RowStatus=1
+
+			Update PD set PD.RowStatus=0
+			FROM PR.OnCall_OverTime_Allowance PD WITH(NOLOCK) 
+			INNER JOIN #ProcessedDataCheck3 PTB WITH(NOLOCK) on PD.Pk_OnCall_OverTime_AllowanceID=PTB.PRPkID
+			where PD.Amount<PTB.newAmount and PD.RowStatus=1
+			
+-------Insert in temp table -----------
+			INSERT INTO #OTEXCEPTION(EXCEPTIONREASON)
+
+			Select 'Overlapping allowance with higher amount available in valid tab' AS ExceptionReason
+			FROM PR.OnCall_OverTime_Allowance PD WITH(NOLOCK) 
+			INNER JOIN #ProcessedDataCheck3 PTB WITH(NOLOCK) on PD.Pk_OnCall_OverTime_AllowanceID=PTB.PRPkID
+			where PD.Amount>=PTB.newAmount and PD.RowStatus=1
+
+			Select PST.PK_OnCall_OverTime_AllowanceID as PRPkID,@AssociateID as AssociateID,
+			@Amount as newAmount,PST.Amount as PRAmount
+			INTO #ProcessedDataCheck4
+			from PR.OnCall_OverTime_Allowance PST WITH(NOLOCK) 
+			INNER JOIN ComponentCountryMapping CCM with (nolock)
+			ON CCM.PK_ComponentCountryMappingID=PST.FK_ComponentCountryMappingID
+			WHERE PST.AssociateID=@AssociateID AND 
+			(((PST.StartDateTime BETWEEN @StartDateTime and @EndDateTime)
+			OR (PST.EndDateTime BETWEEN @StartDateTime and @EndDateTime)
+			OR (@StartDateTime BETWEEN PST.StartDateTime and PST.EndDateTime) 
+			OR (@EndDateTime BETWEEN PST.StartDateTime and PST.EndDateTime)
+			 OR (PST.StartDateTime=@StartDateTime and PST.EndDateTime=@EndDateTime))) 
+			AND ((CCM.FK_ComponentID in (89) and CCM.FK_ComponentCountryID in (7)) or 
+			(CCM.FK_ComponentID in (88) and CCM.FK_ComponentCountryID=7))
+			AND PST.RowStatus=1 AND PST.Status in (5,12,14,15,21)
+			
+-------Insert in temp table -----------
+			INSERT INTO #OTEXCEPTION(EXCEPTIONREASON)
+
+			Select CASE WHEN PTB.PRAmount>=PTB.newAmount 
+			THEN 'Overlapping allowance with higher amount processed previously'
+			ELSE 'Overlapping allowance processed previously' END 
+			AS ExceptionReason
+			FROM #ProcessedDataCheck4 PTB WITH(NOLOCK)
+
+			-------------Drop temp table ------------------
+			DROP TABLE #ProcessedDataCheck1
+			DROP TABLE #ProcessedDataCheck2
+			DROP TABLE #ProcessedDataCheck3
+			DROP TABLE #ProcessedDataCheck4
+						
+-----------Declaring variables ---------------------
+ DECLARE @OTEXCEPTION VARCHAR(8000)
+	SELECT @OTEXCEPTION = COALESCE(@OTEXCEPTION + ',', '') + ExceptionReason FROM #OTEXCEPTION 
+	WHERE ExceptionReason<>''
+	SELECT @OTEXCEPTION=REPLACE(@OTEXCEPTION,',,',',')
+		
+	
+IF((@OTException IS NULL OR @OTException='')  AND (@AssociateID IS NOT NULL)) 
+	BEGIN
+	
+        UPDATE EXP.OnCall_OverTime_Allowance SET ModifiedBy=@LoginID,ModifiedDate=GETDATE(),Rowstatus=0
+		WHERE PK_OnCall_OverTime_AllowanceID=@keyId 
+		
+----------Check counry id----------
+		if(@ComponentGrpID=101 and @CountryId=8)
+		BEGIN
+			INSERT INTO PR.OnCall_OverTime_Allowance(AssociateID,ProjectID,StartDate,EndDate,StartTime,
+			EndTime,DayType,Criteria,Amount,
+			CreatedBy,CreatedDate,Rowstatus,Status,FileUploadID,FK_Componentcountrymappingid, StartDateTime,
+			EndDateTime,ApproverID,MailerStatus,Grade,SetId,NoOfHours,HourlyRate,InputRemarks)
+			SELECT @AssociateID,@ProjectId,CONVERT(VARCHAR,convert(date,@StartDate),101),
+			'1900-01-01','00:00','00:00',@DayType,@Criteria,@Amount,
+			@LoginID,GETDATE(),1,1,@MailUploadId,@ComponentCountryMappingId,@StartDateTime,@EndDateTime,
+			@ApproverID,0,@GradeLevelID,@BU,@StandByHours,@HourlyRate,@Remarks
+
+			SELECT 'success' AS Status
+		END
+		ELSE
+		BEGIN
+			INSERT INTO PR.OnCall_OverTime_Allowance(AssociateID,ProjectID,StartDate,EndDate,StartTime,
+			EndTime,DayType,Criteria,Amount,
+			CreatedBy,CreatedDate,Rowstatus,Status,FileUploadID,FK_Componentcountrymappingid, StartDateTime,
+			EndDateTime,ApproverID,MailerStatus,Grade,SetId,NoOfHours,HourlyRate,InputRemarks)
+			SELECT @AssociateID,@ProjectId,CONVERT(VARCHAR,convert(date,@StartDate),101),
+			CONVERT(VARCHAR,convert(date,@EndDate),101),@StartTime,@EndTime,@DayType,@Criteria,@Amount,
+			@LoginID,GETDATE(),1,1,@MailUploadId,@ComponentCountryMappingId,@StartDateTime,@EndDateTime,
+			@ApproverID,0,@GradeLevelID,@BU,@StandByHours,@ActualAmount,@Remarks
+
+			SELECT 'success' AS Status
+		END			
+	 END		
+ELSE
+	BEGIN
+
+	 UPDATE EXP.OnCall_OverTime_Allowance SET ModifiedBy=@LoginID,ModifiedDate=GETDATE(),
+	 ExceptionRemarks=@OTEXCEPTION,
+	 StartDate=CONVERT(VARCHAR,convert(date,@StartDate),101),EndDate=CONVERT(VARCHAR,convert(date,@EndDate),101),
+	 StartTime=@StartTime,EndTime=@EndTime
+	 ,ApproverId=@ApproverID,FileUploadID=@MailUploadId,SetID=@BU,InputRemarks=@Remarks,ProjectID=@ProjectId
+		WHERE PK_OnCall_OverTime_AllowanceID=@keyId 
+
+		SELECT @OTEXCEPTION AS 'Status' 
+	END
+	
+	----------Drop temp table ------------
+DROP TABLE #OTEXCEPTION
+--END TRY
+-- BEGIN CATCH
+-- SELECT @@ERROR
+-- END CATCH 	
+--END

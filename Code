@@ -1,1 +1,565 @@
-ProjectId is Invalid,Setid is not configured for this component,Associate should be tagged to the project as on claim date
+This is my usp_GetUploaderExceptionRecord_BPSSDA sp,In this I need to change that date format as 06/02/2025 instead of
+06-02-2025,Please take usp_GetUploaderValidRecord_BPSSDA as a reference
+
+
+USE [OneC_SPay]
+GO    
+Declare
+@COMPONENTGROUPID INT=7,        
+@SearchData VARCHAR(100)=NULL,        
+@DdlData VARCHAR(100)=NULL,  
+@Month INT=11,  
+@PageNum int=1,  
+@IDisplayLength int=250,  
+@OrderBy varchar(30)='',  
+@SortOrder int=1,  
+@GetPages int=0,  
+@ProjectId VARCHAR(30)='',  
+@RoleID int=11,  
+@Loginid int=533904         
+  
+--Declare Desctiption  
+DECLARE @Description VARCHAR(100)        
+DECLARE @COMMONTH VARCHAR(10),@RolePriority int    
+
+SET @COMMONTH=(CASE WHEN (@Month=0 OR @Month='') THEN NULL ELSE @Month END)
+ 
+  
+--Declare Customerid  
+--Declare  @Customer table(CustomerID varchar(20))
+--insert into @Customer(CustomerID)
+-- Select Customer_ID from CentralRepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK)  
+-- INNER JOIN UserRoleMapping URM With (nolock) on Convert(varchar,CRP.Project_ID)=URM.ProjectID  
+-- INNER JOIN ComponentRoleMapping CRM with (NOLOCK) ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID  
+-- INNER JOIN ComponentCOuntryMapping CCM WITH (NOLOCK)   
+-- ON CCM.PK_ComponentCountryMappingID=CRM.FK_ComponentCountryMappingID  
+-- INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_COmponentID=CCM.FK_ComponentID  
+-- WHERE URM.RowStatus=1 and URM.AssociateID=@Loginid and CRM.RowStatus=1   
+-- and CM.FK_ComponentGroupID=@COMPONENTGROUPID   
+-- and CRM.FK_RoleID=11 and CCM.FK_ComponentCountryID=1 and CCM.RowStatus=1 and CM.RowStatus=1  
+-- group by Customer_ID
+  
+-- --Declare Project  
+--  Declare @Project table (ProjectID varchar(15),UserID int)  
+  
+-- INSERT INTO @Project(ProjectID,UserID)  
+-- Select URM.ProjectID,AssociateID from Approval_MonthlyYearlyApprovals MYA WITH (NOLOCK)   
+-- INNER JOIN Centralrepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK)   
+-- ON MYA.ProjectID=Convert(varchar,CRP.Project_ID)  
+-- INNER JOIN USerRoleMapping URM With (Nolock) ON MYA.ProjectId=URM.ProjectID   
+-- INNER JOIN ComponentRoleMapping CRM WITH (NOLOCK) ON CRM.PK_ComponentRoleID=URM.FK_ComponentRoleID  
+-- INNER JOIN ComponentCOuntryMapping CCM WITH (NOLOCK)  
+-- ON CCM.PK_ComponentCountryMappingID=CRM.FK_ComponentCountryMappingID  
+-- INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_COmponentID=CCM.FK_ComponentID  
+--  INNER JOIN @Customer C ON CRP.Customer_ID=C.CustomerID
+-- WHERE MYA.Rowstatus=1 and MYA.Fk_ComponentID=36   
+-- AND CRM.FK_RoleID=11 and URM.Rowstatus=1 and CM.Fk_ComponentGroupID=7 and CRM.RowStatus=1  
+-- and CCM.FK_ComponentCountryID=1 and CCM.RowStatus=1 and CM.RowStatus=1   
+  
+ --BPS Six Day  
+IF(@COMPONENTGROUPID=7)  
+BEGIN        
+DECLARE @iDisplayStart INT,@iDisplayEnd INT  
+DECLARE @totrec INT   
+SET @iDisplayEnd=@pageNum*@iDisplayLength  
+SET @iDisplayStart=@iDisplayEnd-(@iDisplayLength-1)  
+SET @orderBy=(CASE WHEN isnull(@orderBy,'') ='' THEN '(SELECT 0)' ELSE @orderBy END)  
+  
+CREATE TABLE #BPSSDA(PK_BPSSDAID INT,ShiftType varchar(50),AssociateID VARCHAR(20),  
+StartDate varchar(20),EndDate varchar(20),StartTime Varchar(10),EndTime Varchar(10),  
+ProjectID varchar(20),Amount varchar(20),TransportEligibility varchar(20),  
+BillingDetails varchar(100),CreatedBy varchar(15),  
+ExceptionRemarks varchar(700),chkstatus bit)   
+  
+--Check @searchData  
+IF(ISNULL(@searchData,'')='')        
+     BEGIN   
+  
+        INSERT INTO #BPSSDA(PK_BPSSDAID,AssociateID,ShiftType,StartDate,EndDate,StartTime,  
+		EndTime,ProjectID,Amount,TransportEligibility,BillingDetails,CreatedBy,  
+        ExceptionRemarks)  
+        SELECT PK_BPSSDAID,AssociateID,ShiftType,CONVERT(VARCHAR,StartDate,101) StartDate,  
+		CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime  
+        ,CONVERT(VARCHAR(5),EndTime,108) EndTime,SDA.ProjectID,Amount,TransportEligibility,  
+		BillingDetails,CreatedBy,ExceptionRemarks  
+        FROM EXP.BPSSDA SDA WITH (NOLOCK)   
+		--INNER JOIN @Project P ON (SDA.CreatedBy=P.UserID OR SDA.ModifiedBy=P.UserID) and p.ProjectID=sda.ProjectID
+        WHERE  SDA.Rowstatus=1  AND (@COMMONTH IS NULL OR MONTH(SDA.CreatedDate) = @COMMONTH)
+      AND SDA.CreatedDate >= DATEFROMPARTS(YEAR(GETDATE())-1, MONTH(GETDATE()), DAY(GETDATE()))
+		AND SDA.Createdby=@Loginid
+		ORDER BY SDA.CreatedDate DESC,SDA.ModifiedDate DESC  
+  
+  --select Project details  
+		Select distinct URM.AssociateID,URM.ProjectID UploaderProjectID,SDA.ProjectID CreatedProjID  
+        into #Projectchk  
+        from EXP.BPSSDA SDA  
+        inner join UserRoleMapping URM  on URM.ProjectID=SDA.ProjectID  
+        --inner join @Project P  on (SDA.CreatedBy=P.UserID OR SDA.ModifiedBy=P.UserID)  
+        INNER JOIN ComponentRoleMapping CRM with (NOLOCK) ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID  
+        where CRM.FK_RoleID=11 and isnull(URM.ProjectID,'')<>'' and SDA.Rowstatus=1  
+		AND (@COMMONTH IS NULL OR MONTH(SDA.CreatedDate) = @COMMONTH)
+      AND SDA.CreatedDate >= DATEFROMPARTS(YEAR(GETDATE())-1, MONTH(GETDATE()), DAY(GETDATE()))
+               
+		--update SDA set  SDA.chkstatus=1 from  #BPSSDA SDA     
+		--left outer JOIN UserRoleMapping URM  on SDA.CreatedBy in   
+		--(select AssociateID from UserRoleMapping where ProjectID   
+		--in (select UploaderProjectId from  #ProjectChk  where AssociateID=@LoginID))  
+		--AND SDA.ProjectID=URM.ProjectID  
+  --      left outer join #Projectchk PC on  PC.UploaderProjectID not in ( URM.ProjectID)  
+		--WHERE  SDA.CreatedBy =URM.AssociateID  
+        UPDATE SDA 
+        SET SDA.chkstatus = 1 
+        FROM #BPSSDA SDA     
+        LEFT JOIN UserRoleMapping URM  
+        ON SDA.CreatedBy = URM.AssociateID 
+        AND SDA.ProjectID = URM.ProjectID
+        WHERE URM.ProjectID IN (
+        SELECT UploaderProjectId 
+        FROM #ProjectChk  
+        WHERE AssociateID = @LoginID
+        )  
+        AND URM.ProjectID IS NOT NULL;
+
+        
+		 update SDA set  SDA.chkstatus=1 from  #BPSSDA SDA where CreatedBy=@Loginid        
+            
+            
+		update SDA set  SDA.chkstatus=0 from  #BPSSDA SDA  where SDA.chkstatus is null  
+         
+       END  
+BEGIN   
+    SELECT @Description = CDescription FROM MasterCodes WITH (NOLOCK)   
+    WHERE CParentRef = 8 AND CCodeId = @COMPONENTGROUPID AND CUserDefined1 = @ddlData  
+	AND RowStatus = 1 and @ddlData<>4  
+           BEGIN    
+				--SearchBy AssociateID  
+              IF (@Description = 'AssociateID')  
+              BEGIN  
+                  INSERT INTO #BPSSDA(PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,  
+				ProjectID,Amount,TransportEligibility,BillingDetails,CreatedBy,ExceptionRemarks)  
+                  SELECT ETSI.PK_BPSSDAID,ETSI.ShiftType,ETSI.AssociateID,CONVERT(VARCHAR,ETSI.StartDate,101),  
+      CONVERT(VARCHAR,ETSI.EndDate,101),CONVERT(VARCHAR(5),ETSI.StartTime,108)StartTime,  
+     CONVERT(VARCHAR(5),ETSI.EndTime,108)EndTime,ETSI.ProjectID,ETSI.Amount,  
+     ETSI.TransportEligibility,ETSI.BillingDetails,ETSI.CreatedBy, ETSI.ExceptionRemarks  
+     FROM EXP.BPSSDA ETSI WITH (NOLOCK)   
+     --INNER JOIN @Project P ON (ETSI.CreatedBy=P.UserID OR ETSI.ModifiedBy=P.UserID)  
+     WHERE ETSI.ROWSTATUS=1
+	 AND (@COMMONTH IS NULL OR MONTH(ETSI.CreatedDate) = @COMMONTH)
+      AND ETSI.CreatedDate >= DATEFROMPARTS(YEAR(GETDATE())-1, MONTH(GETDATE()), DAY(GETDATE()))
+     and  ETSI.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%'))
+	 AND ETSI.Createdby=@Loginid
+     ORDER BY ETSI.CreatedDate DESC,ETSI.ModifiedDate DESC    
+        
+     Select distinct URM.AssociateID,URM.ProjectID UploaderProjectID,SDA.ProjectID CreatedProjID  
+        into #Projectchk1  
+        from #BPSSDA SDA  
+        inner join UserRoleMapping URM  on URM.ProjectID=SDA.ProjectID  
+        --inner join @Project P  on (SDA.CreatedBy=P.UserID )  
+        INNER JOIN ComponentRoleMapping CRM with (NOLOCK)   
+     ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID  
+        where CRM.FK_RoleID=11 and isnull(URM.ProjectID,'')<>''    
+                  
+        --Update BPSSDA table  
+        update SDA set  SDA.chkstatus=1 from  #BPSSDA SDA     
+        left outer JOIN UserRoleMapping URM  on SDA.CreatedBy in   
+        (select AssociateID from UserRoleMapping where ProjectID   
+     in (select UploaderProjectId from  #ProjectChk1  where AssociateID=@LoginID))  
+        left outer join #Projectchk1 PC on  PC.UploaderProjectID not in ( URM.ProjectID)  
+        where  SDA.CreatedBy in (select AssociateID from UserRoleMapping  
+     where ProjectID=PC.UploaderProjectID)  
+              and  SDA.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%'))  
+  
+                  update SDA set  SDA.chkstatus=0 from  #BPSSDA SDA  where SDA.chkstatus is null    
+              END  
+ --Searchby ProjectID  
+    ELSE IF(@Description='ProjectID')  
+    BEGIN  
+        INSERT INTO #BPSSDA(PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,  
+  ProjectID,Amount,TransportEligibility,BillingDetails,CreatedBy,ExceptionRemarks)  
+        SELECT ETSI.PK_BPSSDAID,ETSI.ShiftType,ETSI.AssociateID,ETSI.StartDate,ETSI.EndDate,  
+  ETSI.StartTime,ETSI.EndTime,ETSI.ProjectID,  
+            ETSI.Amount,ETSI.TransportEligibility,ETSI.BillingDetails,ETSI.CreatedBy, ETSI.ExceptionRemarks  
+            FROM EXP.BPSSDA ETSI WITH (NOLOCK)   
+   --INNER JOIN @Project P ON (ETSI.CreatedBy=P.UserID OR ETSI.ModifiedBy=P.UserID)  
+   WHERE ETSI.ROWSTATUS=1  AND (@COMMONTH IS NULL OR MONTH(ETSI.CreatedDate) = @COMMONTH)
+      AND ETSI.CreatedDate >= DATEFROMPARTS(YEAR(GETDATE())-1, MONTH(GETDATE()), DAY(GETDATE()))
+   and  ETSI.ProjectID LIKE LTRIM(RTRIM('%' +@searchData + '%')) AND ETSI.Createdby=@Loginid  
+            ORDER BY ETSI.CreatedDate DESC,ETSI.ModifiedDate DESC    
+  
+   --select Project details  
+   Select distinct URM.AssociateID,URM.ProjectID UploaderProjectID,SDA.ProjectID CreatedProjID  
+   into #Projectchk2  
+   from #BPSSDA SDA  
+   inner join UserRoleMapping URM  on URM.ProjectID=SDA.ProjectID  
+   --inner join @Project P  on (SDA.CreatedBy=P.UserID )  
+   INNER JOIN ComponentRoleMapping CRM with (NOLOCK)   
+   ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID  
+   where CRM.FK_RoleID=11 and isnull(URM.ProjectID,'')<>''  
+         
+   update SDA set  SDA.chkstatus=1 from  #BPSSDA SDA     
+   left outer JOIN UserRoleMapping URM  on SDA.CreatedBy in   
+   (select AssociateID from UserRoleMapping where ProjectID   
+   in (select UploaderProjectId from  #ProjectChk2  where AssociateID=@LoginID))  
+   left outer join #Projectchk2 PC on  PC.UploaderProjectID not in ( URM.ProjectID)  
+   where  SDA.CreatedBy in (select AssociateID from UserRoleMapping  
+   where ProjectID=PC.UploaderProjectID)  
+   and  SDA.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%'))  
+         
+   update SDA set  SDA.chkstatus=0 from  #BPSSDA SDA where SDA.chkstatus is null   
+    END  
+    END             
+END   
+IF(@getPages=0)  
+    BEGIN  
+ --sort By Ascending  
+     IF @sortOrder = 1  
+        BEGIN  
+   EXEC('SELECT Rowno,PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,  
+   Amount,TransportEligibility,BillingDetails,CreatedBy,ExceptionRemarks,chkstatus  
+   FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy +' ASC) AS [RowNo],* FROM #BPSSDA) t  
+    WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)  
+        END  
+        ELSE  
+  --sort By Descending  
+        BEGIN  
+            EXEC('SELECT Rowno,PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,  
+   Amount,TransportEligibility,BillingDetails,CreatedBy,ExceptionRemarks,chkstatus FROM  
+            (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy +' ASC) AS [RowNo],* FROM #BPSSDA) t  
+            WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)  
+       END  
+       END  
+        ELSE  
+        BEGIN  
+  --get Totalrecords  
+              SELECT @totrec=count(*) FROM #BPSSDA  
+              IF (@totrec%@iDisplayLength)=0  
+                     SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total  
+              ELSE  
+                     SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total  
+       END  
+              DROP TABLE #BPSSDA         
+       END
+
+This is my usp_GetUploaderValidRecord_BPSSDA 
+
+USE [OneC_SPay]
+GO
+Declare
+@COMPONENTGROUPID INT=7,
+@searchData VARCHAR(100)=NULL,
+@ddlData VARCHAR(100)=NULL,
+@pageNum int=1,
+@iDisplayLength int=250,
+@orderBy varchar(30)='',
+@sortOrder int=1,
+@getPages int=0,
+@RoleID int=11,
+@LoginID int=533904
+
+CREATE Table #Project (ProjectID varchar(15))
+CREATE TABLE #TempTable(Tempdata int)
+DECLARE @Description VARCHAR(100)
+Declare @RolePriority int
+DECLARE @STATUS VARCHAR(100),@Userstatus varchar(10)
+Declare @Project table (ProjectID varchar(15))
+DECLARE @Month INT= MONTH(getdate()),@Year int =year(getdate())
+
+SET @STATUS=(CASE WHEN @RoleID=11 THEN '1,2,4,12,14,15,16,8,17,18,19,10,20,34,35,36'
+	WHEN @ROLEID=3 THEN '16,15,14,1,10,35' 
+	WHEN @RoleID in (10,6) THEN '1,2,15,16,8,17,18,19,10,20,4,12,14' END)
+
+-- RoleID in 10 or 11
+IF(@RoleID in (11,10))
+BEGIN
+	Declare  @Customer table(CustomerID varchar(20))
+	insert into @Customer(CustomerID)
+	Select Customer_ID from CentralRepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK)
+	INNER JOIN UserRoleMapping URM With (nolock) 
+	on Convert(varchar,CRP.Project_ID)=URM.ProjectID
+	INNER JOIN ComponentRoleMapping CRM with (NOLOCK) ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID
+	INNER JOIN ComponentCOuntryMapping CCM WITH (NOLOCK) 
+	ON CCM.PK_ComponentCountryMappingID=CRM.FK_ComponentCountryMappingID
+	INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_COmponentID=CCM.FK_ComponentID
+	WHERE URM.RowStatus=1 and URM.AssociateID=@Loginid and CRM.RowStatus=1 
+	and CM.FK_ComponentGroupID=@COMPONENTGROUPID and CRM.FK_RoleID=11
+	and CCM.FK_ComponentCountryID=1 and CCM.RowStatus=1 and CM.RowStatus=1
+	GROUP BY Customer_ID
+	
+	insert into @Customer(CustomerID)
+	Select Customer_ID from CentralRepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK)
+	INNER JOIN UserRoleMapping URM With (nolock) 
+	on Convert(varchar,CRP.Customer_ID)=URM.CustomerID
+	INNER JOIN ComponentRoleMapping CRM with (NOLOCK) 
+	ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID
+	INNER JOIN ComponentCountryMapping CCM WITH (NOLOCK) 
+	ON CCM.PK_ComponentCountryMappingID=CRM.FK_ComponentCountryMappingID
+	INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_COmponentID=CCM.FK_ComponentID
+	WHERE URM.RowStatus=1 and URM.AssociateID=@Loginid and CRM.RowStatus=1 
+	and CM.FK_ComponentGroupID=@COMPONENTGROUPID and CRM.FK_RoleID=10
+	and CCM.FK_ComponentCountryID=1 and CCM.RowStatus=1 and CM.RowStatus=1
+	GROUP BY Customer_ID
+
+
+	insert into #Project(ProjectID)
+	Select Project_ID from CentralRepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK)
+	INNER JOIN UserRoleMapping URM With (nolock) 
+	on Convert(varchar,CRP.Project_ID)=URM.ProjectID
+	INNER JOIN ComponentRoleMapping CRM with (NOLOCK) ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID
+	INNER JOIN ComponentCOuntryMapping CCM WITH (NOLOCK) 
+	ON CCM.PK_ComponentCountryMappingID=CRM.FK_ComponentCountryMappingID
+	INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_COmponentID=CCM.FK_ComponentID
+	WHERE URM.RowStatus=1 and URM.AssociateID=@Loginid and CRM.RowStatus=1 
+	and CM.FK_ComponentGroupID=@COMPONENTGROUPID and CRM.FK_RoleID in (10,11)
+	and CCM.FK_ComponentCountryID=1 and CCM.RowStatus=1 and CM.RowStatus=1
+	GROUP BY Project_ID
+
+
+
+END
+-- RoleID in 6
+ELSE IF(@RoleID=6)
+BEGIN
+	INSERT INTO #Project(ProjectID)
+	Select ProjectID from Approval_MonthlyYearlyApprovals MYA WITH (NOLOCK) 
+	INNER JOIN Centralrepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK)
+	ON MYA.ProjectID=Convert(varchar,CRP.Project_ID)
+	INNER JOIN Centralrepository.dbo.vw_centralrepository_ProjectManager CPM WITH (NOLOCK) 
+	ON CRP.Project_ID=CPM.Project_ID
+	WHERE MYA.Rowstatus=1 and MYA.Fk_ComponentID=36 and CPM.PROJECT_MANAGER=@LoginID
+	GROUP BY ProjectID
+END
+-- RoleID in 3
+ELSE IF(@RoleID=3)
+BEGIN
+	INSERT INTO #Project(ProjectID)
+	Select ProjectID from Approval_MonthlyYearlyApprovals MYA WITH (NOLOCK) 
+	WHERE MYA.Rowstatus=1 and MYA.Fk_ComponentID=36 
+	GROUP BY ProjectID
+END
+
+Insert into #TempTable(Tempdata) -- To avoid the rejected records from previous months
+Select data from  DBO.FUNCTION_STRING_TO_TABLE(@STATUS,',') 
+
+--Component GroupID 7
+IF(@COMPONENTGROUPID=7)
+BEGIN
+	DECLARE @iDisplayStart int,@iDisplayEnd INT
+	DECLARE @totrec INT
+	SET @iDisplayEnd=@pageNum*@iDisplayLength
+	SET @iDisplayStart=@iDisplayEnd-(@iDisplayLength-1)
+	SET @orderBy=(CASE WHEN @orderBy='' THEN '(select 0)' ELSE @orderBy END )
+	
+	CREATE TABLE #BPSSDA(PK_BPSSDAID INT,ShiftType varchar(50),AssociateID VARCHAR(7),StartDate varchar(20),
+	EndDate varchar(20),StartTime Varchar(10),EndTime Varchar(10),ProjectID varchar(10),Amount varchar(20),
+	TransportEligibility varchar(20),BillingDetails varchar(100),Status varchar(500),RejectionReason Varchar(150),
+	CreatedBy varchar(10),chkstatus bit,StatusCode int)
+	
+	--When there is no search preference
+	IF(ISNULL(@searchData,'')='')
+	BEGIN
+		IF(@getPages=0)
+		BEGIN
+			INSERT INTO #BPSSDA(PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+			Amount,TransportEligibility,BillingDetails,Status,RejectionReason,CreatedBy,StatusCode)
+			SELECT PK_BPSSDAID,ShiftType,AssociateID,CONVERT(VARCHAR,StartDate,101) StartDate,
+			CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime,
+			CONVERT(VARCHAR(5),EndTime,108) EndTime,SDA.ProjectID,Amount,TransportEligibility,BillingDetails,
+			MC.CDescription Status,ISNULL(RejectionReason,'') RejectionReason,SDA.CreatedBy,SDA.Status as StatusCode
+			FROM PR.BPSSDA SDA WITH (NOLOCK)
+			INNER JOIN #Project P ON SDA.ProjectID=P.ProjectID
+			INNER JOIN #TempTable TT on TT.Tempdata=SDA.Status
+			INNER JOIN MasterCodes MC WITH (NOLOCK) on MC.CParentRef=3 
+			and SDA.Status=MC.CCodeId and MC.Cuserdefined1='PR' and SDA.Rowstatus=1
+			WHERE SDA.Status IN (SELECT CASE WHEN TT.Tempdata<>17 THEN SDA.Status
+			WHEN TT.Tempdata=17 and MONTH(SDA.ModifiedDate)=@Month and YEAR(SDA.ModifiedDate)=@Year 
+			THEN SDA.Status ELSE '' END) 
+			and SDA.Rowstatus=1
+			ORDER BY SDA.CreatedDate DESC,SDA.ModifiedDate DESC 		
+			
+			IF(@RoleID in (11) and @getPages=0)
+			BEGIN
+				UPDATE SDA SET SDA.chkstatus=1 FROM #BPSSDA SDA WHERE CreatedBy = @LoginID
+			END
+	
+			UPDATE SDA SET SDA.chkstatus=0 FROM #BPSSDA SDA WHERE SDA.chkstatus IS NULL
+			
+			--Dynamic Query generation
+			IF @sortOrder = 1
+			BEGIN
+				EXEC('SELECT Rowno,PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+				Amount,TransportEligibility,BillingDetails,Status,RejectionReason,CreatedBy,chkstatus,StatusCode
+				FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy +' ASC) AS [RowNo],* FROM #BPSSDA) t
+				WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+			ELSE
+			BEGIN
+				EXEC('SELECT Rowno,PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+				Amount,TransportEligibility,BillingDetails,Status,RejectionReason,CreatedBy,chkstatus,StatusCode 
+				FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy +' DESC) AS [RowNo],* FROM #BPSSDA) t
+				WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)
+			END
+	
+			SELECT @totrec=count(1) FROM #BPSSDA
+	
+			IF (@totrec%@iDisplayLength)=0
+				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+			ELSE
+				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+	
+		END
+		ELSE
+		BEGIN
+			SELECT @totrec=count(1) FROM PR.BPSSDA SDA WITH (NOLOCK)
+			INNER JOIN #Project P ON SDA.ProjectID=P.ProjectID
+			INNER JOIN #TempTable TT on TT.Tempdata=SDA.Status
+			INNER JOIN MasterCodes MC WITH (NOLOCK) on MC.CParentRef=3 
+			and SDA.Status=MC.CCodeId and MC.Cuserdefined1='PR' and SDA.Rowstatus=1
+			WHERE SDA.Rowstatus=1 and  
+			SDA.Status IN (SELECT CASE WHEN TT.Tempdata<>17 THEN SDA.Status
+			WHEN TT.Tempdata=17 and MONTH(SDA.ModifiedDate)=@Month and YEAR(SDA.ModifiedDate)=@Year 
+			THEN SDA.Status ELSE '' END)	
+			and SDA.Rowstatus=1
+			
+			IF (@totrec%@iDisplayLength)=0
+				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+			ELSE
+				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+		END
+	END
+	ELSE
+	BEGIN
+		SELECT  @Description= CDescription FROM MasterCodes WITH (NOLOCK)
+		WHERE CParentRef = 8  and (CUserDefined2 = @RoleID or CUserDefined3 = @RoleID 
+		OR @RoleID=3) AND CUserDefined1 = @ddlData AND RowStatus = 1
+		AND CCodeId=@COMPONENTGROUPID 
+		
+		--When sorted based on AssociateID
+		IF (@Description = 'AssociateID')
+		BEGIN
+			INSERT INTO #BPSSDA(PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+			Amount,TransportEligibility,BillingDetails,Status,RejectionReason,CreatedBy,StatusCode)
+			SELECT PK_BPSSDAID,ShiftType,AssociateID,CONVERT(VARCHAR,StartDate,101) StartDate,
+			CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime,
+			CONVERT(VARCHAR(5),EndTime,108) EndTime,SDA.ProjectID,Amount,TransportEligibility,BillingDetails,
+			MC.CDescription Status,ISNULL(RejectionReason,'') RejectionReason,SDA.CreatedBy,
+			SDA.Status as StatusCode
+			FROM PR.BPSSDA SDA WITH (NOLOCK)
+			INNER JOIN #Project P ON SDA.ProjectID=P.ProjectID
+			INNER JOIN #TempTable TT on TT.Tempdata=SDA.Status
+			INNER JOIN MasterCodes MC WITH (NOLOCK) on MC.CParentRef=3 and SDA.Status=MC.CCodeId 
+			and MC.Cuserdefined1='PR'
+			WHERE  SDA.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) and SDA.Rowstatus=1 
+			and SDA.Status IN (SELECT CASE WHEN TT.Tempdata<>17 THEN SDA.Status
+			WHEN TT.Tempdata=17 and MONTH(SDA.ModifiedDate)=@Month and YEAR(SDA.ModifiedDate)=@Year 
+			THEN SDA.Status ELSE '' END)
+			ORDER BY SDA.CreatedDate DESC,SDA.ModifiedDate DESC
+			
+			--Role ID is 11
+			IF(@RoleID in (11) and @getPages=0)
+			BEGIN
+				SELECT DISTINCT URM.AssociateID,URM.ProjectID UploaderProjectID,SDA.ProjectID CreatedProjID
+				INTO #Projectchk1
+				FROM #BPSSDA SDA
+				INNER JOIN UserRoleMapping URM  on URM.ProjectID=SDA.ProjectID
+				INNER JOIN #Project P  on P.ProjectID=URM.ProjectID
+				INNER JOIN ComponentRoleMapping CRM with (NOLOCK) 
+				ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID AND CRM.RowStatus = 1
+				WHERE CRM.FK_RoleID=11 and isnull(URM.ProjectID,'')<>'' AND URM.RowStatus = 1
+				
+				UPDATE SDA SET SDA.chkstatus=1 FROM #BPSSDA SDA 		
+				LEFT OUTER JOIN UserRoleMapping URM  on SDA.CreatedBy in 
+				(SELECT AssociateID from UserRoleMapping where RowStatus = 1 
+				AND ProjectID in (select UploaderProjectId from  #ProjectChk1 
+				WHERE AssociateID=@LoginID))
+				LEFT OUTER JOIN #Projectchk1 PC on  PC.UploaderProjectID not in ( URM.ProjectID)
+				WHERE SDA.CreatedBy in (select AssociateID from UserRoleMapping 
+				WHERE RowStatus = 1 and ProjectID=PC.UploaderProjectID)
+				AND  SDA.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%'))
+			END
+			
+			UPDATE SDA set  SDA.chkstatus=0 from  #BPSSDA SDA 	where SDA.chkstatus is null		 
+				
+		END
+		ELSE
+		BEGIN
+			INSERT INTO #BPSSDA(PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+			Amount,TransportEligibility,BillingDetails,Status,RejectionReason,CreatedBy,StatusCode)
+			SELECT PK_BPSSDAID,ShiftType,AssociateID,CONVERT(VARCHAR,StartDate,101) StartDate,
+			CONVERT(VARCHAR,EndDate,101) EndDate,CONVERT(VARCHAR(5),StartTime,108) StartTime,
+			CONVERT(VARCHAR(5),EndTime,108) EndTime,SDA.ProjectID,Amount,TransportEligibility,BillingDetails,
+			MC.CDescription Status,ISNULL(RejectionReason,'') RejectionReason,SDA.CreatedBy,
+			SDA.Status as StatusCode
+			FROM PR.BPSSDA SDA WITH (NOLOCK)		 
+			INNER JOIN #Project P ON SDA.ProjectID=P.ProjectID
+			INNER JOIN #TempTable TT on TT.Tempdata=SDA.Status
+			INNER JOIN MasterCodes MC WITH (NOLOCK) on MC.CParentRef=3 and SDA.Status=MC.CCodeId
+			and MC.Cuserdefined1='PR'
+			WHERE  SDA.ProjectID LIKE LTRIM(RTRIM('%' + @searchData + '%')) and SDA.Rowstatus=1 and
+			SDA.Status IN (SELECT CASE WHEN TT.Tempdata<>17 THEN SDA.Status
+			WHEN TT.Tempdata=17 and MONTH(SDA.ModifiedDate)=@Month and YEAR(SDA.ModifiedDate)=@Year 
+			THEN SDA.Status ELSE '' END)
+			ORDER BY SDA.CreatedDate DESC,SDA.ModifiedDate DESC
+			
+			--Role ID is 6,10 or 11
+			IF(@RoleID in (11,10,6) and @getPages=0)
+			BEGIN
+				Select distinct URM.AssociateID,URM.ProjectID UploaderProjectID,
+				SDA.ProjectID CreatedProjID
+				INTO #Projectchk2
+				FROM #BPSSDA SDA
+				INNER JOIN UserRoleMapping URM  on URM.ProjectID=SDA.ProjectID
+				INNER JOIN #Project P  on P.ProjectID=URM.ProjectID
+				INNER JOIN ComponentRoleMapping CRM with (NOLOCK)
+				ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID AND CRM.RowStatus = 1
+				WHERE CRM.FK_RoleID=11 and isnull(URM.ProjectID,'')<>'' AND URM.RowStatus = 1
+				
+				update SDA set SDA.chkstatus=1 from #BPSSDA SDA 		
+				left outer JOIN UserRoleMapping URM on SDA.CreatedBy in 
+				(select AssociateID from UserRoleMapping where RowStatus = 1 
+				and ProjectID in (select UploaderProjectId from #ProjectChk2 where AssociateID=@LoginID))
+				left outer join #Projectchk2 PC on  PC.UploaderProjectID not in ( URM.ProjectID)
+				where  SDA.CreatedBy in (select AssociateID from UserRoleMapping 
+				where RowStatus = 1 and ProjectID=PC.UploaderProjectID)
+				and SDA.ProjectID LIKE LTRIM(RTRIM('%' + @searchData + '%'))
+			END
+		
+			UPDATE SDA SET SDA.chkstatus=0 FROM #BPSSDA SDA	WHERE SDA.chkstatus IS NULL
+		
+		END
+				
+		IF(@getPages=0)
+		BEGIN
+			--Dynamic Query generation
+			IF @sortOrder = 1
+			BEGIN
+				EXEC('SELECT Rowno,PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+				Amount,TransportEligibility,BillingDetails,Status,RejectionReason,CreatedBy,chkstatus ,StatusCode 
+				FROM (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy +' ASC) AS [RowNo],* FROM #BPSSDA) t')
+			END
+			ELSE
+			BEGIN
+				EXEC('SELECT Rowno,PK_BPSSDAID,ShiftType,AssociateID,StartDate,EndDate,StartTime,EndTime,ProjectID,
+				Amount,TransportEligibility,BillingDetails,Status,RejectionReason,CreatedBy,chkstatus ,StatusCode
+				FROM(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy +' DESC) AS [RowNo],* FROM #BPSSDA) t')
+			END
+			
+			SELECT @totrec=count(1) FROM #BPSSDA
+			
+			IF (@totrec%@iDisplayLength)=0
+				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+			ELSE
+				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+		END
+		ELSE
+		BEGIN
+			SELECT @totrec=count(1) FROM #BPSSDA
+			
+			IF (@totrec%@iDisplayLength)=0
+				SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total
+			ELSE
+				SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total
+		END
+	END
+	DROP TABLE #BPSSDA
+	DROP TABLE #Project
+END

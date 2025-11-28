@@ -1,6 +1,5 @@
-This is my usp_GetUploaderValidRecord_CE(SP).
-In my application the data is processed but it can't reflect in the grid.For that I run the sp manually but it also shows
-only 2 rows affected only not show grid values and also most of the columns it shows invalid column.Help me to fix that
+This is my usp_GetUploaderValidRecord_CE(SP). In my application the data is processed but it can't reflect in the grid.For that I run the sp manually but it shows
+the columns only there is no record in that.Is this is the correct sp and Help me to fix that
 
 Declare
 @COMPONENTGROUPID INT=18,

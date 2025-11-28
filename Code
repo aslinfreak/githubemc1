@@ -1,238 +1,751 @@
-This is my usp_GetUploaderValidRecord_CE(SP). In my application the data is processed but it can't reflect in the grid.For that I run the sp manually but it shows
-the columns only there is no record in that.Is this is the correct sp and Help me to fix that
+-- ==========================================================================================       
+-- AUTHOR     : TEAM
+-- CREATE DATE: JULY 20, 2020    
+-- DESCRIPTION: Added the documentation for the stored procedure
+-- =========================================================================================== 
+CREATE PROCEDURE [dbo].[Usp_StagingToMain_CESchoolFees] (@FileUploadId VARCHAR(50))
+AS
+BEGIN
 
-Declare
-@COMPONENTGROUPID INT=18,
-@SearchData VARCHAR(100) = null,
-@DdlData VARCHAR(100) = null,
-@SearchData2 VARCHAR(100) = null,
-@DdlData2 VARCHAR(100) = null,
-@SearchData3 VARCHAR(100) = null,
-@DdlData3 VARCHAR(100) = null,
-@SearchData4 VARCHAR(100) = null,
-@DdlData4 VARCHAR(100) = null, 
-@PageNum INT = 1, 
-@IDisplayLength INT = 250, 
-@OrderBy VARCHAR(30) = '',
-@SortOrder INT = 1,
-@GetPages INT = 0,
-@ProjectId VARCHAR(30)='',
-@RoleID int=0,
-@CountryID int=0,
-@LoginID INT='2298944'
+BEGIN TRY
+SET NOCOUNT ON         
+BEGIN 
 
+-------------Declaring variables ---------------
+DECLARE @CountryName varchar(500),@CountryCode Varchar(500),@CountryID int
 
-ELSE IF(@RoleID in (1,19))
-	BEGIN	
-		insert into #ASSOCIATE(ASSOCIATEID)
-		select @LoginID
-		
-		--/*Check Searchdata*/
-		IF(ISNULL(@searchData,'')='' and ISNULL(@searchData2,'')='')
-		BEGIN
-		SELECT distinct SF.PK_CESchoolFeesID,SF.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')
-		+' '+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,			
-		(case when ChildType = 1 then 'Child1' when ChildType = 2 then 'Child2' else null end) as ChildType,
-		StartDate,EndDate,isnull(SF.Amount,'')Amount,
-		isnull(MC_B.Cdescription,'') as NumberOfInstallment,MC.Cdescription as FrequencyType,
-		(Case when frequencyType= 1 then MM.MonthName when FrequencyType= 2 then MC_A.CDescription 
-		when FrequencyType= 3 then SF.FrequencySelection else null end) as FrequencySelection,
-		SF.Year,ISNULL(SF.RejectionReason,'') AS RejectionReason,ST.CDescription Status,
-		SF.InvoiceAttachment AS InvoiceAttachment,
-		PayoutType
-		INTO #TEMPSchool4
-		FROM PR.CESchoolFees SF WITH (NOLOCK)
-		inner JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-		ON AD.Associate_ID=SF.AssociateID 
-		INNER JOIN #ASSOCIATE A WITH(NOLOCK) ON A.ASSOCIATEID in (SF.Createdby,SF.ASSOCIATEID)
-		INNER JOIN MasterCodes ST WITH (NOLOCK) on ST.CParentRef=3 and SF.Status=ST.CCodeId 
-		and ST.Cuserdefined1='PR' and SF.Rowstatus=1
-		inner join Mastercodes MC with(nolock) on MC.Cparentref=40 and MC.Ccodeid =@COMPONENTGROUPID 
-		and MC.Remarks=@CountryID and MC.rowstatus=1 and SF.FrequencyType=MC.CUserDefined1
-		and MC.CUserDefined2 <> 58
-		left outer join Mastercodes MC_A with(nolock) on MC_A.Cparentref=40 and MC_A.Ccodeid =@COMPONENTGROUPID 
-		and MC_A.Cuserdefined5=1 and MC_A.rowstatus=1 and SF.FrequencySelection=MC_A.CUserdefined1
-		left outer join MonthMaster MM with(nolock) on MM.MonthID=SF.FrequencySelection
-		Left Outer join #Year YY with(nolock) on YY.YearId= SF.FrequencySelection
-	    left outer join Mastercodes MC_B with(nolock) on MC_B.Cparentref=41 and MC_B.Ccodeid =@COMPONENTGROUPID
-		and MC_B.Cuserdefined5=1 and MC_B.rowstatus=1 and SF.NumberOfInstallment=MC_B.CUserdefined1
-		WHERE SF.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,',')) 
-		and SF.Fk_ComponentCountrymappingid=@ComponentCountryMappingId
-		and SF.CreatedDate<=getdate()
-		
-		IF(@getPages=0)
-		BEGIN
-		--Sort by Ascending
-			IF @sortOrder = 1
-			BEGIN
-			EXEC('SELECT Rowno,PK_CESchoolFeesID,AssociateID,AssociateName,Amount,StartDate,EndDate,
-			ChildType,FrequencyType,FrequencySelection,Year,
-			NumberOfInstallment,RejectionReason,Status,InvoiceAttachment,PayoutType FROM
-			(SELECT ROW_NUMBER() OVER (ORDER BY '+@orderby+' ASC) AS [RowNo],* FROM #TEMPSchool4) t
-			WHERE RowNo BETWEEN '+ @iDisplayStart1+' AND '+@iDisplayEnd1)
-			END
-			ELSE
-			BEGIN
-			EXEC('SELECT Rowno,PK_CESchoolFeesID,AssociateID,AssociateName,Amount,StartDate,EndDate,
-			ChildType,FrequencyType,FrequencySelection,Year,
-			NumberOfInstallment,RejectionReason,Status,InvoiceAttachment,PayoutType FROM
-			(SELECT ROW_NUMBER() OVER (ORDER BY '+@orderby+' DESC) AS [RowNo],* FROM #TEMPSchool4) t
-			WHERE RowNo BETWEEN '+ @iDisplayStart1+' AND '+@iDisplayEnd1)
-			END
-					
-		END
-		ELSE
-		BEGIN
-		--get total records
-			SELECT @totrec1=count(1) FROM #TEMPSchool4
-			IF (@totrec1%@iDisplayLength)=0
-			SELECT (@totrec1/@iDisplayLength) AS Pages,@totrec1 AS Total
-			ELSE
-			SELECT (@totrec1/@iDisplayLength)+1 AS Pages,@totrec1 AS Total
-			END
-				--------Drop temp table ----------
-		DROP TABLE #TEMPSchool4
-		END
+-------------Declaring variables ---------------
+DECLARE @COMPONENTID INT,@COMPONENTGROUPID int,@ComponentCountryMappingId int	
+set @COMPONENTID=58
+set @COMPONENTGROUPID=18
 
-		--/*Check Searchdata*/
-		ELSE IF(ISNULL(@searchData,'')<>'' and ISNULL(@searchData2,'')='')
-		BEGIN
-				SELECT distinct SF.PK_CESchoolFeesID,SF.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')
-				+' '+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,			
-				(case when ChildType = 1 then 'Child1' when ChildType = 2 then 'Child2' else null end) as ChildType,
-				StartDate,EndDate,isnull(SF.Amount,'')Amount,
-				isnull(MC_B.Cdescription,'') as NumberOfInstallment,MC.Cdescription as FrequencyType,
-				(Case when frequencyType= 1 then MM.MonthName when FrequencyType= 2 then MC_A.CDescription 
-				when FrequencyType= 3 then SF.FrequencySelection else null end) as FrequencySelection,
-				SF.Year,ISNULL(SF.RejectionReason,'') AS RejectionReason,ST.CDescription Status,
-				SF.InvoiceAttachment AS InvoiceAttachment,
-				PayoutType
-				INTO #TEMPSchool5
-				FROM PR.CESchoolFees SF WITH (NOLOCK)
-			    inner JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-				ON AD.Associate_ID=SF.AssociateID 
-				INNER JOIN #ASSOCIATE A WITH(NOLOCK) ON A.ASSOCIATEID in (SF.Createdby,SF.ASSOCIATEID)
-				INNER JOIN MasterCodes ST WITH (NOLOCK) on ST.CParentRef=3 and SF.Status=ST.CCodeId 
-				and ST.Cuserdefined1='PR' and SF.Rowstatus=1
-				inner join Mastercodes MC with(nolock) on MC.Cparentref=40 and MC.Ccodeid =@COMPONENTGROUPID 
-				and MC.Remarks=@CountryID and MC.rowstatus=1 and SF.FrequencyType=MC.CUserDefined1  
-				and MC.CUserDefined2 <> 58
-				left outer join Mastercodes MC_A with(nolock) on MC_A.Cparentref=40 
-				and MC_A.Ccodeid =@COMPONENTGROUPID and MC_A.Cuserdefined5=1 and MC_A.rowstatus=1 
-				and SF.FrequencySelection=MC_A.CUserdefined1
-				left outer join MonthMaster MM with(nolock) on MM.MonthID=SF.FrequencySelection
-				Left Outer join #Year YY with(nolock) on YY.YearId= SF.FrequencySelection
-				left outer join Mastercodes MC_B with(nolock) on MC_B.Cparentref=41 
-				and MC_B.Ccodeid =@COMPONENTGROUPID and MC_B.Cuserdefined5=1 and MC_B.rowstatus=1 
-				and SF.NumberOfInstallment=MC_B.CUserdefined1
-				WHERE  SF.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) and SF.Rowstatus=1 
-				and SF.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))
-				and SF.Fk_ComponentCountrymappingid=@ComponentCountryMappingId
-				and SF.CreatedDate<=getdate()
+select @CountryID=CountryID from SanDataMaster where FileUploadID=@FileUploadId 
 
-				IF(@getPages=0)
-				BEGIN
-				--Sort by Ascending
-				IF @sortOrder = 1
-				BEGIN
-				
-					EXEC('SELECT Rowno,PK_CESchoolFeesID,AssociateID,AssociateName,Amount,StartDate,
-					EndDate,ChildType,FrequencyType,FrequencySelection,Year,
-					NumberOfInstallment,RejectionReason,Status,InvoiceAttachment,PayoutType FROM
-					(SELECT ROW_NUMBER() OVER (ORDER BY '+@orderby+' ASC) AS [RowNo],* FROM #TEMPSchool5) t
-					WHERE RowNo BETWEEN '+ @iDisplayStart1+' AND '+@iDisplayEnd1)
-				END
-				ELSE
-				BEGIN
-					EXEC('SELECT Rowno,PK_CESchoolFeesID,AssociateID,AssociateName,Amount,StartDate,
-					EndDate,ChildType,FrequencyType,FrequencySelection,Year,
-					NumberOfInstallment,RejectionReason,Status,InvoiceAttachment,PayoutType FROM
-					(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderby+' DESC) AS [RowNo],* FROM #TEMPSchool5) t
-					WHERE RowNo BETWEEN '+ @iDisplayStart1+' AND '+@iDisplayEnd1)
-				END
-				END
-				ELSE
-				BEGIN
-				--get total records
-				SELECT @totrec1=count(1) FROM #TEMPSchool5
-				IF (@totrec1%@iDisplayLength)=0
-				SELECT (@totrec1/@iDisplayLength) AS Pages,@totrec1 AS Total
-				ELSE
-				SELECT (@totrec1/@iDisplayLength)+1 AS Pages,@totrec1 AS Total
-				END
-				--------Drop temp table ----------
-				Drop table #TEMPSchool5
-			END
+SELECT @ComponentCountryMappingId=PK_componentcountrymappingid 
+FROM ComponentCountryMapping CCM WITH (NOLOCK)
+INNER JOIN ComponentMaster CM WITH (NOLOCK) 
+ON CM.PK_ComponentID=CCm.FK_ComponentID  
+where CM.FK_ComponentGroupID=@ComponentGroupId 
+and CCM.FK_ComponentCountryID=@CountryID and CM.rowstatus=1 and CCM.RowStatus=1
 
-			--/*Check Searchdata*/
-		ELSE IF(ISNULL(@searchData,'')='' and ISNULL(@searchData2,'')<>'')
-		BEGIN
+SELECT @CountryID= PK_Componentcountryid, @CountryName= CCMM.COUNTRY,
+@CountryCode=CCMM.CountryID FROM COMPONENTCOUNTRYMAPPING CCM 
+INNER JOIN COMPONENTCOUNTRYMASTER CCMM WITH(NOLOCK)
+ON CCM.FK_COMPONENTCOUNTRYID = CCMM.PK_COMPONENTCOUNTRYID 
+WHERE PK_COMPONENTCOUNTRYMAPPINGID=@ComponentCountryMappingId
+
+CREATE TABLE #Year (YearId INT,Year VARCHAR(10))
+
+   --------Insert query --------------
+INSERT INTO #Year(YearID,Year)
+SELECT 1 AS YearID,YEAR(GETDATE()) AS Year
+UNION ALL
+SELECT 2 AS YearID,YEAR(GETDATE())+1 AS Year 
+
+CREATE TABLE #Installments(ID INT,Installments VARCHAR(100))
+
+   --------Insert query --------------
+INSERT INTO #Installments (ID,Installments)
+SELECT 1,'1 installments'
+UNION ALL
+SELECT 2,'2 installments'
+UNION ALL
+SELECT 3,'3 installments'
+UNION ALL
+SELECT 4,'4 installments'
+UNION ALL
+SELECT 5,'5 installments'
+
+	UPDATE STGSF SET ChildType= 
+	(case when ChildType='Child1' then 1 when ChildType='Child2' then 2 else '' end),
+	FrequencyType= MC.Cuserdefined1,
+	FrequencySelection=(Case when STGSF.FrequencySelection= MM.MonthName then MM.MonthID
+	WHEN STGSF.FrequencySelection=MC_A.CDescription 
+	THEN MC_A.CUserDefined1 ELSE STGSF.FrequencySelection END) ,
+	NumberOfInstallment=INS.ID
+	FROM STG.CESchoolFees STGSF
+	INNER JOIN Mastercodes MC WITH(NOLOCK) ON MC.Cparentref=40 AND MC.Ccodeid =@COMPONENTGROUPID 
+	and MC.Remarks=@CountryID and MC.rowstatus=1 and MC.Cdescription=STGSF.FrequencyType
+	left outer join Mastercodes MC_A with(nolock) on MC_A.Cparentref=40 
+	AND MC_A.Ccodeid =@COMPONENTGROUPID and MC_A.Cuserdefined5=1 
+	AND MC_A.rowstatus=1 and MC_A.CDescription=STGSf.FrequencySelection and MC.Cuserdefined1=2
+	left outer join MonthMaster MM with(nolock) 
+	ON MM.MonthName=STGSF.FrequencySelection and  MC.Cuserdefined1=1
+	left outer join #Installments INS with(nolock) 
+	ON INS.Installments = STGSF.NumberOfInstallment
 	
-				SELECT distinct SF.PK_CESchoolFeesID,SF.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')
-				+' '+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,			
-				(case when ChildType = 1 then 'Child1' when ChildType = 2 then 'Child2' else null end) as ChildType,
-				StartDate,EndDate,isnull(SF.Amount,'')Amount,
-				isnull(MC_B.Cdescription,'') as NumberOfInstallment,MC.Cdescription as FrequencyType,
-				(Case when frequencyType= 1 then MM.MonthName when FrequencyType= 2 then MC_A.CDescription
-				when FrequencyType= 3 then SF.FrequencySelection else null end) as FrequencySelection,
-				SF.Year,ISNULL(SF.RejectionReason,'') AS RejectionReason,ST.CDescription Status,
-				SF.InvoiceAttachment AS InvoiceAttachment,
-				PayoutType
-				INTO #TEMPSchool6
-				FROM PR.CESchoolFees SF WITH (NOLOCK)
-			    inner JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-				ON AD.Associate_ID=SF.AssociateID 
-				INNER JOIN #ASSOCIATE A WITH(NOLOCK) ON A.ASSOCIATEID in (SF.Createdby,SF.ASSOCIATEID)
-				INNER JOIN MasterCodes ST WITH (NOLOCK) on ST.CParentRef=3 and SF.Status=ST.CCodeId 
-				and ST.Cuserdefined1='PR' and SF.Rowstatus=1
-				inner join Mastercodes MC with(nolock) on MC.Cparentref=40 and MC.Ccodeid =@COMPONENTGROUPID 
-				and MC.Remarks=@CountryID and MC.rowstatus=1 and SF.FrequencyType=MC.CUserDefined1  
-				and MC.CUserDefined2 <> 58
-				left outer join Mastercodes MC_A with(nolock) on MC_A.Cparentref=40
-				and MC_A.Ccodeid =@COMPONENTGROUPID and MC_A.Cuserdefined5=1 and MC_A.rowstatus=1 
-				and SF.FrequencySelection=MC_A.CUserdefined1
-				left outer join MonthMaster MM with(nolock) on MM.MonthID=SF.FrequencySelection
-				Left Outer join #Year YY with(nolock) on YY.YearId= SF.FrequencySelection
-				left outer join Mastercodes MC_B with(nolock) on MC_B.Cparentref=41 
-				and MC_B.Ccodeid =@COMPONENTGROUPID and MC_B.Cuserdefined5=1 and MC_B.rowstatus=1 
-				and SF.NumberOfInstallment=MC_B.CUserdefined1
-				WHERE   SF.CreatedBy LIKE LTRIM(RTRIM('%' + @searchData2 + '%')) and SF.Rowstatus=1 
-				and SF.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))
-				and SF.Fk_ComponentCountrymappingid=@ComponentCountryMappingId
-				and SF.CreatedDate<=getdate()
-				
-				IF(@getPages=0)
-				BEGIN
-				--Sort by Ascending
-				IF @sortOrder = 1
-				BEGIN
-				
-					EXEC('SELECT Rowno,PK_CESchoolFeesID,AssociateID,AssociateName,Amount,StartDate,
-					EndDate,ChildType,FrequencyType,FrequencySelection,Year,
-					NumberOfInstallment,RejectionReason,Status,InvoiceAttachment,PayoutType FROM
-					(SELECT ROW_NUMBER() OVER (ORDER BY '+@orderby+' ASC) AS [RowNo],* FROM #TEMPSchool6) t
-					WHERE RowNo BETWEEN '+ @iDisplayStart1+' AND '+@iDisplayEnd1)
-				END
-				ELSE
-				BEGIN
-					EXEC('SELECT Rowno,PK_CESchoolFeesID,AssociateID,AssociateName,Amount,StartDate,
-					EndDate,ChildType,FrequencyType,FrequencySelection,Year,
-					NumberOfInstallment,RejectionReason,Status,InvoiceAttachment,PayoutType FROM
-					(SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderby+' DESC) AS [RowNo],* FROM #TEMPSchool6) t
-					WHERE RowNo BETWEEN '+ @iDisplayStart1+' AND '+@iDisplayEnd1)
-				END
-				END
-				ELSE
-				BEGIN
-				--get total records
-				SELECT @totrec1=count(1) FROM #TEMPSchool6
-				IF (@totrec1%@iDisplayLength)=0
-				SELECT (@totrec1/@iDisplayLength) AS Pages,@totrec1 AS Total
-				ELSE
-				SELECT (@totrec1/@iDisplayLength)+1 AS Pages,@totrec1 AS Total
-				END
-				--------Drop temp table ----------
-				Drop table #TEMPSchool6
+	Update SAP set SAP.InvoiceAttachment=SF.InvoiceAttachment 
+	FROM Exp.CESchoolFees SF with (nolock)
+	INNER JOIN STG.CESchoolFees SAP With (nolock) ON SF.AssociateID=SAP.AssociateID 
+	and SF.Year = SAP.Year
+	WHERE SF.Startdate= SAP.StartDate and SF.EndDate=SAP.EndDate and SF.Rowstatus=1 
+	AND SAP.Rowstatus=1 AND SF.InvoiceAttachment IS NOT NULL
+	AND SF.ChildType = SAP.ChildType AND SF.FrequencyType=SAP.FrequencyType 
+	AND SF.FrequencySelection=SAP.FrequencySelection
+
+	 UPDATE SF SET SF.RowStatus=0,SF.ModifiedBy=SAP.CreatedBy,SF.ModifiedDate=GETDATE()
+	FROM Exp.CESchoolFees SF with (nolock)
+	INNER JOIN STG.CESchoolFees SAP With (nolock) ON SF.AssociateID=SAP.AssociateID 
+	and SF.Year = SAP.Year
+	WHERE SF.Startdate= SAP.StartDate and SF.EndDate=SAP.EndDate 
+	and SF.Rowstatus=1 and SAP.Rowstatus=1 
+	and SF.ChildType = SAP.ChildType and SF.FrequencyType=SAP.FrequencyType
+	AND SF.FrequencySelection=SAP.FrequencySelection
+	
+-------------Declaring variables ---------------
+	--For Business Unit and CompanyID check
+	DECLARE @SETIDLIST TABLE
+	(
+		Business_Unit VARCHAR(5),
+		Country_ID VARCHAR(3)
+	)
+	INSERT INTO @SETIDLIST(Business_Unit,Country_ID)
+	SELECT DISTINCT Business_Unit,Country_ID 
+	FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_HCMLocation WITH(NOLOCK) 
+	WHERE ISActive='A'
+		
+		SELECT DISTINCT STSI.PK_CESChoolFeesID, 
+		'Associate not eligible for this allowance,'  AS EXCEPTIONREASON 
+		into #PolicyChk
+		From STG.CESchoolFees STSI WITH(NOLOCK)	
+		left outer join  Policy.PolicyMaster PPM on PPM.AssociateID=STSI.AssociateId
+		AND PPM.Rowstatus=1 AND PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingId
+		WHERE ISNULL(PPM.AssociateID,0)=0  
+		
+   --------Insert query --------------
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+	    ExceptionRemarks,CreatedBy,CreatedDate,RowStatus,FK_componentcountrymappingid)
+	    SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,
+		Year,Amount,NumberOfInstallment,
+	    EXCEPTIONREASON,CreatedBy,GETDATE(),1,@ComponentCountryMappingId
+	    FROM STG.CESchoolFees STSI WITH (NOLOCK) INNER JOIN #PolicyChk INV WITH (NOLOCK)
+		ON STSI.PK_CESChoolFeesID=INV.PK_CESChoolFeesID 
+	    WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		
+		DELETE STSI FROM STG.CESchoolFees STSI INNER JOIN #PolicyChk INV ON
+		STSI.PK_CESChoolFeesID=INV.PK_CESChoolFeesID WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		
+	---------------Drop temp table -----------
+		DROP TABLE #PolicyChk
+
+        CREATE TABLE #Schoolfees(ID int,AssociateID varchar(11),StartDate varchar(50),
+		Enddate varchar(10),FrequencyType int,FrequencySelection int,
+		ChildType int,PayoutType varchar(20),Year varchar(10),Amount Money,ClaimedAmount Money,
+		NumberOfInstallment int	,InvoiceAttachment varchar(30),CreatedBy int,CreatedDate datetime,
+		FK_ComponentGroupID int,FK_ComponentCountryMappingid int, Grade varchar(100),
+		SetID varchar(100), MaxPercentage int)
+        
+   --------Insert query --------------
+        INSERT INTO #Schoolfees(ID,AssociateID,StartDate,Enddate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,ClaimedAmount,NumberOfInstallment,InvoiceAttachment,
+		Createdby,Createddate,
+		FK_ComponentGroupID,FK_componentcountrymappingid,PayoutType,MaxPercentage)
+        SELECT PK_CESchoolFeesID,SF.AssociateID,StartDate,Enddate,ChildType,FrequencyType,
+		FrequencySelection,Year,SF.Amount,SF.Amount,NumberOfInstallment,InvoiceAttachment,
+		SF.Createdby,SF.Createddate,
+		FK_ComponentGroupID,SF.FK_componentcountrymappingid,MC.CDescription as PayoutType, 
+		PPM.PK_CriteriaType as MaxPercentage
+        FROM Stg.CESchoolFees SF
+		inner join Policy.PolicyMaster PPM with(nolock) on PPM.associateID=SF.AssociateID 
+		AND  PPM.FK_ComponentCountryMappingid=@ComponentCountryMappingId
+		INNER JOIN MasterCodes MC  WITH(NOLOCK) ON MC.CUserDefined1 = PPM.SharingType 
+		AND MC.CParentRef=40 AND MC.CCodeId=18 AND MC.CUserDefined2=58
+		AND MC.RowStatus=1 AND MC.Remarks=@CountryID
+		WHERE PPM.Rowstatus=1 AND SF.Rowstatus=1
+
+-------------------------ASSOCIATE'S DATA ON THE DATE OF CLAIM------------------
+    CREATE TABLE #STTEMP
+    (
+    PK_ID INT PRIMARY KEY,
+    AssociateID VARCHAR(11),
+    LOCATION VARCHAR(50),
+    BU VARCHAR(50),
+    COUNTRYID VARCHAR(50),
+    GRADE VARCHAR(50),
+    DEPARTMENTID VARCHAR(50),
+    EMPLTYPE VARCHAR(10),
+    EMPLSTATUS VARCHAR(5),
+    EFFDT DATETIME,
+    COMPANY VARCHAR(10),
+	StartDate VARCHAR(20)
+    )
+
+;WITH JR_DUMP
+AS
+(
+SELECT AL.PK_CESchoolFeesID,JR.EMPLID, JR.LOCATION AS LOCATION, JR.BUSINESS_UNIT AS BU, 
+JR.JOBCODE AS GRADE, JR.HR_STATUS, JR.EMPL_STATUS,
+JR.DEPTID AS DEPARTMENTID, JR.PER_ORG AS EMPLTYPE, JR.EMPL_STATUS AS EMPLSTATUS,
+JR.EFFDT AS EFFDT, JR.COMPANY,JR.EMPL_RCD AS EMPL_RCD,AL.Startdate,
+RANK() OVER
+       (
+       PARTITION BY EMPLID ORDER BY JR.EFFDT DESC,
+       CASE
+              WHEN (JR.HR_STATUS = 'A' AND (JR.EMPL_STATUS IN ('A','L','P','W') 
+			  OR (JR.EMPL_STATUS = 'S' AND JR.ACTION <> 'OGA'))) 
+              THEN 2
+              WHEN JR.HR_STATUS = 'I' THEN 1
+              ELSE 0
+       END DESC) AS RNK_EFF,
+RANK() OVER
+       (
+       PARTITION BY EMPLID,JR.EFFDT,JR.EMPL_RCD ORDER BY JR.EFFSEQ DESC
+       ) AS RNK_SEQ,
+ RANK() OVER
+       (
+       PARTITION BY EMPLID ORDER BY JR.EFFDT DESC, JR.EFFSEQ DESC, JR.EMPL_RCD DESC
+       ) AS RNK_ALT
+FROM Stg.CESChoolFees AL
+INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+ON AL.ASSOCIATEID=JR.EMPLID AND JR.ACTION <> 'INA' AND JR.EFFDT<=CONVERT(DATE,GETDATE())
+), JR_Final
+AS
+(
+SELECT PK_CESchoolFeesID,EMPLID,LOCATION,BU,GRADE,DEPARTMENTID,EMPLTYPE,
+EMPLSTATUS,EFFDT,COMPANY,StartDate,
+RANK() OVER(
+       PARTITION BY EMPLID ORDER BY  CASE
+              WHEN (JR.RNK_EFF=1 AND JR.RNK_SEQ=1) THEN 2
+              WHEN JR.RNK_ALT = 1 THEN 1
+              ELSE 0 END DESC,EMPL_RCD DESC) AS FinalRNK 
+FROM JR_DUMP JR  WITH(NOLOCK)
+)
+
+   --------Insert query --------------
+INSERT INTO #STTEMP (PK_ID ,AssociateID ,LOCATION ,BU ,COUNTRYID ,GRADE ,DEPARTMENTID ,
+EMPLTYPE ,EMPLSTATUS,EFFDT ,COMPANY ,StartDate )
+SELECT PK_CESchoolFeesID,JR.EMPLID AssociateID,JR.LOCATION, JR.BU,HL.COUNTRY_ID, 
+JR.GRADE,  JR.DEPARTMENTID, JR.EMPLTYPE,JR.EMPLSTATUS,JR.EFFDT,JR.COMPANY,JR.StartDate
+FROM JR_Final JR WITH(NOLOCK)
+LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
+ON HL.HCMLOCATIONCODE=JR.LOCATION AND HL.BUSINESS_UNIT=JR.BU
+WHERE FinalRNK=1
+
+	--------------------------------------Approval Mail check--------------------------------------------- 	 
+	   SELECT DISTINCT STP.ID,STP.AssociateID,STP.Startdate,STP.Enddate,STP.ChildType,
+	   STP.FrequencyType,STP.FrequencySelection,STP.Year,STP.Amount,STP.NumberOfInstallment,
+	   COALESCE((CASE WHEN ISNULL(STP.InvoiceAttachment,'') IN ('','0') 
+	   THEN 'Invoice is mandatory,' ELSE NULL END), '')
+	   AS EXCEPTIONREASON,AD.JobCode AS Grade,AD.BUSINESS_UNIT AS SetID, 
+	   STP.CreatedBy,STP.CreatedDate , STP.PayoutType,STP.Maxpercentage
+	   INTO #APPROVALMAIL	
+	   FROM #SchoolFees STP with(nolock) 
+	   LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
+	   ON AD.Associate_ID=STP.AssociateID
+      
+	   INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+	   FrequencySelection,Year,Amount,NumberOfInstallment,
+	   ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+	   FK_componentcountrymappingid)
+	   SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,
+	   Year,Amount,NumberOfInstallment,
+	   EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,CreatedDate,1,@ComponentCountryMappingId
+	   FROM #APPROVALMAIL WHERE ISNULL(EXCEPTIONREASON,'')<>''	   
+	   
+	   DELETE FROM #SchoolFees WHERE ID IN (SELECT ID FROM #APPROVALMAIL WITH(NOLOCK)
+	   WHERE ISNULL(EXCEPTIONREASON,'')<>'')
+	   
+	---------------Drop temp table -----------
+	   DROP TABLE #APPROVALMAIL
+
+	------------------------Associate/Uploader check----------------------------------------
+ 	    SELECT DISTINCT SF.ID, SF.AssociateID,SF.StartDate,SF.Enddate,SF.ChildType,
+		SF.FrequencyType,SF.FrequencySelection,SF.Year,SF.Amount,SF.NumberOfInstallment,
+		COALESCE((CASE WHEN SF.AssociateId<>SF.CreatedBy  
+		THEN 'Associate can only upload his own record,' ELSE NULL END), '') 
+				AS EXCEPTIONREASON,SF.InvoiceAttachment,SF.PayoutType,SF.Grade,SF.SetID,SF.CreatedBy
+		INTO #AssouploaderCheck
+	    FROM #Schoolfees SF WITH (NOLOCK)
+      
+	    INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,ExceptionRemarks,PayoutType,Grade,
+		SetID,CreatedBy,CreatedDate,RowStatus,FK_componentcountrymappingid)
+	    SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,
+		Year,Amount,NumberOfInstallment,
+	    EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,getdate(),1,@ComponentCountryMappingId
+	    FROM #AssouploaderCheck TT WITH(NOLOCK)
+	    WHERE EXCEPTIONREASON<>''
+	    
+	    DELETE FROM #Schoolfees WHERE ID IN (SELECT ID FROM #AssouploaderCheck WHERE EXCEPTIONREASON<>'')
+	    
+	---------------Drop temp table -----------
+        DROP TABLE #AssouploaderCheck
+		SELECT DISTINCT SF.ID,SF.AssociateID,SF.StartDate,SF.Enddate,SF.ChildType,
+		SF.FrequencyType,SF.FrequencySelection,SF.Year,SF.Amount,SF.NumberOfInstallment,		
+		COALESCE((CASE WHEN AD.IsActive NOT IN ('A','L') THEN 'Associate is InActive,' ELSE NULL END), '') 		
+		+
+		COALESCE((CASE WHEN  UPPER(HL.COUNTRY_ID) not like '%'+@CountryCode+'%'  
+		AND AD.ISACTIVE IN ('A','L') THEN 'AssociateID does not belong to '+@CountryName+',' ELSE NULL END), '') 	          
+	    +
+		COALESCE((CASE WHEN SL.Country_ID IS NULL  
+		THEN 'Associate not active in '+CCM.Country+' Payroll as on claim date,' ELSE NULL END), '')
+		+ 		       
+	    COALESCE((CASE WHEN AD.IsActive = 'T' AND (DATEDIFF(DD,AD.EffDt ,CONVERT(DATE,GETDATE())) > 30 )  
+	    THEN 'Associate’s termination date is greater than 30 days. Special pay can’t be processed,
+		' ELSE NULL END), '') 
+        +
+		COALESCE((CASE WHEN (isnull(AD.COMPANY,'') ='') THEN 'Company Unavailable for the associate,
+		' ELSE NULL END), '')  
+		+
+		COALESCE((CASE WHEN (ISNULL(AD.BUSINESS_UNIT,'')='') 
+		THEN 'SetId Unavailable for the associate,' ELSE NULL END), '')	   
+		+	    
+        COALESCE((CASE WHEN  
+		AD.DATEOFJOINING>CONVERT(DATE,GETDATE())    
+        THEN 'Associate''s DOJ should be lesser than claim date,' ELSE NULL END), '')
+		+
+		COALESCE((CASE WHEN  (DATEDIFF(mm,SF.Startdate,SF.EndDate)<10) 
+		THEN 'Academic Year Selection Should be of atleast 10 months,' ELSE NULL END), '') 
+		AS EXCEPTIONREASON,
+		SF.InvoiceAttachment,SF.PayoutType,SF.Grade,SF.SetID,SF.CreatedBy
+		INTO #TEMP
+		FROM #Schoolfees SF WITH(NOLOCK)
+		LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
+		ON AD.Associate_ID=SF.AssociateID
+		INNER JOIN ComponentCountryMaster CCM with(nolock) ON CCM.PK_ComponentCountryID=@CountryID	
+		LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
+		ON HL.HCMLocationCode=AD.PresentHCMLocationCode and HL.Business_Unit=AD.Business_Unit		
+		LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL_A WITH(NOLOCK)
+		ON HL_A.HCMLocationCode=AD.ParentHCMLocationCode
+		inner join #STTEMP  TP WITH(NOLOCK) on TP.AssociateID=SF.AssociateID 
+		LEFT OUTER JOIN @SETIDLIST SL ON (SL.Country_ID=CCM.SETIDDivision 
+		OR SL.Country_ID=CCM.CountryID) AND SL.BUSINESS_UNIT=TP.BU
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,ExceptionRemarks,PayoutType,Grade,
+		SetID,CreatedBy,CreatedDate,RowStatus,FK_componentcountrymappingid)
+	    SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,Year,
+		Amount,NumberOfInstallment,EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,getdate(),
+		1,@ComponentCountryMappingId FROM #TEMP TT WITH(NOLOCK)
+		WHERE EXCEPTIONREASON<>''
+
+		DELETE FROM #Schoolfees WHERE ID IN (SELECT ID FROM #TEMP WHERE EXCEPTIONREASON<>'')	
+
+		----------------------------Select query for school fees--------------------------------------------
+
+		SELECT A.EMPLID AS AssociateID,A.DateOfJoining AS DateOfJoining,A.DEPTID AS Department,
+		A.LOCATION AS LOCATION,A.COMPANY AS COMPANY,A.BUSINESS_UNIT AS BU  INTO #SFTEMP
+		FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID ORDER BY JR.EFFDT DESC,
+		JR.EFFSEQ DESC,JR.EMPL_RCD DESC) AS RANK ,
+		JR.EMPLID,JR.EMPL_RCD,JR.EFFDT,JR.EFFSEQ,JR.DEPTID,JR.JOBCODE,JR.LOCATION,
+		JR.COMPANY,JR.BUSINESS_UNIT,AD.DateOfJoining 
+		FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+		INNER JOIN #Schoolfees SSF WITH(NOLOCK) ON SSF.AssociateID=JR.EMPLID
+		LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
+		ON AD.Associate_ID=SSF.AssociateID WHERE ISNUMERIC(JR.EMPLID)=1   
+		) A WHERE A.Rank=1
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,ExceptionRemarks,PayoutType,Grade,
+		SetID,CreatedBy,CreatedDate,RowStatus,FK_componentcountrymappingid)
+		SELECT STB.AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,
+		Year,Amount,NumberOfInstallment,'Associate Data not available in CRS',
+		PayoutType,Grade,SetID,CreatedBy,getdate(),1,@ComponentCountryMappingId
+		from #SFTEMP JBT with (nolock) 
+		Right outer join #Schoolfees STB with (nolock) on JBT.AssociateID=STB.AssociateID
+		where JBT.AssociateID is null
+
+		Delete from #Schoolfees where AssociateID not in (select associateid 
+		FROM #SFTemp WITH (NOLOCK))
+
+		-------------------------Contractor Check------------------------------------
+
+		SELECT DISTINCT SF.ID,SF.AssociateID,SF.StartDate,SF.Enddate,SF.ChildType,
+		SF.FrequencyType,SF.FrequencySelection,SF.Year,SF.Amount,SF.NumberOfInstallment,		
+		COALESCE((CASE WHEN AD.Per_Org ='CWR' THEN 'Associate is a contractor,' ELSE NULL END), '')  
+		+
+		COALESCE((CASE WHEN JR.ACTION='TER' AND JR.Action_reason='CTE' AND AD.Per_Org <>'CWR' 
+		AND JR.EFFDT=JT.DateOfJoining	
+		THEN 'Associate has converted from contractor to Employee,' ELSE NULL END), '')  
+		AS EXCEPTIONREASON,SF.InvoiceAttachment,SF.PayoutType,SF.Grade,SF.SetID,SF.CreatedBy
+		INTO #CONTRACTOR 
+		FROM #Schoolfees SF WITH(NOLOCK)	
+		INNER JOIN #SFTEMP JT WITH(NOLOCK) ON JT.AssociateID=SF.AssociateID
+		LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
+		ON AD.Associate_ID=SF.AssociateID  
+		LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+		ON JR.EMPLID=JT.AssociateID 
+		
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+	    ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+	    SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,
+		Year,Amount,NumberOfInstallment,
+	    EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,getdate(),1,@ComponentCountryMappingId 
+		FROM #CONTRACTOR WITH(NOLOCK)
+		WHERE EXCEPTIONREASON<>''	
+    	
+		DELETE FROM #Schoolfees WHERE ID IN (SELECT ID FROM #CONTRACTOR WHERE EXCEPTIONREASON<>'')	
+		
+
+		SELECT DISTINCT SF.ID,SF.AssociateID,SF.STartDate,SF.EndDate,SF.ChildType,SF.FrequencyType,
+		SF.FrequencySelection,SF.Year,SF.Amount,
+		SF.NumberOfInstallment, SF.PayoutType,SF.Grade,SF.SetID,
+		COALESCE((CASE WHEN (SF.AMOUNT IS NULL OR SF.AMOUNT='') and SF.ChildType=1 
+		THEN 'Amount is Mandatory,' 
+		WHEN (SF.AMOUNT<>'' AND ISNUMERIC(SF.AMOUNT) <> 1 OR CONVERT(MONEY,SF.AMOUNT)<1)	
+		THEN 'Amount is InValid for Child1,'ELSE NULL END), '')
+	
+		AS EXCEPTIONREASON,SF.CreatedBy
+		INTO #TEMP3
+		FROM #Schoolfees SF WITH (NOLOCK) 
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,ExceptionRemarks,PayoutType,Grade,
+		SetID,CreatedBy,CreatedDate,RowStatus,FK_componentcountrymappingid)
+	
+		SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,Year,
+		Amount,NumberOfInstallment,
+		EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,GETDATE(),1,@ComponentCountryMappingId
+		FROM #TEMP3  TT
+		WHERE EXCEPTIONREASON <>''	
+
+		Delete from #Schoolfees where ID IN (Select ID from #TEMP3 where isnull(EXCEPTIONREASON,'')<>'')
+	
+	     -----------------------------Duplicate Entries-----------------------------------
+
+	    SELECT AssociateID,StartDate,Enddate,ChildType INTO #DUPLICATES 
+		FROM #Schoolfees WITH(NOLOCK)
+		GROUP BY ASSOCIATEID,StartDate,Enddate,ChildType HAVING COUNT(ASSOCIATEID)>1 
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+		ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+		SELECT SF.AssociateID,SF.StartDate,SF.EndDate,SF.ChildType,SF.FrequencyType,SF.FrequencySelection,
+		SF.Year,Amount,NumberOfInstallment,
+		'Duplicate data found in same upload,' AS ExceptionReason,PayoutType,Grade,SetID,CreatedBy,
+		GETDATE(),1,@ComponentCountryMappingId
+		FROM #Schoolfees SF WITH(NOLOCK)
+		INNER JOIN #SFTEMP JT WITH(NOLOCK) ON JT.AssociateID=SF.AssociateID
+		INNER JOIN #DUPLICATES DUP WITH(NOLOCK) ON DUP.ASSOCIATEID=SF.AssociateID 
+		AND DUP.StartDate= SF.StartDate
+		and DUP.Enddate=SF.Enddate and DUP.ChildType=SF.ChildType
+	
+		Delete  SSF from #Schoolfees SSF inner join #DUPLICATES DUP ON SSF.ASSOCIATEID=DUP.ASSOCIATEID 
+
+		SELECT DISTINCT STSI.ID,case when (STSI_A.ChildType <> 1 or PPM.ChildType <>1) 
+		THEN 'Amount for child 1 is not claimed' else null end AS EXCEPTIONREASON 
+		into #ChildCheck
+		From #Schoolfees STSI WITH(NOLOCK)	
+		left outer join #Schoolfees STSI_A with(nolock) on STSI.AssociateID=STSI_A.AssociateID 
+		left outer join PR.CESchoolFees PPM on PPM.AssociateID=STSI.AssociateId and PPM.Rowstatus=1 
+		and PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingId
+		and STSI.ChildType=2
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+	    ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+	    SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,Year,
+		Amount,NumberOfInstallment,
+	    EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,getdate(),1,@ComponentCountryMappingId
+		from #Schoolfees STSI with (nolock) INNER JOIN #ChildCheck INV WITH (NOLOCK) 
+		ON STSI.ID=INV.ID 
+		WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+
+		DELETE STSI FROM #Schoolfees STSI INNER JOIN #ChildCheck INV ON
+		STSI.ID=INV.ID WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		
+	---------------Drop temp table -----------
+		DROP TABLE #ChildCheck
+
+		SELECT DISTINCT STSI.ID, 'Amount for child 2 not configured for this Associate'  AS EXCEPTIONREASON 
+		INTO #PolicyChkForChild2
+		FROM #Schoolfees STSI WITH(NOLOCK)	
+		LEFT OUTER JOIN Policy.PolicyMaster PPM ON PPM.AssociateID=STSI.AssociateId 
+		AND PPM.Rowstatus=1 AND PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingId
+		WHERE ISNULL(PPM.AssociateID,'')<>'' AND (ISNULL(PPM.Above1Month,'')='' 
+		OR PPM.Above1Month=convert(decimal,0)) and (ISNULL(STSI.Amount,'')<>'' OR STSI.Amount<>0)  		
+		and STSI.ChildType=2
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+	    ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+	    SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,
+		Year,Amount,NumberOfInstallment,
+	    EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,getdate(),1,
+		@ComponentCountryMappingId
+		FROM #Schoolfees STSI WITH (NOLOCK) INNER JOIN #PolicyChkForChild2 INV WITH (NOLOCK)
+		ON STSI.ID=INV.ID 
+		WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+
+		DELETE STSI FROM #Schoolfees STSI INNER JOIN #PolicyChkForChild2 INV ON
+		STSI.ID=INV.ID WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		
+	---------------Drop temp table -----------
+		DROP TABLE #PolicyChkForChild2
+
+         ---------------------Date and Frequency Selection validation----------------
+
+		CREATE TABLE #Academicyearvalid (ID INT, AssociateID VARCHAR(11),EXCEPTIONREASON VARCHAR(500))
+
+		INSERT INTO #Academicyearvalid (ID , AssociateID,EXCEPTIONREASON )
+		SELECT DISTINCT STSI.ID, STSI.AssociateID,
+		'Claim date not within Academic year selection'  AS EXCEPTIONREASON 
+		From #Schoolfees STSI WITH(NOLOCK) 
+		INNER JOIN MonthMaster QM WITH (NOLOCK) 
+		ON QM.Quarter=STSI.FrequencySelection and 
+		((month(Startdate)>QM.MonthID and STSI.Year=Year(STSI.StartDate))
+		OR (MONTH(STSI.EndDate)<QM.MonthID AND STSI.Year=YEAR(STSI.EndDate))
+		OR ( STSI.Year <> YEAR(STSI.Startdate) AND STSI.Year <> YEAR(STSI.Enddate)))
+		WHERE STSI.FrequencyType=2 
+		GROUP BY STSI.ID, STSI.AssociateID
+		HAVING COUNT(STSI.AssociateID)>=3
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+	    ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+	    SELECT STSI.AssociateID,STSI.StartDate,STSI.EndDate,STSI.ChildType,STSI.FrequencyType,
+		STSI.FrequencySelection,STSI.Year,STSI.Amount,STSI.NumberOfInstallment,
+	    EXCEPTIONREASON,STSI.PayoutType,STSI.Grade,STSI.SetID,STSI.CreatedBy,getdate(),1,
+		@ComponentCountryMappingId
+		from #Schoolfees STSI with (nolock) INNER JOIN #Academicyearvalid INV WITH (NOLOCK) 
+		ON STSI.ID=INV.ID 
+		WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+
+		DELETE STSI FROM #Schoolfees STSI INNER JOIN #Academicyearvalid INV ON
+		STSI.ID=INV.ID WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		
+		DELETE FROM #Academicyearvalid
+
+		Insert into #Academicyearvalid (ID , AssociateID,EXCEPTIONREASON )
+		SELECT DISTINCT STSI.ID, STSI.AssociateID,
+		'Claim date not within Academic year selection'  AS EXCEPTIONREASON 
+		From #Schoolfees STSI WITH(NOLOCK) 
+		where STSI.FrequencyType=1 
+		and (EOMONTH(cast(STSI.Year+' -'+ ''+convert(varchar,STSI.FrequencySelection) +'' + '-1' AS DATE)) 
+		NOT BETWEEN STSI.StartDate AND STSI.Enddate
+		AND CAST(STSI.Year+' -'+ ''+CONVERT(VARCHAR,STSI.FrequencySelection) +'' + '-1' AS DATE) 
+		NOT between STSI.StartDate and STSI.Enddate) 
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+	    ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+	    SELECT STSI.AssociateID,STSI.StartDate,STSI.EndDate,STSI.ChildType,STSI.FrequencyType,
+		STSI.FrequencySelection,STSI.Year,STSI.Amount,STSI.NumberOfInstallment,
+	    EXCEPTIONREASON,STSI.PayoutType,STSI.Grade,STSI.SetID,STSI.CreatedBy,getdate(),1,
+		@ComponentCountryMappingId
+		from #Schoolfees STSI with (nolock) INNER JOIN #Academicyearvalid INV WITH (NOLOCK) 
+		ON STSI.ID=INV.ID 
+		WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+
+		DELETE STSI FROM #Schoolfees STSI INNER JOIN #Academicyearvalid INV ON
+		STSI.ID=INV.ID WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		
+		DELETE FROM #Academicyearvalid
+
+		Insert into #Academicyearvalid (ID , AssociateID,EXCEPTIONREASON )
+		SELECT DISTINCT STSI.ID, STSI.AssociateID,
+		'Claim date not within Academic year selection'  AS EXCEPTIONREASON 
+		From #Schoolfees STSI WITH(NOLOCK) 
+		where STSI.FrequencyType=3 and 
+		STSI.FrequencySelection in (year(STSI.StartDate),year(STSI.Enddate))
+
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,
+		FrequencyType,FrequencySelection,Year,Amount,NumberOfInstallment,
+	    ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+	    SELECT STSI.AssociateID,STSI.StartDate,STSI.EndDate,STSI.ChildType,
+		STSI.FrequencyType,STSI.FrequencySelection,STSI.Year,STSI.Amount,STSI.NumberOfInstallment,
+	    EXCEPTIONREASON,STSI.PayoutType,STSI.Grade,STSI.SetID,STSI.CreatedBy,getdate(),
+		1,@ComponentCountryMappingId
+		from #Schoolfees STSI with (nolock) INNER JOIN #Academicyearvalid INV WITH (NOLOCK)
+		ON STSI.ID=INV.ID 
+		WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+
+		DELETE STSI FROM #Schoolfees STSI INNER JOIN #Academicyearvalid INV ON
+		STSI.ID=INV.ID WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		
+		DELETE FROM #Academicyearvalid
+
+--------------------------Amount Exceed check-----------------------------------------
+
+		Update SSF set Amount= CASE WHEN ((PPM.PK_CriteriaType/100) *SSF.Amount)<PPM.Upto1Month 
+		THEN ((PPM.PK_CriteriaType/100) *SSF.Amount) ELSE PPM.Upto1Month END
+		FROM #Schoolfees SSF WITH(NOLOCK) 
+		INNER JOIN Policy.PolicyMaster PPM with(nolock)
+		on PPm.AssociateId=SSF.AssociateID and PPM.Rowstatus=1
+		where PPM.FK_ComponentCountrymappingid=@ComponentCountrymappingid and SSF.ChildType=1
+
+		Update SSF set Amount= CASE WHEN ((PPM.PK_CriteriaType/100) *SSF.Amount)<PPM.Above1Month
+		THEN ((PPM.PK_CriteriaType/100) *SSF.Amount) ELSE PPM.Above1Month END
+		FROM #Schoolfees SSF WITH(NOLOCK) 
+		INNER JOIN Policy.PolicyMaster PPM with(nolock) 
+		ON PPm.AssociateId=SSF.AssociateID and PPM.Rowstatus=1
+		where PPM.FK_ComponentCountrymappingid=@ComponentCountrymappingid and SSF.ChildType=2
+
+		create table #ActualChildWiseSumAmount(AssociateId varchar(11),Amount money ,
+		ChildType int,StartDate varchar(20),EndDate varchar(20))
+
+		create table #ActualAssociateSumAmount(AssociateId varchar(11),Amount money ,
+		StartDate varchar(20),EndDate varchar(20))
+		
+		Insert into #ActualChildWiseSumAmount(AssociateID,Amount,ChildType,StartDate,EndDate)
+		select SF.AssociateID,ISNULL(sum(convert(decimal,SSF.Amount)),0)
+		+SUM(CONVERT(DECIMAL,SF.Amount)) AS Amount,SF.ChildType,SF.StartDate ,SF.EndDate 
+		FROM PR.CESchoolFees SSF 
+		RIGHT OUTER JOIN #Schoolfees SF WITH (NOLOCK) ON SF.AssociateID=SSF.AssociateID 
+		AND SF.StartDate=SSF.StartDate and SF.EndDate=SSF.EndDate 
+		and SSF.Rowstatus=1 and SF.ChildType=SSF.ChildType
+		group by SF.AssociateID,SF.ChildType,SF.StartDate ,SF.EndDate
+
+		
+		SELECT DISTINCT STSI.ID,CASE 
+		 WHEN STSI.Amount>PPM.Upto1Month and STSI.ChildType=1 
+		 THEN 'Amount for Child 1 exceeds Child 1 max cap'
+		WHEN STSI.Amount>PPM.Above1Month and STSI.ChildType=2 
+		THEN 'Amount for Child 2 exceeds  Child 2 max cap' ELSE NULL END AS EXCEPTIONREASON 
+		INTO #PolicyChk1
+		From #Schoolfees STSI WITH(NOLOCK)	
+		INNER JOIN #ActualChildWiseSumAmount SSF with(nolock)
+		ON STSI.AssociateID=SSF.AssociateId and SSF.ChildType=STSI.ChildType
+		INNER JOIN Policy.PolicyMaster PPM with(nolock) 
+		ON PPm.AssociateId=SSF.AssociateID and PPM.Rowstatus=1
+		where PPM.FK_ComponentCountrymappingid=@ComponentCountrymappingid
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+		ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+		SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,
+		Year,Amount,NumberOfInstallment,
+		EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,getdate(),1,@ComponentCountryMappingId
+		from #Schoolfees STSI with (nolock) INNER JOIN #PolicyChk1 INV WITH (NOLOCK) 
+		ON STSI.ID=INV.ID 
+		WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''		
+		
+		DELETE STSI FROM #Schoolfees STSI INNER JOIN #PolicyChk1 INV ON
+		STSI.ID=INV.ID WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		 
+	---------------Drop temp table -----------
+		DROP TABLE #PolicyChk1
+
+		Insert into #ActualAssociateSumAmount(AssociateID,Amount,StartDate ,EndDate)
+		select SF.AssociateID,ISNULL(sum(convert(decimal,SSF.Amount)),0)+
+		SUM(CONVERT(decimal,SF.Amount)) as Amount,SF.StartDate,SF.EndDate 
+		FROM PR.CESchoolFees SSF 
+		RIGHT OUTER JOIN #Schoolfees SF WITH (NOLOCK) 
+		ON SF.AssociateID=SSF.AssociateID and SF.StartDate=SSF.StartDate 
+		AND SF.EndDate=SSF.EndDate 
+		and SSF.Rowstatus=1  
+		group by SF.AssociateID,SF.StartDate ,SF.EndDate
+
+		SELECT DISTINCT STSI.ID,CASE 
+		  WHEN STSI.Amount>PPM.Amount  THEN 'Max Cap amount exceeded'
+		  ELSE NULL END AS EXCEPTIONREASON 
+		INTO #PolicyMaxCapChk
+		From #Schoolfees STSI WITH(NOLOCK)	
+		INNER JOIN #ActualChildWiseSumAmount SSF with(nolock)on STSI.AssociateID=SSF.AssociateId 
+		INNER JOIN Policy.PolicyMaster PPM with(nolock)
+		ON PPm.AssociateId=SSF.AssociateID and PPM.Rowstatus=1
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+		ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+		SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,FrequencySelection,
+		Year,Amount,NumberOfInstallment,
+		EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,GETDATE(),1,
+		@ComponentCountryMappingId
+		from #Schoolfees STSI with (nolock) INNER JOIN #PolicyMaxCapChk INV WITH (NOLOCK)
+		ON STSI.ID=INV.ID 
+		WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''		
+		
+		DELETE STSI FROM #Schoolfees STSI INNER JOIN #PolicyMaxCapChk INV ON
+		STSI.ID=INV.ID WHERE  ISNULL(INV.EXCEPTIONREASON,'')<>''
+		 
+	---------------Drop temp table -----------
+		DROP TABLE #PolicyMaxCapChk
+
+		--------------------------Select school fees-----------------------------------------------------------
+
+		 SELECT  DISTINCT SNP.ID,SNP.ASSOCIATEID,SNP.STartDate,SNP.EndDate,SNP.ChildType,
+		 SNP.FrequencyType,SNP.FrequencySelection,SNP.Year,SNP.Amount,
+		 SNP.NumberOfInstallment, SNP.PayoutType,SNP.Grade,SNP.SetID,
+		 CASE WHEN Status=1 then 'SchoolFees has been already uploaded,' 
+		 when Status=5 then 'SchoolFees has been already processed,'
+		 when Status=14 then 'SchoolFees has been already Approved,' end  ExceptionReason
+		,SNP.CREATEDBY, GETDATE() createddate,1 Rowstatus into #MORETHANTWO
+		FROM #Schoolfees SNP WITH(NOLOCK) 
+		INNER JOIN  pr.CESchoolFees PNP  WITH(NOLOCK) ON SNP.AssociateID=PNP.AssociateID 
+		AND SNP.StartDate=PNP.StartDate and SNP.EndDate=PNP.EndDate
+		AND SNP.FrequencyType= PNP.FrequencyType 
+		AND SNP.FrequencySelection=PNP.FrequencySelection and SNP.Year=PNP.Year
+		WHERE SNP.ASSOCIATEID IN (select PNP.associateid 
+		FROM pr.SGPSchoolFees PNP where rowstatus=1)
+
+
+		INSERT INTO EXP.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,
+		FrequencyType,FrequencySelection,Year,Amount,NumberOfInstallment,
+		ExceptionRemarks,PayoutType,Grade,SetID,CreatedBy,CreatedDate,RowStatus,
+		FK_componentcountrymappingid)
+		SELECT AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+		FrequencySelection,Year,Amount,NumberOfInstallment,
+		EXCEPTIONREASON,PayoutType,Grade,SetID,CreatedBy,getdate(),1,
+		@ComponentCountryMappingId
+		from #MORETHANTWO
+
+		DELETE SNP FROM #Schoolfees SNP inner join #MORETHANTWO  MTT ON
+		SNP.AssociateID=MTT.AssociateID and SNP.ID=MTT.ID
+
+
+    -------------------------------INSERTING DATA TO PROCESSING TABLE-------------------------
+	Declare @i int=0,@Count int=0,@k int=0,@installments int=0
+
+	select @Count=count(ID) from #Schoolfees
+
+	WHILE (@i<@Count)
+	BEGIN
+		Set @installments= (Select top 1 NumberOfInstallment from #Schoolfees)
+		Set @k=0
+		 
+		WHILE (@k<@installments)
+		BEGIN
+			Insert into Pr.CESchoolFees(AssociateID,StartDate,EndDate,ChildType,
+			FrequencyType,FrequencySelection,Year,Amount,AmountClaimed,NumberOfInstallment,
+			InvoiceAttachment,Status,CreatedBy,
+			CreatedDate,RowStatus,FK_componentcountrymappingid,PayoutType)
+			Select top 1 AssociateID,StartDate,EndDate,ChildType,FrequencyType,
+			FrequencySelection,Year,Amount/@installments,ClaimedAmount,NumberOfInstallment,
+			InvoiceAttachment,1,CreatedBy,
+			DATEADD(month,@k,DATEADD(DAY,1,EOMONTH(getdate(),-1))),1,
+			@ComponentCountryMappingId ,PayoutType
+			from #Schoolfees
+
+			set @k=@k+1
 		END
+
+		DELETE TOP (1) from #Schoolfees
+
+		set @i=@i+1
 	END
+
+    UPDATE SANDataMaster SET IsProcessed=1 WHERE FileUploadId=@FileUploadID AND IsProcessed=0 
+
+	
+	---------------Drop temp table -----------
+	DROP TABLE #TEMP
+	DROP TABLE #TEMP3
+	DROP TABLE #DUPLICATES
+	DROP TABLE #CONTRACTOR
+	DROP TABLE #SFTEMP
+	DROP TABLE #MORETHANTWO
+	DROP TABLE #Schoolfees
+	DROP TABLE #STTEMP
+
+	EXEC [Trunc].[usp_TruncateTable] 'STG.CESchoolFees'
+
+
+END 
+ END TRY
+ BEGIN CATCH
+ SELECT @@ERROR
+ END CATCH 
 END

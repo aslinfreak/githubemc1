@@ -1,62 +1,124 @@
-In my application,the dates are hardcoded,I dont need like this,actually there are done by the calendar in the application.Help me to fix this
+    else if (componentGroupId == 18 && (CountryId == 14 || CountryId == 15 || CountryId == 16 || CountryId == 17)) {//Nordics & France School Fees
+        $('.popup_new .inner_cont').text('');
+        $('.popup_new .viewport').css("height", "420px");
+        list += '<ul  id="CESchoolFees_NewPopUp"><li><label>Associate ID<span class="red">*</span></label><input type="text" id="CESchoolfeesAssoId" value="" maxlength="11" class="M_40 new_upload" style="Width:100px;" /></li>';
+        list += '<li><label class="M_20">Name</label><span class="M_40"></span></li>';
+        list += '<li><label>Child<span class="red">*</span></label><select name="CEChild" id="CEChild" class="styled M_40" style="--bgX:61%;width:90px"><option value="1" selected="selected">Child1</option><option value="2">Child2</option></select></li>';
+        list += '<li><label class="M_20">Amount <span class="red">*</span></label><input style="Width:100px;" type="text" value="" class="M_40 new_upload" maxlength="11" id="CE_SFamount" onkeypress="return allowValuesAfterDecimal(event,id,8,2)"/></li>';
+        list += '<li><label>StartDate<label class="red" style="margin-top: -25px; margin-left: 50px;">*</label></label><input type="text" id="CE_startdate" value=""  class="M_40 new_upload" style="width:100px;height:20px;" /></li>';
+        list += '<li><label class="M_20">EndDate<label class="red" style="margin-top: -25px; margin-left: 50px;">*</label></label><input type="text" id="CE_enddate" value="" class="M_40 new_upload"   style="width:100px;height:20px;"/></li>';
+        list += '<li><label>Frequency Type<span class="red">*</span></label><select name="CEFrequencyType" id="CEFrequencyType" class="styled M_40" style="--bgX: 61%;"><option value="-1" selected="selected">--Select FrequencyType--</option></select></li>';
+        list += '<li><label class="M_20">FrequencySelection<span class="red">*</span></label><select name="CEFrequencySelect" id="CEFrequencySelect" class="styled M_40" style="--bgX: 60.5%;"><option value="-1" selected="selected">--Select Frequency--</option></select></li>';
+        list += '<li><label>Year<span class="red">*</span></label><select name="CESchoolFeesYear" id="CESchoolFeesYear" class="styled M_40" style="--bgX: 61.5%;width:70px"><option value="-1" selected="selected">--Select Year--</option></select></li>';
+        if (CountryId == 17) {
+            //list += '<li><label class="M_30">No Of Installment</label><span class="M_40">' + data.Installment + '</span></li>';
+            list += '<li><label class="M_15">No Of Installment</label><label id="France_SFInstallment" style="margin-left:-18px;" ></label></li>';
+        }
+        else {
+            list += '<li><label class="M_20">No Of Installment<span class="red">*</span></label><select name="CESchoolFeesInstallment" id="CESchoolFeesInstallment" class="styled M_40" style="--bgX:60.5%"><option value="-1" selected="selected">--Select --</option></select></li>';
+        }
 
-Declare
- @AssociateId INT='2298944',
- @ComponentGroupID int='18',
- @Isactive int=0,
- @LoginID VARCHAR(10)='2298944',
- @CountryId int=15,
- @ChildType int=1
+        list += '</ul>';
+        if (ocm == "1") {
 
-DECLARE @countrycode varchar(30),@Countryname varchar(30),@BusinessUnit varchar(30)
-DECLARE @CurentDate DateTime = GETDATE()
-SELECT @countrycode= Countryid , @Countryname = Country , @BusinessUnit=SetIdDivision
- from componentcountrymaster where PK_ComponentCountryID=@CountryId
+            list += '<ul class="M_20  id="ocmfile"> <li><label style="">Attach Mail(s)<span class="red">*</span></label><a id="fileattach" style="" class="pull-left btn btn-primary" tabindex="0">Attach File</a>';
+            list += '<li style="padding-top:5px;"><div id="aft_uploadocm"></div></li></ul>';
 
- 	DECLARE @ComponentcountrymappingID INT
-	
-	SELECT @ComponentcountrymappingID=CCM.PK_ComponentCountryMappingID 
-	FROM COMPONENTCOUNTRYMAPPING CCM  WITH(NOLOCK) 
-	INNER JOIN COMPONENTMASTER CM  WITH(NOLOCK) ON CM.PK_COMPONENTID=CCM.FK_COMPONENTID
-	INNER JOIN ComponentGroupMaster CGM WITH (NOLOCK) ON CGM.PK_ComponentGroupID=CM.FK_ComponentGroupID 
-	WHERE CGM.PK_ComponentGroupID=@COMPONENTGROUPID and CCM.FK_componentcountryid=@CountryID
-ELSE IF (@ComponentGroupID = 18 and @CountryId <>2)
-BEGIN
-	IF EXISTS(SELECT Associate_ID FROM centralrepository.dbo.vw_centralrepository_associate_details with (nolock)
-				WHERE associate_id=CAST(@AssociateId AS VARCHAR) AND IsActive IN ('A','L') AND Business_Unit LIKE('%'+@countrycode+'%') )
-	BEGIN
-		SELECT 1 AS STATUS,(ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(
-		AD.Associate_LastName)),'')) AS AssociateName,
-		ISNULL(DESG.JobCode+' - '+LTRIM(RTRIM(DESG.JobCodeDescription)),'') Level,CONVERT(VARCHAR,
-		AD.DateOfJoining,101) AS DateOfJoining,AD.Business_Unit AssociateBU
-		FROM CentralRepository.dbo.vw_CentralRepository_Associate_Details AD with (nolock)
-			LEFT OUTER JOIN CENTRALREPOSITORY.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK) ON 
-			DESG.JOBCODE=AD.JobCode AND DESG.Bussiness_unit=AD.Business_Unit 
-		WHERE AD.Associate_ID=CAST(@AssociateId AS VARCHAR)
+        }
+        else {
+            list += '<ul class="M_20  id="ocmfile"> <li><label style="">Attach Mail(s)<span class="red">*</span></label><a id="fileattach" style="" class="pull-left btn btn-primary" tabindex="0">Attach File</a>';
+            list += '<li style="padding-top:5px;"><div id="aft_uploadocm"></div></li></ul>';
+        }
 
-			
-		IF exists(Select AssociateID from PR.CESchoolfees where AssociateId=CAST(@AssociateId AS VARCHAR) and 
-		RowStatus=1 and ChildType=@ChildType 
-		and (convert(date,@CurentDate) between StartDate and EndDate OR convert(date,@CurentDate) < StartDate))
-		BEGIN
-			Select top(1)1 as Status,StartDate,Enddate from PR.CESchoolfees where AssociateId=CAST(@AssociateId AS VARCHAR) and
-			RowStatus=1 and ChildType=@ChildType 
-			and (convert(date,@CurentDate) between StartDate and EndDate OR convert(date,@CurentDate) < StartDate) 
-			order by createddate
-		END
-		ELSE
-		BEGIN
-			Select 0 as Status
-		END					
-	END
-	ELSE IF EXISTS(SELECT Associate_ID FROM centralrepository.dbo.vw_centralrepository_associate_details with (nolock)
-				WHERE associate_id=CAST(@AssociateId AS VARCHAR) AND IsActive IN ('A','L') AND Business_Unit not LIKE ('%'+@countrycode+'%'))
-	BEGIN
-	SELECT 0 AS STATUS,'Associate not belongs to '+@Countryname+'' AS ERRORMESSAGE
-	END
-	ELSE
-	BEGIN
-	SELECT 0 As Status,'Invalid AssociateID' AS ERRORMESSAGE
-	END
 
-END
+        $('.popup_new .inner_cont').css("height", "255px");
+        $('.popup_new .inner_cont').html('');
+        $('.popup_new .inner_cont').html('').html(list);
+
+        $("#CE_startdate").datepicker("destroy");
+        $("#CE_startdate").datepicker({ changeMonth: true, changeYear: true, prevText: "", nextText: "", onFocus: 'show' });
+        $("#CE_enddate").datepicker("destroy");
+        $("#CE_enddate").datepicker({ changeMonth: true, changeYear: true, prevText: "", nextText: "", onFocus: 'show' });
+
+
+        var datastring = '{"componentGroupId":"' + componentGroupId + '","frequencyType":0}';
+
+        $.ajax({
+            type: "POST",
+            url: "../APAC_WebMethods.aspx/GetDropdownDetailsCE",
+            contentType: "application/json; charset=utf-8",
+            dataType: "json",
+            data: datastring,
+            cache: false,
+            success: function (msg) {
+                if (msg.d.length > 0) {
+                    var FrequencyType = ''
+                    if (msg.d[0].length != 0) {
+                        $.each(msg.d[0], function (i, data) {
+                            FrequencyType += '<option value="' + data.FrequencyTypeID + '">' + data.FrequencyType + '</option>';
+                        });
+                    }
+                    $('#CEFrequencyType').html(FrequencyType);
+                    $('#CEFrequencyType').find('option:nth-child(1)').attr('selected', 'selected');
+                    $('#selectCEFrequencyType').text($("#CEFrequencyType option:selected").text());
+                    $('.popup_new .innerErrorHolder').text('');
+
+                    var year = '';
+                    //year += "<option value='-1'>--Select Year--</option>";
+                    if (msg.d[1].length != 0) {
+                        $.each(msg.d[1], function (i, data) {
+                            year += '<option value="' + data.YearID + '">' + data.Year + '</option>';
+                        });
+                    }
+                    $('#CESchoolFeesYear').html(year);
+                    $('#CESchoolFeesYear').find('option:nth-child(2)').attr('selected', 'selected');
+                    $('#selectCESchoolFeesYear').text($("#CESchoolFeesYear option:selected").text());
+                    $('.popup_new .innerErrorHolder').text('');
+                    //  $(".popup_edit .inner_cont ul li:nth-child(6) select option:contains(" + PayoutType + ")").attr('selected', 'selected');
+
+                    var month = '';
+                    // month += "<option value='-1'>--Select Month--</option>";
+                    if (msg.d[2].length != 0) {
+                        $.each(msg.d[2], function (i, data) {
+                            month += '<option value="' + data.MonthID + '" freqselect="' + data.MonthName + '">' + data.MonthName + '</option>';
+                        });
+                    }
+                    $('#CEFrequencySelect').append(month);
+                    $('#CEFrequencySelect').find('option:nth-child(1)').attr('selected', 'selected');
+                    $('#selectCEFrequencySelect').text($("#CEFrequencySelect option:selected").text());
+                    $('.popup_new .innerErrorHolder').text('');
+
+                    var Installment = '';
+                    // month += "<option value='-1'>--Select Month--</option>";
+                    if (CountryId == 14 || CountryId == 15 || CountryId == 16) {
+                        if (msg.d[3].length != 0) {
+                            $.each(msg.d[3], function (i, data) {
+                                Installment += '<option value="' + data.InstallmentID + '">' + data.Installments + '</option>';
+                            });
+                        }
+
+                        $('#CESchoolFeesInstallment').append(Installment);
+                        $('#CESchoolFeesInstallment').find('option:nth-child(1)').attr('selected', 'selected');
+                        $('#selectCESchoolFeesInstallment').text($("#CESchoolFeesInstallment option:selected").text());
+                    }
+                    else if (CountryId == 17) {
+                        $('#France_SFInstallment').text(msg.d[3][0].Installments);
+                        $('#France_SFInstallment').val(msg.d[3][0].InstallmentID);
+                        //append(msg.d[3][0].InstallmentID);
+                    }
+                    $('.popup_new .innerErrorHolder').text('');
+                }
+            },
+            error: function (xhr) {
+                errorpopup(parent.document.getElementById("hdnSession").value);
+            }
+        });
+        var popupHeight = $('.popup_new').find(".middle").height();
+        $('.popup_new').css({
+            'position': 'absolute',
+            'z-index': '100',
+            "top": ((($(window).height() - popupHeight) / 2) - 16) + "px",
+            "left": "10%"
+        });
+        $("#CESchoolfeesAssoId").numeric();
+    }

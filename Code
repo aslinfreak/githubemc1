@@ -1,124 +1,54 @@
-    else if (componentGroupId == 18 && (CountryId == 14 || CountryId == 15 || CountryId == 16 || CountryId == 17)) {//Nordics & France School Fees
-        $('.popup_new .inner_cont').text('');
-        $('.popup_new .viewport').css("height", "420px");
-        list += '<ul  id="CESchoolFees_NewPopUp"><li><label>Associate ID<span class="red">*</span></label><input type="text" id="CESchoolfeesAssoId" value="" maxlength="11" class="M_40 new_upload" style="Width:100px;" /></li>';
-        list += '<li><label class="M_20">Name</label><span class="M_40"></span></li>';
-        list += '<li><label>Child<span class="red">*</span></label><select name="CEChild" id="CEChild" class="styled M_40" style="--bgX:61%;width:90px"><option value="1" selected="selected">Child1</option><option value="2">Child2</option></select></li>';
-        list += '<li><label class="M_20">Amount <span class="red">*</span></label><input style="Width:100px;" type="text" value="" class="M_40 new_upload" maxlength="11" id="CE_SFamount" onkeypress="return allowValuesAfterDecimal(event,id,8,2)"/></li>';
-        list += '<li><label>StartDate<label class="red" style="margin-top: -25px; margin-left: 50px;">*</label></label><input type="text" id="CE_startdate" value=""  class="M_40 new_upload" style="width:100px;height:20px;" /></li>';
-        list += '<li><label class="M_20">EndDate<label class="red" style="margin-top: -25px; margin-left: 50px;">*</label></label><input type="text" id="CE_enddate" value="" class="M_40 new_upload"   style="width:100px;height:20px;"/></li>';
-        list += '<li><label>Frequency Type<span class="red">*</span></label><select name="CEFrequencyType" id="CEFrequencyType" class="styled M_40" style="--bgX: 61%;"><option value="-1" selected="selected">--Select FrequencyType--</option></select></li>';
-        list += '<li><label class="M_20">FrequencySelection<span class="red">*</span></label><select name="CEFrequencySelect" id="CEFrequencySelect" class="styled M_40" style="--bgX: 60.5%;"><option value="-1" selected="selected">--Select Frequency--</option></select></li>';
-        list += '<li><label>Year<span class="red">*</span></label><select name="CESchoolFeesYear" id="CESchoolFeesYear" class="styled M_40" style="--bgX: 61.5%;width:70px"><option value="-1" selected="selected">--Select Year--</option></select></li>';
-        if (CountryId == 17) {
-            //list += '<li><label class="M_30">No Of Installment</label><span class="M_40">' + data.Installment + '</span></li>';
-            list += '<li><label class="M_15">No Of Installment</label><label id="France_SFInstallment" style="margin-left:-18px;" ></label></li>';
-        }
-        else {
-            list += '<li><label class="M_20">No Of Installment<span class="red">*</span></label><select name="CESchoolFeesInstallment" id="CESchoolFeesInstallment" class="styled M_40" style="--bgX:60.5%"><option value="-1" selected="selected">--Select --</option></select></li>';
-        }
+$(document).on('focusout', '#CESchoolfeesAssoId', function () {
+    var obj = $(this);
+    var componentGroupId = $('#bonus').val();
+    // childtype is hardcoded for 1 as default
+    var datastring = '{"associateId":"' + $(this).val() + '","componentGroupId":"' + componentGroupId + '","isActive":"0","childType":"1"}';
 
-        list += '</ul>';
-        if (ocm == "1") {
-
-            list += '<ul class="M_20  id="ocmfile"> <li><label style="">Attach Mail(s)<span class="red">*</span></label><a id="fileattach" style="" class="pull-left btn btn-primary" tabindex="0">Attach File</a>';
-            list += '<li style="padding-top:5px;"><div id="aft_uploadocm"></div></li></ul>';
-
-        }
-        else {
-            list += '<ul class="M_20  id="ocmfile"> <li><label style="">Attach Mail(s)<span class="red">*</span></label><a id="fileattach" style="" class="pull-left btn btn-primary" tabindex="0">Attach File</a>';
-            list += '<li style="padding-top:5px;"><div id="aft_uploadocm"></div></li></ul>';
-        }
-
-
-        $('.popup_new .inner_cont').css("height", "255px");
-        $('.popup_new .inner_cont').html('');
-        $('.popup_new .inner_cont').html('').html(list);
-
-        $("#CE_startdate").datepicker("destroy");
-        $("#CE_startdate").datepicker({ changeMonth: true, changeYear: true, prevText: "", nextText: "", onFocus: 'show' });
-        $("#CE_enddate").datepicker("destroy");
-        $("#CE_enddate").datepicker({ changeMonth: true, changeYear: true, prevText: "", nextText: "", onFocus: 'show' });
-
-
-        var datastring = '{"componentGroupId":"' + componentGroupId + '","frequencyType":0}';
-
+    if ($(this).val() != '') {
         $.ajax({
             type: "POST",
-            url: "../APAC_WebMethods.aspx/GetDropdownDetailsCE",
+            url: "../APAC_WebMethods.aspx/GetCEAssociateNameForUploader",
             contentType: "application/json; charset=utf-8",
             dataType: "json",
             data: datastring,
             cache: false,
             success: function (msg) {
                 if (msg.d.length > 0) {
-                    var FrequencyType = ''
-                    if (msg.d[0].length != 0) {
-                        $.each(msg.d[0], function (i, data) {
-                            FrequencyType += '<option value="' + data.FrequencyTypeID + '">' + data.FrequencyType + '</option>';
-                        });
+                    if (msg.d[0][0].STATUS != 0) {
+                        $('.popup_new .innerErrorHolder').html("");
+                        obj.parent().parent().find('li:nth-child(2) span').text($.trim(msg.d[0][0].AssociateName));
                     }
-                    $('#CEFrequencyType').html(FrequencyType);
-                    $('#CEFrequencyType').find('option:nth-child(1)').attr('selected', 'selected');
-                    $('#selectCEFrequencyType').text($("#CEFrequencyType option:selected").text());
-                    $('.popup_new .innerErrorHolder').text('');
+                    else if (msg.d[0][0].STATUS == 0) {
+                        var error = msg.d[0][0].ERRORMESSAGE;
+                        //$('.popdivcontedit').text('').css('color', 'green').text(error);
+                        $('.popup_new .innerErrorHolder').text(error);
+                        $('.popup_new .innerErrorHolder').removeClass("green");
+                        $('.popup_new .innerErrorHolder').addClass("red");
+                        obj.parent().parent().find('li:nth-child(2) span').text("");
+                        obj.parent().parent().find('li:nth-child(4) span').text("");
+                        $("#progressBackgroundFilter").hide();
+                        $("#processMessage").hide();
+                    }
 
-                    var year = '';
-                    //year += "<option value='-1'>--Select Year--</option>";
-                    if (msg.d[1].length != 0) {
-                        $.each(msg.d[1], function (i, data) {
-                            year += '<option value="' + data.YearID + '">' + data.Year + '</option>';
-                        });
+                    if (msg.d[1][0].Status != 0) {
+                        $('#CE_startdate').replaceWith("<span class='M_40 SFdate' data='0' id='CE_StartdateLbl'></span>");
+                        $('#CE_StartdateLbl').text($.trim(msg.d[1][0].StartDate));
+                        $('#CE_enddate').replaceWith("<span class='M_40 SFdate' data='0' id='CE_EnddateLbl'></span>");
+                        $('#CE_EnddateLbl').text($.trim(msg.d[1][0].Enddate));
                     }
-                    $('#CESchoolFeesYear').html(year);
-                    $('#CESchoolFeesYear').find('option:nth-child(2)').attr('selected', 'selected');
-                    $('#selectCESchoolFeesYear').text($("#CESchoolFeesYear option:selected").text());
-                    $('.popup_new .innerErrorHolder').text('');
-                    //  $(".popup_edit .inner_cont ul li:nth-child(6) select option:contains(" + PayoutType + ")").attr('selected', 'selected');
+                    else {
+                        $('#CE_StartdateLbl').replaceWith("<input type='text' id='CE_startdate' value='' class='popup_date SFdate' data='1' style='width:100px;height:20px;' />");
+                        $('#CE_EnddateLbl').replaceWith("<input type='text' id='CE_enddate' value='' class='popup_date SFdate' data='1' style='width:100px;height:20px;'/>");
 
-                    var month = '';
-                    // month += "<option value='-1'>--Select Month--</option>";
-                    if (msg.d[2].length != 0) {
-                        $.each(msg.d[2], function (i, data) {
-                            month += '<option value="' + data.MonthID + '" freqselect="' + data.MonthName + '">' + data.MonthName + '</option>';
-                        });
                     }
-                    $('#CEFrequencySelect').append(month);
-                    $('#CEFrequencySelect').find('option:nth-child(1)').attr('selected', 'selected');
-                    $('#selectCEFrequencySelect').text($("#CEFrequencySelect option:selected").text());
-                    $('.popup_new .innerErrorHolder').text('');
 
-                    var Installment = '';
-                    // month += "<option value='-1'>--Select Month--</option>";
-                    if (CountryId == 14 || CountryId == 15 || CountryId == 16) {
-                        if (msg.d[3].length != 0) {
-                            $.each(msg.d[3], function (i, data) {
-                                Installment += '<option value="' + data.InstallmentID + '">' + data.Installments + '</option>';
-                            });
-                        }
-
-                        $('#CESchoolFeesInstallment').append(Installment);
-                        $('#CESchoolFeesInstallment').find('option:nth-child(1)').attr('selected', 'selected');
-                        $('#selectCESchoolFeesInstallment').text($("#CESchoolFeesInstallment option:selected").text());
-                    }
-                    else if (CountryId == 17) {
-                        $('#France_SFInstallment').text(msg.d[3][0].Installments);
-                        $('#France_SFInstallment').val(msg.d[3][0].InstallmentID);
-                        //append(msg.d[3][0].InstallmentID);
-                    }
-                    $('.popup_new .innerErrorHolder').text('');
                 }
             },
             error: function (xhr) {
-                errorpopup(parent.document.getElementById("hdnSession").value);
+                $('.popup_edit .innerErrorHolder').removeClass("green");
+                $('.popup_edit .innerErrorHolder').addClass("red");
+                $('.popup_edit .innerErrorHolder').text("An unexpected error has occurred - Please contact administrator for further assisstance or drop a mail to SPaytechteam - SPayTechTeam@cognizant.com");
             }
         });
-        var popupHeight = $('.popup_new').find(".middle").height();
-        $('.popup_new').css({
-            'position': 'absolute',
-            'z-index': '100',
-            "top": ((($(window).height() - popupHeight) / 2) - 16) + "px",
-            "left": "10%"
-        });
-        $("#CESchoolfeesAssoId").numeric();
     }
+});

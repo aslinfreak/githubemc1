@@ -1,62 +1,72 @@
-While run the sp manually,it shows Associate ID is inactive.Help me to fix this
+While run the sp,getting the below error:
+Academic Year Selection Should be of atleast 10 months, Claim date not within Academic year selection
+Please help me to fix this
 
 USE [OneC_SPay]
 GO
-
+DROP TABLE IF EXISTS #Assodump,#SFEXCEPTIONS,#AssocaiteDetails,#SFTEMP
 Declare
-	@ComponentGrpID INT=18,
-    @keyId INT=574,
-	@Amount varchar(20)=13000,
-	@StartDate varchar(100)='06-02-2025',
-	@EndDate varchar(100)='04-24-2026',
-	@FrequencyType int=1,
-	@FrequencySelection int=6,	
-	@Installments int=3,
-	@SchoolFeesReceiptID VARCHAR(50)='CONT955BA3E490834FBCA6FD2C52B8B2DEE1',
-	@LoginID VARCHAR(11)=2298944,
-	@CountryId int=15,
-    @ComponentCountryMappingId INT = 253
+@ComponentGrpID INT=18,
+@AssociateId varchar(11)=2298944,
+@Amount varchar(100)=10000,
+@ChildType varchar(20)=1,
+@StartDate varchar(100)='12/02/2025',
+@EndDate varchar(100)='05/01/2026',
+@FrequencyType int=1,
+@FrequencySelection int=8,
+@Year varchar(10)= '2025',
+@Installments INT=2,
+@LoginID VARCHAR(11)='2298944',
+@SchoolFeesReceiptID varchar(50)='CONT0FD81FDB91D44922817BD8BC47E6F0F4',
+@CountryId int=15,
+@ComponentCountryMappingId INT = 253
 
+DECLARE @ComponentId INT, @CountryName varchar(20),@Countrycode varchar(10),@MaxPercentage int,
+@PayoutType varchar(100)
 
-declare @ComponentId INT ,@CountryName varchar(20),@Countrycode varchar(10)
-declare @AssociateID varchar(11), @PayoutType varchar(50), @Year varchar(10),@ChildType int, 
-@MaxPercentage int
-set @ComponentId=58
+SET @ComponentId=58
 Select @CountryName= Country from ComponentCountryMaster where PK_ComponentCountryID=@CountryID
 select @Countrycode=CountryID from ComponentCountryMaster where PK_ComponentCountryID=@CountryID
 
- SELECT @AssociateID=AssociateID,@PayoutType= PayoutType ,@year=Year , @ChildType= Childtype  
- FROM EXP.CESchoolFees WITH (NOLOCK) 
- WHERE PK_CESchoolFeesID=@keyID and Rowstatus=1	 
- 
+DECLARE @MaxCapAmount money, @SumAmount money ,@Child1TotalAmount money,@Child2TotalAmount money,
+@TotalChild1Amount money,@TotalChild2Amount money
 
+----- Check the countryid----
+if(@CountryId = 17)
+BEGIN
+SELECT  @Installments = 1;
+END
+---- fetch the data--------
+select @Child1TotalAmount= isnull(sum(Amount),'') from PR.CESchoolFees where AssociateID=@AssociateId 
+AND FK_componentcountrymappingid=@ComponentCountryMappingId and Rowstatus=1
+						and ChildType=1 and StartDate=@Startdate and EndDate=@EndDate
+select @Child2TotalAmount= isnull(sum(Amount),'') from PR.CESchoolFees where AssociateID=@AssociateId 
+and FK_componentcountrymappingid=@ComponentCountryMappingId and Rowstatus=1
+						and ChildType=2 and StartDate=@Startdate and EndDate=@EndDate
+select @MaxCapAmount= isnull(sum(Amount),'') from PR.CESchoolFees where AssociateID=@AssociateId
+AND FK_componentcountrymappingid=@ComponentCountryMappingId and Rowstatus=1		
+					   and StartDate=@Startdate and EndDate=@EndDate
+
+Select @PayoutType= (select MC.Cdescription from Mastercodes MC
+ inner join policy.policymaster PM on PM.SharingType=MC.CUserDefined1 
+ and MC.CParentRef=40 and CUserDefined2=58 and MC.RowStatus=1 and MC.Remarks=@CountryId
+where AssociateId=@AssociateID and fk_ComponentCountrymappingid=@ComponentCountrymappingid 
+AND PM.rowstatus=1)
+
+----------- select MAX percentage-------
 select @MaxPercentage = PK_CriteriaType from policy.policymaster where AssociateId=@AssociateID	
 and fk_ComponentCountrymappingid=@ComponentCountrymappingid and rowstatus=1
 
-IF(@CountryId = 17)
-BEGIN
-SELECT @Installments =1;
-END
-
-DECLARE @MaxCapAmount money, @Child1TotalAmount money,@Child2TotalAmount money
-
-select @MaxCapAmount= isnull(sum(Amount),'') from PR.CESchoolFees where AssociateID=@AssociateId
-and FK_componentcountrymappingid=@ComponentCountryMappingId and Rowstatus=1		
-					   and StartDate=@Startdate and EndDate=@EndDate and Rowstatus=1 
-
-select @Child1TotalAmount=  isnull(sum(Amount),'') from PR.CESchoolFees where AssociateID=@AssociateId 
-and FK_componentcountrymappingid=@ComponentCountryMappingId and Rowstatus=1
-						and ChildType=1	and StartDate=@Startdate and EndDate=@EndDate 
-select @Child2TotalAmount=  isnull(sum(Amount),'') from PR.CESchoolFees where AssociateID=@AssociateId 
-and FK_componentcountrymappingid=@ComponentCountryMappingId and Rowstatus=1
-						   and ChildType=2 and StartDate=@Startdate and EndDate=@EndDate 
-
-
+CREATE TABLE #SFEXCEPTIONS
+(
+	EXCEPTIONREASON VARCHAR(8000) NULL
+)	
+		
 Declare @EmplID INT,@Emplstatus varchar(20),@location varchar(100),@Country varchar(10),@Jobcode varchar(10),
 @DeptID varchar(20),@Empltype varchar(10),@Effdt varchar(20),@Company varchar(5),@Businessunit varchar(6),
 @GradeLevel varchar(10),@locationtype varchar(50)
 
-
+--------------Fetch the SET id list-------------
 	DECLARE @SETIDLIST TABLE
 	(
 		Business_Unit VARCHAR(5),
@@ -65,13 +75,9 @@ Declare @EmplID INT,@Emplstatus varchar(20),@location varchar(100),@Country varc
 	
 	INSERT INTO @SETIDLIST(Business_Unit,Country_ID)
 		SELECT DISTINCT Business_Unit,Country_ID 
-		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_HCMLocation WITH(NOLOCK) WHERE ISActive='A'
-	
-		CREATE TABLE #SFEXCEPTIONS
-		(
-			EXCEPTIONREASON VARCHAR(8000) NULL
-		)	
-	
+		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_HCMLocation
+		WITH(NOLOCK) WHERE ISActive='A'
+
 	CREATE TABLE #Assodump
 	(
 	PK INT IDENTITY(1,1) PRIMARY KEY,
@@ -96,9 +102,8 @@ Declare @EmplID INT,@Emplstatus varchar(20),@location varchar(100),@Country varc
     EFFDT DATETIME,
     COMPANY VARCHAR(10)
     )
+----------------------Fetch data with CTE------------
 
-
-----------------Fetch data with CTE--------------
 ;WITH JR_DUMP
 AS
 (
@@ -139,93 +144,107 @@ RANK() OVER(
 FROM JR_DUMP JR  WITH(NOLOCK)
 )
 
-INSERT INTO #SFTEMP  (AssociateID ,LOCATION ,BU ,COUNTRYID ,GRADE ,DEPARTMENTID ,EMPLTYPE ,
-EMPLSTATUS ,EFFDT ,COMPANY)
+
+
+INSERT INTO #SFTEMP (AssociateID ,LOCATION ,BU ,COUNTRYID ,GRADE ,DEPARTMENTID ,EMPLTYPE ,
+EMPLSTATUS ,EFFDT ,COMPANY )
 SELECT JR.EMPLID AssociateID,JR.LOCATION, JR.BU,HL.COUNTRY_ID, JR.GRADE,  JR.DEPARTMENTID, 
 JR.EMPLTYPE,JR.EMPLSTATUS,JR.EFFDT,JR.COMPANY
 FROM JR_Final JR WITH(NOLOCK)
 LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
 ON HL.HCMLOCATIONCODE=JR.LOCATION AND HL.BUSINESS_UNIT=JR.BU
 WHERE FinalRNK=1
-			 
-	select @EmplID=AssociateID,@Emplstatus=EmplStatus,@locationtype=LOCATION,@Country=CountryID,
-	@Jobcode=Grade,@DeptID=DepartmentId,
-	@Empltype=EmplType,@Company=COMPANY,@Businessunit=BU from #SFTEMP
-		
-	select @AssociateId as AssociateId,@ChildType as ChildType into #AssocaiteDetails
 
+	select @EmplID=AssociateID,@Emplstatus=EmplStatus,@locationtype=LOCATION,@Country=CountryID,
+	@Jobcode=Grade,	@DeptID=DepartmentId,
+	@Empltype=EmplType,@Company=COMPANY,@Businessunit=BU from #SFTEMP
+
+	select @AssociateId as AssociateId, @ChildType as ChildType into #AssocaiteDetails
 
 Declare @Calculatedamount Money
----------------Check the Calculate amount------
 if(@ChildType=1)
 BEGIN
-	Set @Calculatedamount = (Select TOP 1
-	CASE WHEN ((cast(PPM.PK_CriteriaType as FLOAT)/cast(100 as FLOAT))) * convert(money,@Amount)<PPM.Upto1Month 
+	Set @Calculatedamount = (Select TOP 1 CASE WHEN ((cast(PPM.PK_CriteriaType as FLOAT)/cast(100 as FLOAT))) * 
+	CONVERT(money,@Amount)<PPM.Upto1Month 
 	THEN (cast(PPM.PK_CriteriaType as FLOAT)/cast(100 as FLOAT)) * convert(money,@Amount)
 	 ELSE PPM.Upto1Month END FROM Policy.PolicyMaster PPM with(nolock)  
-	where PPm.AssociateId=@AssociateID and PPM.FK_ComponentCountrymappingid=@ComponentCountrymappingid 
+	where PPm.AssociateId=@AssociateID 
+	AND PPM.FK_ComponentCountrymappingid=@ComponentCountrymappingid 
 	and PPM.Rowstatus=1)
+
 END
 ELSE IF(@ChildType=2)
 BEGIN
-	Set @Calculatedamount = (Select CASE 
-	WHEN ((cast(PPM.PK_CriteriaType as FLOAT)/cast(100 as FLOAT)))<PPM.Above1Month THEN
+	Set @Calculatedamount = (Select CASE WHEN ((cast(PPM.PK_CriteriaType as FLOAT)/cast(100 as FLOAT)))
+		<PPM.Above1Month THEN
 	 ((cast(PPM.PK_CriteriaType as FLOAT)/cast(100 as FLOAT))) * convert(money,@Amount)
 	ELSE PPM.Above1Month END
 	FROM Policy.PolicyMaster PPM with(nolock)  
-	where PPm.AssociateId=@AssociateID and PPM.FK_ComponentCountrymappingid=@ComponentCountrymappingid 
+	where PPm.AssociateId=@AssociateID 
+	AND PPM.FK_ComponentCountrymappingid=@ComponentCountrymappingid 
 	and PPM.Rowstatus=1)
 END
-	
----------------------Insert into SF exception-----------------		
-  INSERT INTO #SFEXCEPTIONS(EXCEPTIONREASON)
-		 SELECT 'Associate''s DOJ should be lesser than claim date,' 
-		 FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-		 WHERE AD.Associate_ID=@AssociateID AND AD.DATEOFJOINING>CONVERT(DATE,@StartDate) 
+
+INSERT INTO #SFEXCEPTIONS(EXCEPTIONREASON)
 		
+
+		SELECT 'Associate''s DOJ should be lesser than claim date'
+		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
+		WHERE AD.Associate_ID=@AssociateID AND AD.DATEOFJOINING>CONVERT(DATE,@StartDate) 
+
 		UNION ALL
 
 		SELECT COALESCE((CASE WHEN AssociateID=@LoginID and @AssociateId<>@LoginID 
 		THEN 'Associate can only upload his own record' END),'')  AS EXCEPTIONREASON 
 		FROM Policy.PolicyMaster WITH (NOLOCK)
-		WHERE FK_Componentcountrymappingid=@ComponentCountryMappingId  and RowStatus=1
+		WHERE FK_Componentcountrymappingid=@ComponentCountryMappingId and RowStatus=1
 
 		UNION ALL
 
         SELECT 	DISTINCT	
-		
-			COALESCE((CASE WHEN ((@EmplStatus <> 'A') OR (AD.ASSOCIATE_ID IS NULL)) 
-											THEN 'AssociateID is InActive,' END), '') 
-			+
-			COALESCE((CASE WHEN AD.IsActive = 'T' and (DATEDIFF(DD,EffDt ,getdate()) > 30)  
-			  THEN 'Associate’s termination date is greater than 30 days. Special pay can’t be processed,' 
-			  ELSE NULL END), '')   
-				
-			+		   
-			COALESCE((CASE WHEN ISNULL(@SchoolFeesReceiptID,'')='' OR @SchoolFeesReceiptID='0'
-			THEN 'Invoice is mandatory,' ELSE NULL END), '')
-			+
-			COALESCE((CASE WHEN AD.COMPANY IS NULL THEN 'Company Unavailable,' ELSE NULL END), '')  
-			+
-			COALESCE((CASE WHEN AD.BUSINESS_UNIT IS NULL THEN 'SetId Unavailable,' ELSE NULL END), '')
-			+
-			COALESCE((CASE WHEN  (DATEDIFF(mm,@Startdate,@EndDate)<10) 
-			THEN 'Claim Month Should be atleast 10 months,' ELSE NULL END), '') 
-			+			
-			 COALESCE((CASE WHEN  
-			AD.DATEOFJOINING>CONVERT(DATE,getdate())    
-			THEN 'Associate''s DOJ should be lesser than claim date,' ELSE NULL END), '')
-		 
-			AS EXCEPTIONREASON	
-			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
-			Where AD.Associate_ID =@AssociateID
-	  
-	UNION ALL
 
+		COALESCE((CASE WHEN ((@EmplStatus NOT IN ('A','L','T') ) OR
+		(AD.ASSOCIATE_ID IS NULL )) 
+		THEN 'AssociateID is InActive,' END), '') 
+		+
+	
+		COALESCE((CASE WHEN AD.IsActive = 'T' and (DATEDIFF(DD,AD.EffDt ,convert(date,getdate())) > 30 )   
+		  THEN 'Associate’s termination date is greater than 30 days. Special pay can’t be processed,' 
+		  ELSE NULL END), '')   	
+		+		   
+		COALESCE((CASE WHEN ISNULL(@SchoolFeesReceiptID,'')='' OR @SchoolFeesReceiptID='0' 
+		THEN 'Invoice is mandatory,' ELSE NULL END), '')
+		+
+		COALESCE((CASE WHEN AD.COMPANY IS NULL THEN 'Company Unavailable,' ELSE NULL END), '')  
+		+
+		COALESCE((CASE WHEN AD.BUSINESS_UNIT IS NULL THEN 'SetId Unavailable,' ELSE NULL END), '')
+		+
+		COALESCE((CASE WHEN  (DATEDIFF(mm,@Startdate,@EndDate)<10)
+		THEN 'Academic Year Selection Should be of atleast 10 months,' ELSE NULL END), '') 
+		+			
+		 COALESCE((CASE WHEN  
+		AD.DATEOFJOINING>CONVERT(DATE,getdate())    
+		THEN 'Associate''s DOJ should be lesser than claim date,' ELSE NULL END), '')
+		
+		AS EXCEPTIONREASON			
+		FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+		WHERE AD.Associate_ID=@AssociateID
+      
+	    UNION ALL
+
+		SELECT DISTINCT 
+		COALESCE((CASE WHEN SL.Country_ID IS NULL  
+		THEN 'Associate not active in '+Country+' Payroll as on claim date,' ELSE NULL END), '')
+		AS ExceptionReason
+		FROM ComponentCountryMaster CCM LEFT OUTER JOIN @SETIDLIST SL
+		ON (SL.Country_ID=CCM.SETIDDivision OR SL.Country_ID=CCM.CountryID) and BUSINESS_UNIT=@Businessunit
+		where PK_ComponentCountryID=@CountryId
+			
+	   UNION ALL
 	     SELECT DISTINCT 'Associate Details not available in CRS,' AS EXCEPTIONREASON from #SFTEMP SFT
 		 WHERE ISNULL(@AssociateID,'')<>ISNULL(SFT.AssociateID,'')
 
-	UNION ALL
+		UNION ALL
 
 			SELECT DISTINCT
 			COALESCE((CASE WHEN AD.Per_Org ='CWR' THEN 'Associate is a contractor,' ELSE NULL END), '')  
@@ -239,179 +258,155 @@ END
 			LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) ON 
 			JR.Emplid=AD.Associate_ID
 			WHERE ISNUMERIC(JR.EMPLID)=1 AND  AD.Associate_ID=@AssociateID 
-		
-	UNION ALL
+	   UNION ALL
 
-		SELECT DISTINCT 
-		COALESCE((CASE WHEN SL.Country_ID IS NULL 
-		THEN 'Associate not active in '+Country+' Payroll as on claim date,' ELSE NULL END), '')
-		AS ExceptionReason
-		FROM ComponentCountryMaster CCM LEFT OUTER JOIN @SETIDLIST SL
-		ON (SL.Country_ID=CCM.SETIDDivision OR SL.Country_ID=CCM.CountryID) and BUSINESS_UNIT=@Businessunit
-		where PK_ComponentCountryID=@CountryId
+	     SELECT DISTINCT 'Associate not eligible for this allowance,' AS EXCEPTIONREASON 
+		 from #AssocaiteDetails AD
+	     left outer join  Policy.PolicyMaster PPM on AD.AssociateID=PPM.AssociateId and PPM.Rowstatus=1 
+		 AND PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
+	     Where ISNULL(PPM.AssociateId,0)=0
 
-	UNION ALL
-
-	    SELECT DISTINCT 'Associate not eligible for this allowance,' AS EXCEPTIONREASON 
-		from #AssocaiteDetails AD
-	    left outer join  Policy.PolicyMaster PPM on AD.AssociateID=PPM.AssociateId  
-		and PPM.Rowstatus=1 and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
-	    Where ISNULL(PPM.AssociateId,0)=0
-  
-   UNION ALL			
+	  UNION ALL			
 
 		SELECT DISTINCT		
 		COALESCE((CASE WHEN (@Amount IS NULL) THEN 'Amount is Mandatory,' 
-		WHEN (@Amount<>'' AND ISNUMERIC(@Amount) <> 1 OR CONVERT(MONEY,@Amount)<1)
+		WHEN (@Amount<>'' AND ISNUMERIC(@Amount) <> 1 OR CONVERT(MONEY,@Amount)<1)	
 		THEN 'Amount is InValid ,' ELSE NULL END), '')
-		AS EXCEPTIONREASON
-
-	UNION ALL
+		AS EXCEPTIONREASON						   
+	  
+	    UNION ALL
 
 	     SELECT DISTINCT 'Amount for child 2 not configured for this Associate,' AS EXCEPTIONREASON 
 		 from #AssocaiteDetails AD
-	     left outer join  Policy.PolicyMaster PPM on AD.AssociateID=PPM.AssociateId  
-		 and PPM.Rowstatus=1 and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
-	     Where (ISNULL(@Amount,'')<>'' or @Amount<>0) and (ISNULL(PPM.Above1Month,'')=''
-		 or PPM.Above1Month=convert(decimal,0)) and ISNULL(PPM.AssociateId,'')<>''
+	     left outer join  Policy.PolicyMaster PPM on AD.AssociateID=PPM.AssociateId
+		 AND PPM.Rowstatus=1 and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
+	     Where (ISNULL(@Amount,'')<>'' or @Amount<>0) and (ISNULL(PPM.Above1Month,'')='' 
+		 OR PPM.Above1Month=convert(decimal,0)) and ISNULL(PPM.AssociateId,'')<>''
 		 and ChildType=2
-	
-	UNION ALL
+
+		UNION ALL	
 
 		 SELECT DISTINCT 'Claim date not within Academic year selection'  AS EXCEPTIONREASON 
 		 From MonthMaster QM where QM.Quarter=@FrequencySelection and @FrequencyType=2 and
-		 ((month(@Startdate)>QM.MonthID and @Year=Year(@StartDate)) 
-		 OR (month(@EndDate)<QM.MonthID and @Year=Year(@EndDate)) 
+		 ((month(@Startdate)>QM.MonthID and @Year=Year(@StartDate)) OR (month(@EndDate)<QM.MonthID 
+		 AND @Year=Year(@EndDate)) 
 		 OR ( @Year <> year(@Startdate) and @Year <> year(@Enddate)))		
-		 having count(QM.MonthID)>=3
+		 having count(QM.MonthID)>=3	 
 
-    UNION ALL		
-	    SELECT DISTINCT 
-		 COALESCE((CASE WHEN @FrequencyType=1 and (EOMONTH(cast(@Year+' -'+ ''
-		 +convert(varchar,@FrequencySelection) +'' + '-1' AS DATE)) not between @StartDate and @Enddate
-		 AND cast(@Year+' -'+ ''+convert(varchar,@FrequencySelection) +'' + '-1' AS DATE) 
-		 not between @StartDate and @Enddate)  THEN 'Claim date not within Academic year selection' 
-		 ELSE NULL END), '')
-		 AS ExceptionReason
-
-	UNION ALL
+		UNION ALL		
 
 
 		 SELECT DISTINCT 
-		 COALESCE((CASE WHEN @FrequencyType=3 and (@FrequencySelection not in (year(@StartDate) , 
-		 year(@Enddate)))
+		 COALESCE((CASE WHEN @FrequencyType=1 and (EOMONTH(cast(@Year+' -'+ ''+
+		 CONVERT(varchar,@FrequencySelection) +'' + '-1' AS DATE)) not between @StartDate and @Enddate
+		 AND cast(@Year+' -'+ ''+convert(varchar,@FrequencySelection) +'' + '-1' AS DATE)
+		 not between @StartDate and @Enddate)  
 		 THEN 'Claim date not within Academic year selection' ELSE NULL END), '')
 		 AS ExceptionReason
 
+		UNION ALL
+
+	
+		 SELECT DISTINCT 
+		 COALESCE((CASE WHEN @FrequencyType=3 and (@FrequencySelection not in (year(@StartDate) ,
+		 year(@Enddate)))
+		 THEN 'Claim date not within Academic year selection' ELSE NULL END), '')
+		 AS ExceptionReason
+	
 	UNION ALL
-		
 			SELECT DISTINCT  (case when SF.AssociateID is null and AD.ChildType=2 
-			then 'Amount for Child 1 is not claimed,' else null end) AS EXCEPTIONREASON 
+			THEN 'Amount for Child 1 is not claimed,' else null end) AS EXCEPTIONREASON 
 			from  #AssocaiteDetails AD
 			Left Outer join PR.CESchoolFees SF with(nolock) on SF.AssociateID=AD.AssociateId 
-			and SF.ChildType=1 and SF.FK_ComponentCountrymappingid=@ComponentCountryMappingId
+			AND SF.ChildType=1 and SF.FK_ComponentCountrymappingid=@ComponentCountryMappingId
 			and SF.Rowstatus=1
-
 
 	UNION ALL
 			
 		 Select DISTINCT 'Max Cap Amount Exceeds,' AS EXCEPTIONREASON  from  Policy.PolicyMaster PPM	 
 		 where  PPM.AssociateID=@AssociateId and PPM.AssociateID is not null 
 		 and (@MaxCapAmount+@Calculatedamount)>convert(money,PPM.Amount)  
-		 and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
+		 AND PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
 		 and Rowstatus=1 
 	  
 	UNION ALL
      
-		SELECT DISTINCT 'Amount for Child 1 exceeds Child 1 max cap,' AS EXCEPTIONREASON 
-		from  Policy.PolicyMaster PPM	 
+		SELECT DISTINCT 'Amount for Child 1 exceeds Child 1 max cap,' AS EXCEPTIONREASON
+		FROM  Policy.PolicyMaster PPM	 
 		where  PPM.AssociateID=@AssociateId and PPM.AssociateID is not null 
-		and  (@Child1TotalAmount+@Calculatedamount) > convert(money,PPm.Upto1month) 
-		and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
+		and ( @Child1TotalAmount + @Calculatedamount)> convert(money,PPm.Upto1month) 
+		AND PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
 		and Rowstatus=1 and @ChildType=1
 
 	UNION ALL
      
 		SELECT DISTINCT 'Amount for Child 2 exceeds  Child 2 max cap,' AS EXCEPTIONREASON 
-		from  Policy.PolicyMaster PPM	 
+		FROM  Policy.PolicyMaster PPM	 
 		where  PPM.AssociateID=@AssociateId and PPM.AssociateID is not null 
-		and  (@Child2TotalAmount +@Calculatedamount)> convert(money,PPm.Above1Month) 
+		and ( @Child2TotalAmount+ @Calculatedamount)> convert(money,PPm.Above1Month) 
 		and PPM.FK_Componentcountrymappingid=@ComponentCountryMappingId 
-		and Rowstatus=1 and @ChildType=2
+		and Rowstatus=1 and @ChildType=2 
 
-	
 	   UNION ALL
 	
-	    SELECT  DISTINCT 
-	    CASE WHEN Status=1 then 'SchoolFees has been already uploaded,' 
-	    	  when Status=5 then 'SchoolFees has been already processed,'
-	    	  when Status=14 then 'SchoolFees has been already Approved,' end AS EXCEPTIONREASON
-        FROM PR.CESchoolFees PNP WITH(NOLOCK)    
-        WHERE PNP.AssociateID=@AssociateID and  PNP.Rowstatus=1
-		and FK_Componentcountrymappingid=@ComponentCountryMappingId and PNP.FrequencyType=@FrequencyType 
-		and PNP.FrequencySelection=@FrequencySelection and @Year=PNP.Year
-		and PNP.ChildType=@ChildType and ((convert(date,@StartDate) between  PNP.StartDate
-		and PNP.EndDate and convert(date,@enddate) between PNP.StartDate and PNP.EndDate)
-	   OR convert(date,getdate()) < PNP.StartDate)   
-
+	   SELECT  DISTINCT 
+	   CASE WHEN Status=1 then 'SchoolFees has been already uploaded,' 
+	   when Status=5 then 'SchoolFees has been already processed,'
+	   when Status=14 then 'SchoolFees has been already Approved,' end AS EXCEPTIONREASON		
+	   FROM PR.CESChoolFees CSF WITH(NOLOCK)    
+	   WHERE CSF.AssociateID=@AssociateID  and FK_Componentcountrymappingid=@ComponentCountryMappingId 
+	   and ChildType=@ChildType and CSF.FrequencyType=@FrequencyType 
+	   AND CSF.FrequencySelection=@FrequencySelection and @Year=CSF.Year
+	   and CSF.Rowstatus=1 and ((convert(date,@StartDate) between  CSF.StartDate and CSF.EndDate 
+	   AND convert(date,@enddate) between CSF.StartDate and CSF.EndDate)
+	   OR convert(date,getdate()) < CSF.StartDate)      
 		
-	   DELETE FROM #SFEXCEPTIONS where ISNULL(EXCEPTIONREASON,'')=''
+ DELETE FROM #SFEXCEPTIONS where isnull(EXCEPTIONREASON,'')=''
+	    
+	DECLARE @SFException VARCHAR(8000)  
+	SELECT @SFException = COALESCE(@SFException + ', ', '') + EXCEPTIONREASON FROM #SFEXCEPTIONS
+	SELECT @SFException =replace(@SFException,',,',',') 
+		
+          
+  IF(@SFException IS NULL OR @SFException='')
+        BEGIN    
+			Declare @Mydate datetime=getdate()
+		  
+		  UPDATE EXP.CESchoolFees
+		  SET Rowstatus=0,ModifiedBy=@LoginID,ModifiedDate=@Mydate WHERE AssociateID=@AssociateID 
+		  AND StartDate=@startDate AND EndDate=@endDate
+		  and ChildType=@ChildType AND RowStatus=1 
+		  and FK_Componentcountrymappingid=@ComponentCountryMappingId
+		 		
+			INSERT INTO PR.CESchoolfees(AssociateID,StartDate,Enddate,ChildType,FrequencyType,
+			FrequencySelection,Year,Amount,AmountClaimed,PayoutType,status,CreatedBy,CreatedDate,RowStatus,
+			InvoiceAttachment,NumberOfinstallment,FK_Componentcountrymappingid,SetID,Grade)
 			
-			DECLARE @SFException VARCHAR(8000)  
-			SELECT @SFException = COALESCE(@SFException + ', ', '') + EXCEPTIONREASON FROM #SFEXCEPTIONS
-			SELECT @SFException=replace(@SFException,',,',',')
- 
- ---- Check the SF exception is null-----
-  IF((@SFException IS NULL OR @SFException='') )
-  BEGIN
-  Declare @Mydate datetime=getdate()
-          UPDATE EXP.CESchoolfees SET ROWSTATUS=0,ModifiedBy=@LoginID,ModifiedDate=@Mydate,
-		  Invoiceattachment=@SchoolFeesReceiptID WHERE PK_CESchoolFeesID=@keyId 
+			SELECT  @AssociateId,@StartDate,@Enddate,@ChildType,
+				@FrequencyType, @FrequencySelection,
+				@Year, (@Calculatedamount/@Installments),@Amount, @PayoutType,1,@LoginID,
+				--CreatedDate,
+				@Mydate,
+				1,@SchoolFeesReceiptID, @Installments, @ComponentCountryMappingId,
+				@Businessunit, @Jobcode  
+				
+				union all
+				SELECT  @AssociateId,@StartDate,@Enddate,@ChildType,
+				@FrequencyType, @FrequencySelection,
+				@Year, (@Calculatedamount/@Installments),@Amount, @PayoutType,1,@LoginID,
+				--CreatedDate,
+				DATEADD(month,MonthID,DATEADD(DAY,1,EOMONTH(@Mydate,-1))),
+				1,@SchoolFeesReceiptID, @Installments, @ComponentCountryMappingId,
+				@Businessunit, @Jobcode From MonthMaster
+				Where MonthID<@Installments
 
-		 IF(@CountryId=17)
-		 BEGIN
-			INSERT INTO PR.CESchoolfees(AssociateID,StartDate,Enddate,ChildType,FrequencyType,
-			FrequencySelection,Year,Amount,AmountClaimed,
-			PayoutType,status,CreatedBy,CreatedDate,RowStatus,
-			InvoiceAttachment,NumberOfinstallment,FK_Componentcountrymappingid,SetID,Grade)
-		
-			SElect @AssociateId,@StartDate,@Enddate,@ChildType,@FrequencyType,@FrequencySelection,
-			@Year,@Calculatedamount/@Installments,@Amount,
-			@PayoutType,1,@LoginID,
-			GETDATE(),1,
-			@SchoolFeesReceiptID,@Installments,@ComponentCountryMappingId,@Businessunit,@Jobcode			
-		 END
-		 ELSE
-		 BEGIN
-			INSERT INTO PR.CESchoolfees(AssociateID,StartDate,Enddate,ChildType,FrequencyType,
-			FrequencySelection,Year,Amount,AmountClaimed,
-			PayoutType,status,CreatedBy,CreatedDate,RowStatus,
-			InvoiceAttachment,NumberOfinstallment,FK_Componentcountrymappingid,SetID,Grade)
-		
-			SElect @AssociateId,@StartDate,@Enddate,@ChildType,@FrequencyType,@FrequencySelection,
-			@Year,@Calculatedamount/@Installments,@Amount,
-			@PayoutType,1,@LoginID,
-			DATEADD(month,MonthID,DATEADD(DAY,1,EOMONTH(getdate(),-1))),1,
-			@SchoolFeesReceiptID,@Installments,@ComponentCountryMappingId,@Businessunit,@Jobcode
-			From MonthMaster where MonthID<@Installments
-		 END			 		
+          SELECT 'success' AS STATUS  
 
-        SELECT 'success' AS STATUS
-        
-END
-  ELSE
-	BEGIN
+        END
+		ELSE
+		BEGIN
+			SELECT @SFException as ExceptionReason			 
+		END
 
-	------ Update CEschoolfees ----------
-
-		UPDATE EXP.CESchoolfees SET ModifiedBy=@LoginID,ModifiedDate=GETDATE(),
-		ExceptionRemarks=@SFException
-		WHERE PK_CESchoolFeesid=@keyId 
-
-		SELECT @SFException AS 'Status' 
-	END
-        
-      
     DROP TABLE  #SFEXCEPTIONS   
     DROP TABLE  #SFTEMP
-

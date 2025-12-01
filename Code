@@ -1,12 +1,8 @@
-In my application, while updating the data(ie.move from exception to valid),I getting 512 error in the application.So I run the sp manually by declaring the values,now Iam gettin the below error:
-Msg 512, Level 16, State 1, Line 179
-Subquery returned more than 1 value. This is not permitted when the subquery follows =, !=, <, <= , >, >= or when the subquery is used as an expression.
-Help me to fix this.
-
-This is my StoredProcedure [dbo].[usp_CE_SF_MoveExpToValidUploaderData]
+While run the sp manually,it shows Associate ID is inactive.Help me to fix this
 
 USE [OneC_SPay]
 GO
+
 Declare
 	@ComponentGrpID INT=18,
     @keyId INT=574,
@@ -20,6 +16,7 @@ Declare
 	@LoginID VARCHAR(11)=2298944,
 	@CountryId int=15,
     @ComponentCountryMappingId INT = 253
+
 
 declare @ComponentId INT ,@CountryName varchar(20),@Countrycode varchar(10)
 declare @AssociateID varchar(11), @PayoutType varchar(50), @Year varchar(10),@ChildType int, 
@@ -162,7 +159,7 @@ Declare @Calculatedamount Money
 ---------------Check the Calculate amount------
 if(@ChildType=1)
 BEGIN
-	Set @Calculatedamount = (Select
+	Set @Calculatedamount = (Select TOP 1
 	CASE WHEN ((cast(PPM.PK_CriteriaType as FLOAT)/cast(100 as FLOAT))) * convert(money,@Amount)<PPM.Upto1Month 
 	THEN (cast(PPM.PK_CriteriaType as FLOAT)/cast(100 as FLOAT)) * convert(money,@Amount)
 	 ELSE PPM.Upto1Month END FROM Policy.PolicyMaster PPM with(nolock)  
@@ -417,3 +414,4 @@ END
       
     DROP TABLE  #SFEXCEPTIONS   
     DROP TABLE  #SFTEMP
+

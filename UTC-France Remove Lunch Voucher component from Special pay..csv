@@ -1,0 +1,60 @@
+ID,Work Item type,Title,Test Step,Step Action,Step Expected,Revision ,Area Path,Assigned To ,State
+,Test case ,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as Super Admin,Manage Polices tab should be visible,,,,
+,,,3,Navigate to Manage Policies and verify the list of components,"Components such as Referral Bonus-Payout,Joining Bonus-Payout,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as Super Admin,Manage cutoff dates tab should be visible,,,,
+,,,3,Navigate to Manage cutoff  tab and verify the list of components,"Components such as Referral Bonus-Payout,Joining Bonus-Payout,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as Super Admin,Reports tab should be visible,,,,
+,,,3,Navigate to Reports tab and verify the list of components,"Components such as Referral Bonus-Payout,Joining Bonus-Payout,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as PFSS Admin,Verify Data tab should be visible,,,,
+,,,3,Navigate to Verify Data tab and verify the list of components,"Components such as Referral Bonus-Payout,Joining Bonus-Payout,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as PFSS Admin,Reversal tab should be visible,,,,
+,,,3,Navigate to Reversal tab and verify the list of components,"Components such as Referral Bonus-Payout,Joining Bonus-Payout,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as PFSS Admin,Reports tab should be visible,,,,
+,,,3,Navigate to Reports tab and verify the list of components,"Components such as Referral Bonus-Payout,Joining Bonus-Payout,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as Associate,Upload Data tab should be visible,,,,
+,,,3,Navigate toUpload Data tab and verify the list of components,"Components such as CIS Shift Allowance, ADM Shift Allowance,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as Associate,View Cut-Off Dates tab should be visible,,,,
+,,,3,Navigate to View Cut-Off Dates tab and verify the list of components,"Components such as CIS Shift Allowance, ADM Shift Allowance,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as Associate,View Policies tab should be visible,,,,
+,,,3,Navigate to View Policies tab and verify the list of components,"Components such as Referral Bonus-Payout,Joining Bonus-Payout,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,
+,,,,,,,,,
+,Test case,France  Remove Lunch Voucher component from Special pay.,,,,,,,
+,,,1,Pre-Requisite: Associate should belong to France region ,,1,727-Spay\Spay 1.0 Team Area,Aslin  (Cognizant) <CTS\2318190>,Design
+,,,2,Login to Spay 1.0 as Report viewer,Reports tab should be visible,,,,
+,,,3,Navigate to Reports tab and verify the list of components,"Components such as Referral Bonus-Payout,Joining Bonus-Payout,etc., should be listed",,,,
+,,,4,Verify SuperAdmin can't able to see the Lunch Voucher component ,SuperAdmin should not be able to view the Lunch Voucher component ,,,,

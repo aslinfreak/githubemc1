@@ -1,9 +1,243 @@
+This is my usp_GetReversalProcessedReport.In this I have one issue, that is when I upload a single record,it will create a duplicate with different project id's but the important point is this will not happen for all the associate,some associates only it will create duplicate with different project id's.Help me to fix this 
 
-SELECT DISTINCT ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
+USE [OneC_SPay]
+GO
+ 
+Declare
+ @componentGroupId INT=3,  
+ @TypeofData INT=1,
+  @LoginID INT='2084470',
+ @RoleID INT = 3
+
+  IF(@TypeofData=1)
+   BEGIN     
+	
+	--TRT Special Inputs
+  IF(@componentGroupId=5)
+   BEGIN
+     SELECT DISTINCT CM.ComponentName,ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(
+	 Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,
+	 ISNULL(PRR.ProjectID,'') AS ProjectID,ISNULL(PRR.Amount,'') AS Amount,ISNULL(PRR.InputRemarks,'') AS Remarks
+   FROM PR.Reversal PRR WITH(NOLOCK)
+   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON
+   CAD.Associate_ID=PRR.AssociateID 
+   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=PRR.FK_ComponentID
+   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.Status=1 AND CM.RowStatus=1 AND 
+   CM.IsActive=1
+  END
+  ---VNM NSA
+  ELSE IF(@componentGroupId in (4,12,98,100))
+   BEGIN
+     SELECT DISTINCT CM.ComponentName,ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(
+	 Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,
+	 ISNULL(PRR.ProjectID,'') AS ProjectID,
+	 ISNULL(PRR.StartDate,'') AS StartDate,ISNULL(PRR.EndDate,'') AS EndDate,ISNULL(PRR.Amount,'') AS Amount,
+	 ISNULL(PRR.InputRemarks,'') AS Remarks
+   FROM PR.IT_Reversal PRR WITH(NOLOCK)
+   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+   CAD.Associate_ID=PRR.AssociateID
+   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=PRR.FK_ComponentID
+   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.FK_ComponentGroupID=@componentGroupId 
+   AND PRR.Status=1 AND CM.RowStatus=1 AND CM.IsActive=1
+  END
+  --Discretionary / SBI
+      ELSE IF(@componentGroupId in (102,103,104,105))
+   BEGIN
+    SELECT DISTINCT ISNULL(PRR.AssociateID,'') AS AssociateID,
+	   ISNULL(LTRIM(RTRIM(CAD.Associate_FirstName)),'')+' '
+	   +ISNULL(LTRIM(RTRIM(CAD.Associate_LastName)),'') AS AssociateName,
+	   CONVERT(VARCHAR,StartDate,101) AS AllowanceDate,   
+	   ISNULL(PRR.Amount,'') AS Amount,isnull(PRR.ProjectID,'') ProjectID,
+	   PRR.Department,
+	   ISNULL(PRR.InputRemarks,'') AS Remarks,
+	   (CASE WHEN PRR.Status=1 THEN 'Valid' WHEN PRR.Status=5 THEN 'Processed' END) AS STATUS,
+	   PRR.CreatedBy AS UploadedBy,
+	   ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '
+	   +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName  
+	   ,Case when isnull(PRR.ModifiedDate,'')<>'' then PRR.ModifiedDate else PRR.CreatedDate end UploadedDate
+	   FROM PR.IT_Reversal PRR WITH(NOLOCK)
+	   INNER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK)
+	   ON CAD.Associate_ID=PRR.AssociateID 
+	   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=PRR.FK_ComponentID
+	   LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK) 
+	   ON UD.Associate_ID=PRR.CreatedBy   
+   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.FK_ComponentGroupID=@componentGroupId 
+   AND PRR.Status=1 AND CM.RowStatus=1 AND CM.IsActive=1
+  END
+
+  
+  --Gym Recovery
+  ELSE IF(@componentGroupId=43)
+   BEGIN    
+   SELECT CM.ComponentName,ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
+   ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(PRR.Location,'') AS Location,
+   ISNULL(PRR.Facility,'') AS Facility,ISNULL(PRR.ProjectID,'') AS ProjectID,ISNULL(PRR.Amount,'') AS Amount,
+   ISNULL(PRR.DeductionMonth,'') AS DeductionMonth,ISNULL(PRR.RegisteredDate,'') AS RegisteredDate,
+   ISNULL(PRR.ReversalReason,'') AS ReversalReason
+   ,ISNULL(PRR.Createdby,'') AS UploadedBy   
+   FROM PR.GYM_Reversal PRR WITH(NOLOCK)  
+   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK)
+   ON CAD.Associate_ID=PRR.AssociateID 
+   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON  CM.FK_ComponentGroupID=PRR.Fk_ComponentGroupID
+   WHERE CM.FK_ComponentGroupID=@componentGroupId AND CM.ROWSTATUS=1 AND CM.IsActive=1 AND PRR.RowStatus=1 AND 
+   PRR.Status=1
+  END
+  --Outreach Recovery
+ELSE IF(@componentGroupId=44)
+   BEGIN    
+   SELECT CM.ComponentName,ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
+   ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(PRR.Location,'') AS Location,
+   ISNULL(PRR.ProjectID,'') AS ProjectID,ISNULL(PRR.Amount,'') AS Amount,ISNULL(PRR.DeductionMonth,'') 
+   AS DeductionMonth,ISNULL(PRR.ReversalReason,'') AS ReversalReason
+   ,ISNULL(PRR.Createdby,'') AS UploadedBy   
+   FROM PR.GYM_Reversal PRR WITH(NOLOCK)  
+   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+   CAD.Associate_ID=PRR.AssociateID 
+   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON  CM.FK_ComponentGroupID=PRR.Fk_ComponentGroupID
+   WHERE CM.FK_ComponentGroupID=@componentGroupId AND CM.ROWSTATUS=1 AND CM.IsActive=1 AND PRR.RowStatus=1 AND 
+   PRR.Status=1
+  END
+
+  --BPS 6DA,NSA,OCA
+  ELSE IF(@componentGroupId in (7,10,11))
+  BEGIN
+   SELECT DISTINCT CM.ComponentName,ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(
+   Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,
+   ISNULL(PRR.ProjectID,'') AS ProjectID,
+   ISNULL(Project_Name,'') AS ProjectName,ISNULL(CP.Customer_ID,'') AS CustomerId,ISNULL(CC.Name,'') AS CustomerName,
+   ISNULL(PRR.StartDate,'') AS StartDate,ISNULL(PRR.EndDate,'') AS EndDate,ISNULL(PRR.Amount,'') AS Amount,
+   ISNULL(PRR.InputRemarks,'') AS Remarks
+    FROM PR.BPS_Reversal PRR WITH(NOLOCK)
+   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+   CAD.Associate_ID=PRR.AssociateID 
+   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.FK_ComponentGroupID=PRR.Fk_ComponentGroupID
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_PROJECT CP WITH (NOLOCK) ON
+	CP.Project_ID=convert(varchar(100),PRR.ProjectID)
+	  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_SFDC_Account CC ON 
+	  CC.Peoplesoft_Customer_Id__C=CP.Customer_ID
+   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.Status=1 AND CM.RowStatus=1 AND 
+   CM.IsActive=1
+  END
+  ELSE
+  BEGIN
+   SELECT DISTINCT ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
    ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(PRR.ProjectID,'') AS ProjectID,
    ISNULL(PRR.Amount,'') AS Amount,ISNULL(PRR.InputRemarks,'') AS Remarks   
    FROM PR.Reversal PRR WITH(NOLOCK)
    LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
    CAD.Associate_ID=PRR.AssociateID 
    INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=PRR.FK_ComponentID
-   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=1 AND PRR.Status=1 AND CM.RowStatus=1
+   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.Status=1 AND CM.RowStatus=1
+  END
+  END  
+   
+  ELSE  IF(@TypeofData=2)
+   BEGIN    
+   
+   --TRT Special Inputs
+		IF (@componentGroupId=5)
+	BEGIN
+			SELECT DISTINCT CM.ComponentName,ISNULL(EXR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(
+			Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,
+			ISNull(EXR.ProjectID,'') As ProjectID,ISNULL(EXR.Amount,'') AS Amount,ISNULL(EXR.InputRemarks,'') AS Remarks,
+			ISNULL(ExceptionRemarks,'') AS ExceptionRemarks   
+			FROM EXP.Reversal EXR WITH(NOLOCK) 
+			LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) 
+			ON CAD.Associate_ID=EXR.AssociateID
+			INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=EXR.FK_ComponentID
+			WHERE EXR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND CM.RowStatus=1 AND CM.IsActive=1
+		END
+
+		---VNM NSA
+	ELSE IF (@componentGroupId in (4,12,98,100))
+	BEGIN
+		SELECT DISTINCT CM.ComponentName,ISNULL(EXR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(
+		Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,
+		ISNull(EXR.ProjectID,'') As ProjectID,ISNULL(EXR.Amount,'') AS Amount,ISNULL(EXR.InputRemarks,'') AS Remarks,
+		ISNULL(ExceptionRemarks,'') AS ExceptionRemarks   
+		FROM EXP.IT_Reversal EXR WITH(NOLOCK) 
+		LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+		CAD.Associate_ID=EXR.AssociateID 
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=EXR.FK_ComponentID
+		WHERE EXR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND 
+		EXR.FK_ComponentGroupID=@componentGroupId AND CM.RowStatus=1 AND CM.IsActive=1
+	END
+
+	--Discretionary and SBI
+	ELSE IF (@componentGroupId IN(102,103,104))
+	BEGIN
+		SELECT DISTINCT ISNULL(EXR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(
+		Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,
+		CONVERT(VARCHAR,StartDate,101) AS AllowanceDate,   ​
+		ISNull(EXR.ProjectID,'') As ProjectID,ISNULL(EXR.Amount,'') AS Amount,ISNULL(EXR.InputRemarks,'') AS Remarks,
+		ISNULL(ExceptionRemarks,'') AS ExceptionRemarks   
+		FROM EXP.IT_Reversal EXR WITH(NOLOCK) 
+		LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+		CAD.Associate_ID=EXR.AssociateID 
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=EXR.FK_ComponentID
+		WHERE EXR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND 
+		EXR.FK_ComponentGroupID=@componentGroupId AND CM.RowStatus=1 AND CM.IsActive=1
+	END
+	--Gym Recovery
+	ELSE IF (@componentGroupId=43)
+	BEGIN			
+		SELECT ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
+		ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(PRR.Location,'') AS Location,
+		ISNULL(PRR.Facility,'') AS Facility,ISNULL(PRR.ProjectID,'') AS ProjectID,ISNULL(PRR.Amount,'') AS Amount,
+		ISNULL(PRR.DeductionMonth,'') AS DeductionMonth,ISNULL(PRR.RegisteredDate,'') AS RegisteredDate,
+		ISNULL(PRR.ReversalReason,'') AS ReversalReason
+		,ISNULL(PRR.Createdby,'') AS UploadedBy  ,ISNULL(PRR.ExceptionRemarks,'') AS ExceptionRemarks   
+		FROM EXP.GYM_Reversal PRR WITH(NOLOCK)  
+		LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+		CAD.Associate_ID=PRR.AssociateID 
+		WHERE PRR.RowStatus=1 and PRR.FK_ComponentGroupID = @componentGroupId
+		END
+
+	
+		--Outreach Recovery
+	ELSE IF (@componentGroupId=44)
+	BEGIN			
+		SELECT ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
+		ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(PRR.Location,'') AS Location,
+		ISNULL(PRR.ProjectID,'') AS ProjectID,ISNULL(PRR.Amount,'') AS Amount,ISNULL(PRR.DeductionMonth,'')
+		AS DeductionMonth,ISNULL(PRR.ReversalReason,'') AS ReversalReason
+		,ISNULL(PRR.Createdby,'') AS UploadedBy  ,ISNULL(PRR.ExceptionRemarks,'') AS ExceptionRemarks   
+		FROM EXP.GYM_Reversal PRR WITH(NOLOCK)  
+		LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+		CAD.Associate_ID=PRR.AssociateID 
+		WHERE PRR.RowStatus=1 and PRR.FK_ComponentGroupID = @componentGroupId
+		END
+
+--BPS 6DA,NSA,OCA
+ELSE IF(@componentGroupId in (7,10,11))
+  BEGIN
+     SELECT DISTINCT CM.ComponentName,ISNULL(EXR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(
+	 Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(EXR.ProjectID,'')
+	 AS ProjectID,
+	 ISNULL(Project_Name,'') AS ProjectName,ISNULL(CP.Customer_ID,'') AS CustomerId,ISNULL(CC.Name,'') AS CustomerName,
+	 ISNULL(EXR.StartDate,'') AS StartDate,ISNULL(EXR.EndDate,'') AS EndDate,ISNULL(EXR.Amount,'') AS Amount,
+	 ISNULL(EXR.ExceptionRemarks,'') AS ExceptionRemarks
+   FROM EXP.BPS_Reversal EXR WITH(NOLOCK)
+   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+   CAD.Associate_ID=EXR.AssociateID 
+   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.FK_ComponentGroupID=EXR.Fk_ComponentGroupID
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_PROJECT CP WITH (NOLOCK) ON 
+	CP.Project_ID=convert(varchar(100),EXR.ProjectID)
+	  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_SFDC_Account CC ON 
+	  CC.Peoplesoft_Customer_Id__C=CP.Customer_ID
+   WHERE EXR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND CM.RowStatus=1 AND CM.IsActive=1
+  END
+
+  ELSE
+  BEGIN
+	SELECT DISTINCT ISNULL(EXR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
+	ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(EXR.Amount,'') AS Amount,
+	ISNULL(EXR.InputRemarks,'') AS Remarks,ISNULL(ExceptionRemarks,'') AS ExceptionRemarks   
+		FROM EXP.Reversal EXR WITH(NOLOCK) 
+		LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+		CAD.Associate_ID=EXR.AssociateID 
+		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=EXR.FK_ComponentID
+		WHERE EXR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND CM.RowStatus=1 
+		END
+   
+END

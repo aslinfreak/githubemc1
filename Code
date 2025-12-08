@@ -1,5 +1,35 @@
-SELECT PRR.ProjectID, CP.*
+SELECT 
+    PRR.ProjectID,
+    COUNT(*) AS ProjectMappingCount
 FROM PR.Reversal PRR
 LEFT JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_PROJECT CP
-    ON CP.Project_ID = CONVERT(varchar(100), PRR.ProjectID)
+       ON CP.Project_ID = CONVERT(VARCHAR(100), PRR.ProjectID)
+WHERE PRR.AssociateID = '<AssociateID>'
+GROUP BY PRR.ProjectID;
+
+
+SELECT 
+    PRR.ProjectID,
+    CP.Project_ID,
+    CP.Customer_ID
+FROM PR.Reversal PRR
+LEFT JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_PROJECT CP
+    ON CP.Project_ID = CONVERT(VARCHAR(100), PRR.ProjectID)
 WHERE PRR.AssociateID = '<AssociateID>';
+
+
+SELECT 
+    PRR.ProjectID,
+    CP.Project_ID
+FROM PR.Reversal PRR
+LEFT JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_PROJECT CP
+    ON CP.Project_ID = CONVERT(VARCHAR(100), PRR.ProjectID)
+WHERE PRR.AssociateID = '<AssociateID>';
+
+
+SELECT 
+    ProjectID, 
+    COUNT(*) AS ReversalRows
+FROM PR.Reversal
+WHERE AssociateID = '<AssociateID>'
+GROUP BY ProjectID;

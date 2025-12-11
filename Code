@@ -1,272 +1,726 @@
---===================================================================
--- AUTHOR			: AUTHOR
--- CREATE DATE		: MAY 29, 2022
--- DESCRIPTION		: TO get Process Reversal
---===================================================================   
-CREATE PROCEDURE [dbo].[Usp_ProcessReversal]  
-AS  
-BEGIN  
+-- ======================================================================       
+-- AUTHOR     : TEAM
+-- CREATE DATE: JULY 20, 2020    
+-- DESCRIPTION: Added the documentation for the stored procedure
+-- ====================================================================== 
+CREATE PROCEDURE [dbo].[Usp_StagingToMain_JoiningBonus] (@COMPONENTGROUPID INT)
+AS
+BEGIN
 BEGIN TRY
-SET NOCOUNT ON  
- 
-UPDATE ERB  
-SET ERB.RowStatus=0,ERB.ModifiedBy=SRB.CreatedBy,ERB.ModifiedDate=GETDATE()  
-FROM EXP.Reversal ERB WITH(NOLOCK)  
-INNER JOIN STG.Reversal SRB WITH(NOLOCK) ON ERB.AssociateID=SRB.AssociateID
-AND ERB.FK_ComponentID=SRB.Fk_componentGroupID  
-WHERE ERB.RowStatus=1 AND SRB.RowStatus=1  
- 
-SELECT AssociateID INTO #DUPLICATES FROM STG.Reversal WITH(NOLOCK)  
-GROUP BY AssociateID HAVING COUNT(AssociateID)>1  
- -------Inserting data-------
-INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
-ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
-SELECT SR.FK_ComponentGroupID,SR.ASSOCIATEID, Amount,SR.InputRemarks,
-'Duplicate data found in same upload,',SR.CreatedBy, GETDATE(),1  
-FROM STG.Reversal SR WITH(NOLOCK)  
-INNER JOIN #DUPLICATES DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID  
-WHERE SR.RowStatus=1  
- 
-  -------Deleting data-------
-DELETE FROM STG.Reversal WHERE AssociateID IN (SELECT AssociateID FROM #DUPLICATES)  
+SET NOCOUNT ON         
+BEGIN 
+	------------Declaring variables ---------------
+DECLARE @COMPONENTID INT
 
- SELECT DISTINCT STSI.AssociateID,STSI.Fk_componentGroupID, 
- 'Data is already avaliable for this month' ExceptionRemarks INTO #SAMEDATA 
-	 FROM PR.Reversal PTSI WITH (NOLOCK)
-	 inner join STG.Reversal STSI WITH (NOLOCK) ON PTSI.AssociateID=STSI.AssociateID 
-	 WHERE PTSI.Rowstatus=1 
-	 and PTSI.Fk_ComponentID= STSI.Fk_componentGroupID
-	 and month(PTSI.CreatedDate)=month(Getdate()) and YEAR(PTSI.CreatedDate)=Year(Getdate())
-	  -------Inserting data-------
-	 INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks,
-	 ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
-SELECT SR.FK_ComponentGroupID,SR.ASSOCIATEID, Amount,SR.InputRemarks,
-ExceptionRemarks,SR.CreatedBy, GETDATE(),1  
-FROM STG.Reversal SR WITH(NOLOCK)  
-INNER JOIN #SAMEDATA DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID   
-and SR.Fk_componentGroupID = DUP.Fk_componentGroupID
-WHERE SR.RowStatus=1   AND ISNULL(DUP.ExceptionRemarks,'')<>''
- -------Deleting data-------
-DELETE SR FROM STG.Reversal SR WITH(NOLOCK)  
-INNER JOIN #SAMEDATA DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID   
-and SR.Fk_componentGroupID = DUP.Fk_componentGroupID
-WHERE SR.RowStatus=1   AND ISNULL(DUP.ExceptionRemarks,'')<>''
-	 
-SELECT EMPLID,ACTION,ACTION_REASON,EMPL_STATUS,EFFDT  
-INTO #TerminatedCases  
-FROM  
-(SELECT DENSE_RANK() OVER (PARTITION BY JREF.EMPLID
-ORDER BY JREF.EFFDT DESC,JREF.EFFSEQ DESC,JREF.EMPL_RCD DESC) AS RANK ,  
-JREF.EMPLID,JREF.ACTION,JREF.ACTION_REASON,JREF.EMPL_STATUS,JREF.EFFDT FROM  
-CentralRepository..VW_CENTRALREPOSITORY_JOB_REFERENCE JREF  
-INNER JOIN STG.Reversal STREV ON STREV.AssociateID=JREF.EMPLID  
-WHERE ACTION='TER') A WHERE A.Rank=1  
+-------------Declaring variables ---------------
+DECLARE @ComponentCountryMappingID int,@CountryID int
+set @CountryID=1
 
-SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
- 
-COALESCE((CASE WHEN LEN(SR.ASSOCIATEID) not in (6,7) THEN 'AssociateId is InValid,' ELSE NULL END), '')  
-+
-COALESCE((CASE WHEN (ISNUMERIC(SR.AMOUNT) <> 1 OR CONVERT(MONEY,SR.AMOUNT)<=0)  
-THEN 'Amount is InValid,' ELSE NULL END), '') AS EXPREMARKS  
-INTO #TEMP  
-FROM STG.Reversal SR WITH (NOLOCK)  
-LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK) 
-ON AD.ASSOCIATE_ID = SR.ASSOCIATEID  
-LEFT OUTER JOIN #TerminatedCases TRC ON(TRC.EMPLID=SR.ASSOCIATEID)  
-WHERE SR.RowStatus=1  
- 
-  -------Inserting data-------
-INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
-ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
-SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
-EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #TEMP WHERE EXPREMARKS <>''  
- 
-DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #TEMP WHERE EXPREMARKS <>'')  
+------------ Fetch data---------
+Select @ComponentCountrymappingID = Pk_ComponentCountryMappingID 
+from ComponentCountryMapping CCM With (nolock)
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentID=CCM.FK_ComponentID
+INNER JOIN ComponentGroupMaster STP WITH (NOLOCK) 
+ON  CM.RowStatus=1 AND CM.FK_ComponentGroupID = 3
+where CCM.Fk_ComponentCountryID=@CountryID and CCM.Rowstatus=1  
+--===========================================================================================-------------------
+------------ Update data--------------
+	UPDATE STG set ProjectID = Project_ID FROM STG.JoiningBonus STG INNER JOIN
+	( SELECT project_id, Associate_id , rank_no FROM
+	(SELECT Project_ID,Associate_id,  RANK () OVER ( PARTITION BY Associate_ID  
+	ORDER BY Allocation_percentage,seqno DESC  ) rank_no
+	 FROM CentralRepository.dbo.vw_CentralRepository_Current_Allocation CA inner join 
+	 STG.JoiningBonus SJ ON Associate_ID =AssociateID) a WHERE rank_no = 1) CCA 
+	 on STG.AssociateID = CCA.Associate_ID AND STG.RowStatus = 1
+	 WHERE (STG.ProjectID is null or STG.ProjectID ='')
 
-SELECT distinct SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
- 
-COALESCE((CASE WHEN ISNULL(REF.AssociateID,0) = 0 THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
-AS EXPREMARKS  
-,SR.CreatedDate,REF.ModifiedDate  
-INTO #Tmp_NoPayMentNP  
-FROM STG.Reversal SR WITH (NOLOCK)  
-LEFT OUTER JOIN PR.NoticePay REF WITH (NOLOCK) ON REF.AssociateID=SR.AssociateID AND REF.Status=5  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=1  
-   -------Inserting data-------
-INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
-ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
-SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks,
-EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMentNP WHERE EXPREMARKS <>''  
-  -------Deleting data-------
-DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMentNP WHERE EXPREMARKS <>'')  
-AND Fk_componentGroupID=1  
-  -------Inserting data-------
-INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status, 
-InputRemarks, CreatedBy, CreatedDate,RowStatus,ProjectID)  
-SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,
-SR.InputRemarks,SR.CreatedBy, GETDATE(),1,REF.ProjectID  
-FROM STG.Reversal SR WITH(NOLOCK)  
-INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
-INNER JOIN PR.NoticePay REF WITH (NOLOCK) ON REF.AssociateID=SR.AssociateID AND REF.Status=5  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=1  
- 
-SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
- 
-COALESCE((CASE WHEN ISNULL(REF.ReferrorAssociateID,0) = 0 
-THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
-AS EXPREMARKS  
-,SR.CreatedDate,REF.ModifiedDate  
-INTO #Tmp_NoPayMent  
-FROM STG.Reversal SR WITH (NOLOCK)  
-LEFT OUTER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
-  -------Inserting data-------
-INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
-ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
-SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
-EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMent WHERE EXPREMARKS <>''  
-  -------Deleting data-------
-DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMent WHERE EXPREMARKS <>'')  
-AND Fk_componentGroupID=2  
+	 ------------ Update data--------------
+	UPDATE EJB
+	SET EJB.RowStatus=0,EJB.ModifiedBy=SJB.CreatedBy,EJB.ModifiedDate=GETDATE()
+	FROM EXP.JoiningBonus EJB WITH(NOLOCK)
+	INNER JOIN STG.JoiningBonus SJB WITH(NOLOCK) ON EJB.AssociateID=SJB.AssociateID 
+	WHERE EJB.RowStatus=1 AND SJB.RowStatus=1 and EJB.CreatedBy=0
+------------ Update data--------------	
+	UPDATE EJB
+	SET EJB.RowStatus=0,EJB.ModifiedBy=SJB.CreatedBy,EJB.ModifiedDate=GETDATE()
+	FROM EXP.JoiningBonus EJB WITH(NOLOCK)
+	INNER JOIN STG.JoiningBonus SJB WITH(NOLOCK) ON EJB.AssociateID=SJB.AssociateID
+	and  EJB.ProjectId=SJB.ProjectID
+	WHERE EJB.RowStatus=1 AND SJB.RowStatus=1
+--===========================================================================================-------------------
 
-SELECT SR.ASSOCIATEID,SR.Fk_componentGroupID, SUM(MYPAY.Amount) AS MyPayAmount,MAX(MYPAY.CreatedDate) AS CreatedDate  
-INTO #Tmp_SumPayment  
-FROM STG.Reversal SR WITH (NOLOCK)  
-INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
-INNER JOIN TRN.MyPayData MYPAY WITH (NOLOCK) ON REF.ReferrorAssociateID=MYPAY.AssociateID 
-AND MYPAY.FK_ComponentID=SR.Fk_componentGroupID  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
-AND 1=(CASE  
-WHEN  
-YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
-(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (4,5,6) THEN 1  
-WHEN  
-YEAR(MYPAY.CreatedDate)+1=YEAR(SR.CreatedDate) AND  
-(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
-WHEN  
-YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
-(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) THEN 1  
-WHEN  
-YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
-(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
-ELSE 0 END)  
- 
-GROUP BY SR.ASSOCIATEID,SR.Fk_componentGroupID  
- 
- SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy  
-,SR.CreatedDate AS ReversalDate,  
-(CASE WHEN SR.Amount <= SUMMYPAY.MyPayAmount THEN ''  
-ELSE 'Reversed Amount is Greater than Amount Paid' END)  
-AS EXPREMARKS  
-INTO #Tmp_LessPayMentInFinancialYear  
-FROM STG.Reversal SR WITH (NOLOCK)  
-INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
-INNER JOIN #Tmp_SumPayment SUMMYPAY WITH (NOLOCK) ON REF.ReferrorAssociateID=SUMMYPAY.AssociateID 
-AND SUMMYPAY.Fk_componentGroupID=SR.Fk_componentGroupID  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
- -------Inserting data-------
-INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
-ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
-SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
-EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_LessPayMentInFinancialYear WHERE EXPREMARKS <>''  
-  -------Deleting data-------
-DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId
-FROM #Tmp_LessPayMentInFinancialYear WHERE EXPREMARKS <>'')  
-AND Fk_componentGroupID=2  
- -------Inserting data-------
-INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status, InputRemarks, 
-CreatedBy, CreatedDate,RowStatus,ProjectID)  
-SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,SR.InputRemarks,
-SR.CreatedBy, GETDATE(),1,REF.ProjectID  
-FROM STG.Reversal SR WITH(NOLOCK)  
-INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
-INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
- 
-SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
- 
-COALESCE((CASE WHEN ISNULL(JB.AssociateID,0) = 0 THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
-AS EXPREMARKS  
-,SR.CreatedDate,JB.ModifiedDate  
-INTO #Tmp_NoPayMent_JB  
-FROM STG.Reversal SR WITH (NOLOCK)  
-LEFT OUTER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
-  -------Inserting data-------
-INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks,
-ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
-SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
-EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMent_JB WHERE EXPREMARKS <>''  
- 
-DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMent_JB WHERE EXPREMARKS <>'')  
-AND Fk_componentGroupID=3  
+------------ Fetch data--------------   
+	SELECT A.EMPLID AS AssociateID,ACTION,ACTION_REASON,EMPL_STATUS
+	INTO #JBLATESTJOBTEMP
+	FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID ORDER BY JR.EFFDT DESC,
+	JR.EFFSEQ DESC,JR.EMPL_RCD DESC) AS RANK ,
+	JR.EMPLID,JR.ACTION,JR.ACTION_REASON,JR.EMPL_STATUS  
+	FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+	INNER JOIN STG.JoiningBonus SJB WITH(NOLOCK) ON SJB.AssociateID=JR.EMPLID
+	--LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
+	--AD.Associate_ID=SJB.AssociateID 
+	WHERE ISNUMERIC(JR.EMPLID)=1) A WHERE A.Rank=1		
+--===========================================================================================-------------------
 
-SELECT SR.ASSOCIATEID,SR.Fk_componentGroupID, SUM(MYPAY.Amount) AS MyPayAmount,MAX(MYPAY.CreatedDate) AS CreatedDate  
-INTO #Tmp_SumPayment_JB  
-FROM STG.Reversal SR WITH (NOLOCK)  
-INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
-INNER JOIN TRN.MyPayData MYPAY WITH (NOLOCK) ON JB.AssociateID=MYPAY.AssociateID
-AND MYPAY.FK_ComponentID=SR.Fk_componentGroupID  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
-AND 1=(CASE  
-WHEN  
-YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
-(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (4,5,6) THEN 1  
-WHEN  
-YEAR(MYPAY.CreatedDate)+1=YEAR(SR.CreatedDate) AND  
-(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
-WHEN  
-YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
-(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) THEN 1  
-WHEN  
-YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
-(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
-ELSE 0 END)  
- 
-GROUP BY SR.ASSOCIATEID,SR.Fk_componentGroupID  
+------------ Fetch data--------------
+	SELECT DISTINCT JB.PK_JoiningBonusID,JB.AssociateID,AD.DateOfJoining,
+	MC.CCodeId AS BGstatus,'N/A' AS Grade,JB.Amount,InputRemarks,
+	SpecialCaseReason,JB.ProjectID,MC_B.CCodeId as RecruitmentType,
+	COALESCE((CASE WHEN AD.IsActive NOT IN ('A','L') THEN 
+	(CASE WHEN AD.IsActive='S' AND JBReason.ACTION<>'ABS' THEN NULL 
+		ELSE 'Associate is InActive,' END)
+	ELSE NULL END), '')
+	+
+	COALESCE((CASE WHEN (JBReason.ACTION = 'RES' OR JBReason.ACTION_REASON = 'RES' 
+	OR AD.ACTION = 'RES' 
+	OR AD.ACTION_REASON = 'RES') THEN 'Associate is in Resignation Status,' ELSE NULL END), '')     
+	+
+	--COALESCE((CASE WHEN JB.NoInstallments is null  OR JB.NoInstallments='' OR JB.NoInstallments=0 THEN
+	--'No Of Installments is mandatory,' ELSE NULL END), '') 
+	--+
+	COALESCE((
+					CASE 
+						WHEN JB.RecruitmentType = 'Merger and Acquisition' AND isnull(JB.NoInstallments,'')=''  AND isnull(JB.RetentionPeriod,'') = '' 
+							THEN 'Please select value from either one of the field "NoOfInstalments" or "RetentionPeriod",' 
+						WHEN JB.RecruitmentType = 'Lateral' AND isnull(JB.NoInstallments,'')='' 
+							THEN 'Please select value from No of Instalments,' 
+						WHEN JB.RecruitmentType = 'Campus' AND  isnull(JB.RetentionPeriod,'') = '' 
+							THEN 'Please select value from Retention period,' 
+        		ELSE NULL 
+					END
+				), '')
 
-SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy  
-,SR.CreatedDate AS ReversalDate,  
-(CASE WHEN SR.Amount <= SUMMYPAY.MyPayAmount THEN ''  
-ELSE 'Reversed Amount is Greater than Amount Paid' END)  
-AS EXPREMARKS  
-INTO #Tmp_LessPayMentInFinancialYear_JB  
-FROM STG.Reversal SR WITH (NOLOCK)  
-INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
-INNER JOIN #Tmp_SumPayment_JB SUMMYPAY WITH (NOLOCK) ON JB.AssociateID=SUMMYPAY.AssociateID 
-AND SUMMYPAY.Fk_componentGroupID=SR.Fk_componentGroupID  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
- 
-INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
-ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
-SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
-EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_LessPayMentInFinancialYear_JB WHERE EXPREMARKS <>''  
+	AS EXCEPTIONREASON,
+	JB.CreatedBy,'N/A' AS SETID , JB.NoInstallments as NoOfInstallments, isnull(MCS.CCodeId,'') as SplCaseReason,
+	JB.RetentionPeriod
+	INTO #TEMP_ASSOACTIVECHK	
+	FROM STG.JoiningBonus JB WITH(NOLOCK)
+	INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
+	ON AD.Associate_ID=JB.AssociateID
+	INNER JOIN MasterCodes MC WITH(NOLOCK)
+	ON MC.CParentRef=4 AND MC.CDescription=JB.BGstatus 
+	AND MC.RowStatus=1	
+	INNER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 AND MC_B.CDescription=JB.RecruitmentType
+	AND MC_B.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MCS WITH(NOLOCK) ON MCS.CParentRef=2 
+	AND UPPER(MCS.CDescription)=UPPER(LTRIM(RTRIM(JB.SpecialCaseReason))) AND MCS.RowStatus=1 
+	AND MCS.CUserDefined1 = '3'
+	INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+	ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID 
+	AND PPM.RowStatus=1	
+	INNER JOIN #JBLATESTJOBTEMP JBReason ON(JBReason.AssociateID=AD.Associate_ID)
+	
+   --------Insert query to EXP--------------
+	INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,
+	ProjectId,SpecialCaseReason,ExceptionReason,
+	CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,NoInstallments,RetentionPeriod)
+	SELECT TT.AssociateID,TT.DateOfJoining,TT.BGstatus,TT.Grade,TT.Amount,TT.InputRemarks,TT.ProjectID,TT.SplCaseReason,
+	TT.ExceptionReason,
+	TT.CreatedBy,GETDATE(),1,TT.SETID,TT.RecruitmentType,TT.NoOfInstallments,TT.RetentionPeriod
+	FROM #TEMP_ASSOACTIVECHK TT WITH(NOLOCK)
+	WHERE EXCEPTIONREASON<>''
+	----------------- Delete query----------------	
+	DELETE FROM STG.JoiningBonus WHERE PK_JoiningBonusID IN (SELECT PK_JoiningBonusID FROM #TEMP_ASSOACTIVECHK 
+	WHERE ISNULL(EXCEPTIONREASON,'')<>'')
+-------------------------------------------------------------------------------------------------------------------------------
+--===========================================================================================-------------------
 
-DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId 
-FROM #Tmp_LessPayMentInFinancialYear_JB WHERE EXPREMARKS <>'')  
-AND Fk_componentGroupID=3  
- -------Inserting data-------
-INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status,
-InputRemarks, CreatedBy, CreatedDate,RowStatus,ProjectID)  
-SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,
-SR.InputRemarks,SR.CreatedBy, GETDATE(),1,JB.ProjectID  
-FROM STG.Reversal SR WITH(NOLOCK)  
-INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
-INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
-WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+	SELECT DISTINCT JB.PK_JoiningBonusID,JB.AssociateID,AD.DateOfJoining,MC.CCodeId AS BGstatus,'N/A' AS Grade,
+	JB.Amount,InputRemarks,MCC.CCodeId as SpecialCaseReason,JB.ProjectID,MC_B.CCodeId as RecruitmentType,
+	COALESCE((CASE WHEN AD.IsActive NOT IN ('A','L') THEN 'Associate is InActive,' ELSE NULL END), '') 
+	+
+	COALESCE((CASE WHEN LEN(JB.AssociateID) not in (6,7) THEN 'AssociateID is InValid,' ELSE NULL END), '') 
+	          
+	+
+	COALESCE((CASE WHEN (AD.COMPANY IS NULL AND LEN(JB.AssociateID) in (6,7)) 
+	THEN 'Company Unavailable for the associate,' ELSE NULL END), '')  
+	+
+	COALESCE((CASE WHEN (AD.BUSINESS_UNIT IS NULL AND LEN(JB.AssociateID) in (6,7)) 
+	THEN 'SetId Unavailable for the associate,' ELSE NULL END), '')AS EXCEPTIONREASON,
+	JB.CreatedBy,'N/A' AS SETID ,JB.NoInstallments,JB.RetentionPeriod
+	INTO #TEMP
+	FROM STG.JoiningBonus JB WITH(NOLOCK)
+	INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
+	ON AD.Associate_ID=JB.AssociateID
+	INNER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=4 AND MC.CDescription=JB.BGstatus 
+	AND MC.RowStatus=1
+	INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+	ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID 
+	AND PPM.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MCC WITH(NOLOCK) ON MCC.CParentRef=2 
+	AND MCC.CDescription=JB.SpecialCaseReason AND MCC.RowStatus=1 AND MCC.CUserDefined1 = '3'
+	INNER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+	AND MC_B.CDescription=JB.RecruitmentType AND MC_B.RowStatus=1
+
+
+   --------Insert query --------------
+	INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,ProjectId,
+	SpecialCaseReason,ExceptionReason,CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType, 
+	NoInstallments,RetentionPeriod)
+	SELECT TT.AssociateID,TT.DateOfJoining,TT.BGstatus,TT.Grade,TT.Amount,TT.InputRemarks,
+	TT.ProjectID,MC.CCodeId,TT.ExceptionReason,TT.CreatedBy,GETDATE(),1,TT.SETID,TT.RecruitmentType,
+	TT.NoInstallments,TT.RetentionPeriod
+	FROM #TEMP TT WITH(NOLOCK)
+	LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON CParentRef=2 
+	AND UPPER(CDescription)=UPPER(LTRIM(RTRIM(TT.SpecialCaseReason))) AND RowStatus=1  AND CUserDefined1 = '3'
+	--INNER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+	--AND MC_B.CDescription=TT.RecruitmentType AND MC_B.RowStatus=1	
+	WHERE EXCEPTIONREASON<>''
+	----------- Delete the Data------------
+	DELETE FROM STG.JoiningBonus WHERE PK_JoiningBonusID IN (SELECT PK_JoiningBonusID FROM #TEMP 
+	WHERE EXCEPTIONREASON<>'')	
+
+--===========================================================================================-------------------
+	
+	--------------- Fetch data-------------
+		SELECT A.EMPLID AS AssociateID,A.DateOfJoining AS DateOfJoining,A.DEPTID AS Department,
+		A.JOBCODE AS Grade,A.LOCATION AS LOCATION,A.COMPANY AS COMPANY,A.BUSINESS_UNIT AS BU  
+		INTO #JBTEMP
+		FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID ORDER BY JR.EFFDT DESC,JR.EFFSEQ DESC,
+		JR.EMPL_RCD DESC) AS RANK ,
+		JR.EMPLID,JR.EMPL_RCD,JR.EFFDT,JR.EFFSEQ,JR.DEPTID,JR.JOBCODE,JR.LOCATION,JR.COMPANY,
+		JR.BUSINESS_UNIT,AD.DateOfJoining 
+		FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+		INNER JOIN STG.JoiningBonus SJB WITH(NOLOCK) ON SJB.AssociateID=JR.EMPLID
+		INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
+		ON AD.Associate_ID=SJB.AssociateID WHERE ISNUMERIC(JR.EMPLID)=1 
+		AND  JR.EFFDT=AD.DateOfJoining ) A 	WHERE A.Rank=1
+		
+   --------Insert query --------------
+		Insert into Exp.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,ProjectId,RecruitmentType,
+		ExceptionReason,InputRemarks,SetID,CreatedDate,CreatedBy,ModifiedDate,RowStatus,NOInstallments,RetentionPeriod)
+		select STB.AssociateID,JBT.DateOfJoining,MC.CCodeId,JBT.Grade,STB.Amount,STB.ProjectID,
+		MC_A.CCodeId,'Associate Data not available in CRS'
+		,STB.InputRemarks,Jbt.BU,getdate(),Stb.CreatedBy,GETDATE(),STB.RowStatus,STB.NoInstallments,
+		STB.RetentionPeriod
+		from #JBTEMP JBT with (nolock)
+		Right outer join stg.JoiningBonus STB with (nolock) 
+		on JBT.AssociateID=STB.AssociateID
+		inner join MasterCodes MC with (nolock) on MC.CDescription=STB.BGstatus and MC.Rowstatus=1 
+		and MC.CParentRef=4
+		inner join MasterCodes MC_A with (nolock) on MC_A.CDescription=STB.RecruitmentType
+		and MC.RowStatus=1 and MC_A.CParentRef=5		
+	 where JBT.AssociateID is null
+---------- Delete data---------
+		Delete from stg.JoiningBonus where AssociateID not in 
+		(select associateid from #JBTemp with (nolock))     
+		
+-------------Declaring variables ---------------
+	DECLARE @ELIGIBLEDAYS INT
+	SET @ELIGIBLEDAYS=(SELECT EligibleDays FROM Policy.PolicyMaster WITH(NOLOCK) 
+	WHERE FK_ComponentCountryMappingID=@ComponentCountryMappingID)				
+
+    SELECT AssociateID,ProjectID INTO #DUPLICATES FROM STG.JoiningBonus WITH(NOLOCK)
+	GROUP BY ASSOCIATEID,Projectid HAVING COUNT(ASSOCIATEID)>1
+	
+   --------Insert query --------------
+	INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,
+	SpecialCaseReason,ProjectId,ExceptionReason,CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,
+	NoInstallments,RetentionPeriod)
+
+	SELECT JB.AssociateID,JT.DateOfJoining,MC.CCodeId ,JT.GRADE,JB.Amount,InputRemarks,
+	MC_A.CCodeId,JB.PROJECTID,'Duplicate data found in same upload,' AS ExceptionReason,
+	JB.CreatedBy,GETDATE(),1,JT.BU,MC_B.CCodeId,JB.NoInstallments,JB.RetentionPeriod
+	FROM STG.JoiningBonus JB WITH(NOLOCK)
+	INNER JOIN #JBTEMP JT WITH(NOLOCK) ON JT.AssociateID=JB.AssociateID
+	INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+	ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID 
+	AND PPM.RowStatus=1
+	INNER JOIN MasterCodes MC WITH(NOLOCK)
+	ON MC.CParentRef=4 AND MC.CDescription=JB.BGstatus AND MC.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) 	ON MC_A.CParentRef=2 
+	AND UPPER(MC_A.CDescription)=UPPER(LTRIM(RTRIM(JB.SpecialCaseReason))) AND MC_A.RowStatus=1 
+	and MC_A.CUserdefined1='3'
+	INNER JOIN MasterCodes MC_B WITH(NOLOCK) 
+	ON MC_B.CParentRef=5 AND MC_B.CDescription=JB.RecruitmentType 
+	AND MC_B.RowStatus=1
+	INNER JOIN #DUPLICATES DUP WITH(NOLOCK) 
+	ON DUP.ASSOCIATEID=JB.AssociateID and DUP.ProjectID=JB.ProjectID	
+	GROUP BY JB.PK_JoiningBonusID,JB.AssociateID,JT.DateOfJoining,MC.CCodeId ,
+	JT.GRADE,JB.Amount,InputRemarks,
+	MC_A.CCodeId,JB.PROJECTID,
+	JB.CreatedBy,JT.BU,MC_B.CCodeId,NoInstallments,RetentionPeriod
+
+	Delete  SJB from stg.joiningbonus SJB inner join #DUPLICATES DUP 
+	ON SJB.ASSOCIATEID=DUP.ASSOCIATEID
+	AND SJB.PROJECTID=DUP.PROJECTID
+
+--===========================================================================================-------------------
+	
+   SELECT A.AssociateID,A.ProjectId,A.SpecialCaseReason INTO #DUALPROJECTID 
+   FROM STG.JoiningBonus A WITH(NOLOCK)
+   INNER JOIN STG.JoiningBonus B WITH(NOLOCK) ON A.AssociateID=B.AssociateID
+   AND A.PROJECTID<>B.PROJECTID
+   WHERE A.RowStatus=B.RowStatus AND A.RowStatus=1 and ISNULL(A.AMOUNT,'')<>''
+   	 
+   --------Insert query --------------
+   	INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,
+	SpecialCaseReason,ProjectId,ExceptionReason,
+	CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,NoInstallments,RetentionPeriod)
+
+   SELECT  DISTINCT SNP.ASSOCIATEID,JBT.DateOfJoining,MC_A.CCodeId,JBT.Grade,SNP.Amount,
+   SNP.InputRemarks,MC.CCodeId,
+   SNP.PROJECTID,'Dual-ProjectID has been uploaded without special case reason,',     
+   SNP.CREATEDBY, GETDATE(),1,JBT.BU,MC_B.CCodeId,SNP.NoInstallments ,SNP.RetentionPeriod
+   FROM STG.JoiningBonus SNP WITH(NOLOCK) 
+   inner join  #JBTEMP JBT ON SNP.AssociateID=JBT.AssociateID    
+   INNER JOIN #DUALPROJECTID DUP WITH(NOLOCK) ON DUP.AssociateID=SNP.AssociateID  
+   LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 
+   AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+   AND MC.RowStatus=1 and MC.CUserDefined1='3'  
+   	inner JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=4 
+	AND MC_A.CDescription=SNP.BGstatus 	AND MC_A.RowStatus=1
+	Inner JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+	AND MC_B.CDescription=SNP.RecruitmentType AND MC_B.RowStatus=1	
+   where MC.CCodeId is null
+
+   ----------------- Delete data---------
+   DELETE SJB 
+   FROM STG.JoiningBonus SJB  INNER JOIN #DUALPROJECTID DPI 
+   ON SJB.AssociateID=DPI.ASSOCIATEID AND SJB.ProjectId=DPI.ProjectId 
+   AND isnull(SJB.SpecialCaseReason,'')=''
+   and SJB.RowStatus=1
+
+      ----------------- Delete data---------
+   Delete DPI from #DUALPROJECTID DPI inner join exp.JoiningBonus ENP 
+   on DPI.AssociateID=ENP.AssociateID 
+   and DPI.projectid=ENP.ProjectId 
+   where isnull(ENP.RowStatus,0)=0 
+--===========================================================================================-------------------
+   
+   --------Insert query --------------
+   INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,
+   SpecialCaseReason,ProjectId,ExceptionReason,
+   CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,NoInstallments,RetentionPeriod)   
+
+   SELECT  DISTINCT SNP.ASSOCIATEID,JBT.DateOfJoining,MC_A.CCodeID,JBT.Grade,SNP.Amount,
+   SNP.InputRemarks,MC.CCodeId, SNP.PROJECTID,
+   'Joining Bonus has been uploaded for the same associate more than two projects',    
+   SNP.CREATEDBY, GETDATE(),1,JBT.BU,MC_B.CCodeId,SNP.NoInstallments,SNP.RetentionPeriod
+   FROM STG.JoiningBonus SNP WITH(NOLOCK) 
+   inner join #JBTEMP JBT ON SNP.AssociateID=JBT.AssociateID    
+   INNER JOIN #DUALPROJECTID DUP WITH(NOLOCK) ON DUP.AssociateID=SNP.AssociateID  
+   LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 
+   AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+   AND MC.RowStatus=1 and MC.CUserDefined1='3' and MC.CCodeid=12
+   LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=4 
+   AND MC_A.CDescription=SNP.BGstatus AND MC_A.RowStatus=1
+   LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+   AND MC_B.CDescription=SNP.RecruitmentType AND MC_B.RowStatus=1  
+   WHERE SNP.ASSOCIATEID in (SELECT AssociateID FROM #DUALPROJECTID WITH(NOLOCK)    
+   GROUP BY AssociateID HAVING COUNT(AssociateID)>2)
+---------- Delete data-----------
+   DELETE SNP FROM STG.JoiningBonus SNP WITH(NOLOCK)    
+   INNER JOIN #DUALPROJECTID DUP WITH(NOLOCK) ON DUP.AssociateID=SNP.AssociateID  
+   LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 
+   AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+   AND MC.RowStatus=1 and MC.CUserDefined1='3' and MC.CCodeid=12
+   WHERE SNP.ASSOCIATEID in (SELECT AssociateID FROM #DUALPROJECTID WITH(NOLOCK)    
+   GROUP BY AssociateID HAVING COUNT(AssociateID)>2)
+  ---------- Delete data----------- 
+    DELETE DUP FROM EXP.JoiningBonus SNP WITH(NOLOCK)    
+   INNER JOIN #DUALPROJECTID DUP WITH(NOLOCK) ON DUP.AssociateID=SNP.AssociateID  
+   LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2
+   AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+   AND MC.RowStatus=1 and MC.CUserDefined1='3' and MC.CCodeid=12
+   WHERE SNP.ASSOCIATEID in (SELECT AssociateID FROM #DUALPROJECTID WITH(NOLOCK)    
+   GROUP BY AssociateID HAVING COUNT(AssociateID)>2)
+--===========================================================================================-------------------
+   
+	select associateid into #morethanone from #DUALPROJECTID 
+	group by associateid having count(Associateid)>1
+	
+   --------Insert query --------------
+	   INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,
+	   SpecialCaseReason,ProjectId,ExceptionReason,CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,
+	   NoInstallments,RetentionPeriod) 
+           SELECT  DISTINCT SNP.ASSOCIATEID,JBT.DateOfJoining,MC_A.CCodeId,JBT.Grade,SNP.Amount,
+		   SNP.InputRemarks,MC.CCodeId, SNP.PROJECTID,
+		   'Uploaded data have more than one projectid-Dual Project-ID' ExceptionReason, 
+    SNP.CREATEDBY, GETDATE(),1,JBT.BU,MC_B.CCodeId ,SNP.NoInstallments,SNP.RetentionPeriod
+    FROM STG.JoiningBonus SNP WITH(NOLOCK) 
+    inner join #JBTEMP JBT ON SNP.AssociateID=JBT.AssociateID    
+    INNER JOIN  pr.JoiningBonus PNP  WITH(NOLOCK) ON SNP.AssociateID=PNP.AssociateID 
+    AND SNP.ProjectId<>PNP.ProjectId
+    LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 
+    AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+    AND MC.RowStatus=1 and MC.CUserDefined1=@COMPONENTID and MC.CCodeid=12 AND MC.CUserDefined1 = '3'
+   	LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=4 
+	AND MC_A.CDescription=SNP.BGstatus
+	AND MC_A.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+	AND MC_B.CDescription=SNP.RecruitmentType
+	AND MC_B.RowStatus=1	
+    WHERE SNP.ASSOCIATEID IN (select associateid from #morethanone)
+---------- Delete data-----------
+    DELETE SNP from STG.JoiningBonus SNP 
+    inner join #JBTEMP JBT ON SNP.AssociateID=JBT.AssociateID    
+    INNER JOIN  pr.JoiningBonus PNP   ON SNP.AssociateID=PNP.AssociateID 
+    AND SNP.ProjectId<>PNP.ProjectId
+    LEFT OUTER JOIN MasterCodes MC  ON MC.CParentRef=2
+    AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+    AND MC.RowStatus=1 and MC.CUserDefined1=@COMPONENTID and MC.CCodeid=12 AND MC.CUserDefined1 = '3'
+   	LEFT OUTER JOIN MasterCodes MC_A  ON MC_A.CParentRef=4 AND MC_A.CDescription=SNP.BGstatus
+	AND MC_A.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MC_B  ON MC_B.CParentRef=5
+	AND MC_B.CDescription=SNP.RecruitmentType
+	AND MC_B.RowStatus=1
+    WHERE SNP.ASSOCIATEID IN (select associateid from #morethanone)
+   
+	---------------Drop temp table -----------
+   DROP TABLE #DUALPROJECTID
+   drop table #morethanone
+
+--===========================================================================================-------------------
+
+   SELECT  DISTINCT SNP.ASSOCIATEID,JBT.DateOfJoining,MC_A.CCodeId BGStatus,JBT.Grade,
+   SNP.Amount,SNP.InputRemarks,MC.CCodeId SpecialCaseReason, SNP.PROJECTID,
+   'JoiningBonus has been already uploaded/Processed 
+   for the same associate more than two projects,' ExceptionReason
+   ,SNP.CREATEDBY, GETDATE() createddate,1 Rowstatus,JBT.BU,MC_B.CCodeId RecruitmentType ,
+   SNP.NoInstallments,SNP.RetentionPeriod
+   into #MORETHANTWO
+   FROM STG.JoiningBonus SNP WITH(NOLOCK) 
+   inner join #JBTEMP JBT ON SNP.AssociateID=JBT.AssociateID   
+   INNER JOIN  pr.JoiningBonus PNP  WITH(NOLOCK)
+   ON SNP.AssociateID=PNP.AssociateID AND SNP.ProjectId<>PNP.ProjectId
+   LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 
+   AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+   AND MC.RowStatus=1 and MC.CUserDefined1='3' and MC.CCodeid=12
+   LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=4 
+   AND MC_A.CDescription=SNP.BGstatus  AND MC_A.RowStatus=1
+   LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+   AND MC_B.CDescription=SNP.RecruitmentType AND MC_B.RowStatus=1 
+   WHERE SNP.ASSOCIATEID IN (select PNP.associateid from pr.JoiningBonus PNP 
+   where rowstatus=1 and status in (1,5)
+   group by  PNP.associateid having count(PNP.AssociateID)>1)
+   
+   --------Insert query --------------
+   INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,
+   SpecialCaseReason,ProjectId,ExceptionReason,CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,NoInstallments,
+   RetentionPeriod) 
+   select ASSOCIATEID,DateOfJoining,BGStatus,Grade,Amount,InputRemarks,SpecialCaseReason,PROJECTID,
+   ExceptionReason
+   ,CREATEDBY,createddate,Rowstatus,BU,RecruitmentType,NoInstallments,RetentionPeriod
+   from #MORETHANTWO
+
+   DELETE SNP FROM stg.JoiningBonus SNP inner join #MORETHANTWO  MTT ON
+   SNP.AssociateID=MTT.AssociateID AND SNP.ProjectId=MTT.ProjectId
+
+   --------Insert query --------------
+    INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,
+	SpecialCaseReason,ProjectId,ExceptionReason,
+   CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,NoInstallments,RetentionPeriod)  
+    SELECT  DISTINCT SNP.ASSOCIATEID,JBT.DateOfJoining,MC_A.CCodeId,JBT.Grade,SNP.Amount,
+	SNP.InputRemarks,MC.CCodeId, SNP.PROJECTID,
+	'Dual-ProjectID case without special case reason,' ExceptionReason,  
+   SNP.CREATEDBY, GETDATE(),1,JBT.BU,MC_B.CCodeId,SNP.NoInstallments,SNP.RetentionPeriod
+   FROM STG.JoiningBonus SNP WITH(NOLOCK) 
+   inner join #JBTEMP JBT ON SNP.AssociateID=JBT.AssociateID  
+   INNER JOIN  pr.JoiningBonus PNP  WITH(NOLOCK) ON SNP.AssociateID=PNP.AssociateID 
+   AND SNP.ProjectId<>PNP.ProjectId
+   LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 
+   AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+   AND MC.RowStatus=1 and MC.CUserDefined1='3' and MC.CCodeid=12   
+	LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=4 
+	AND MC_A.CDescription=SNP.BGstatus
+	AND MC_A.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+	AND MC_B.CDescription=SNP.RecruitmentType
+	AND MC_B.RowStatus=1	
+   WHERE SNP.ASSOCIATEID IN (select PNP.associateid from pr.JoiningBonus PNP 
+   where rowstatus=1 and status in (1,5)
+   group by  PNP.associateid having count(PNP.AssociateID)>0) and MC.CDescription is null
+      
+   delete snp from stg.JoiningBonus snp INNER JOIN  pr.JoiningBonus PNP 
+   ON SNP.AssociateID=PNP.AssociateID 
+   AND SNP.ProjectId<>PNP.ProjectId
+   LEFT OUTER JOIN MasterCodes MC ON MC.CParentRef=2 
+   AND UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(SNP.SpecialCaseReason)))  
+   AND MC.RowStatus=1 and MC.CUserDefined1='3' and MC.CCodeid=12
+   WHERE SNP.ASSOCIATEID IN (select PNP.associateid from pr.JoiningBonus PNP
+   where rowstatus=1 and status in (1,5)
+   group by  PNP.associateid having count(PNP.AssociateID)>0) and MC.CDescription is null
+--------------Fetch data--------------	
+	SELECT DISTINCT SJB.PK_JoiningBonusID,SJB.AssociateID,JT.DateOfJoining,
+	MC.CCodeId AS BGstatus,JT.Grade,SJB.ProjectId,SJB.Amount,SJB.InputRemarks,
+	SJB.SpecialCaseReason,SJB.RecruitmentType,	
+	COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.STATUS=5 AND 
+	(ISNULL(SJB.SpecialCaseReason,'')='' OR PJB.SpecialCaseReason=SJB.SpecialCaseReason)) 
+	THEN 'Joining Bonus has been processed for Associate on the month of '+
+	DATENAME(MM, PJB.CREATEDDATE) + ' ' + CAST(YEAR(PJB.CREATEDDATE) AS VARCHAR(4))+',' ELSE NULL END), '')  
+	+
+	COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.STATUS NOT IN (2,5)
+	AND (SJB.AMOUNT=PJB.AMOUNT OR SJB.AMOUNT='')
+	AND (ISNULL(SJB.SpecialCaseReason,'')='' OR PJB.SpecialCaseReason=SJB.SpecialCaseReason)) 
+	THEN 'Joining Bonus has been uploaded by '+CONVERT(VARCHAR(20),PJB.CREATEDBY)+' On '+CONVERT(VARCHAR(20),
+	PJB.CREATEDDATE, 100)+',' ELSE NULL END), '') 
+	+
+	COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.STATUS NOT IN (2,5) AND SJB.AMOUNT<>'' 
+	AND SJB.AMOUNT<>PJB.AMOUNT
+	AND (ISNULL(SJB.SpecialCaseReason,'')='' OR PJB.SpecialCaseReason=SJB.SpecialCaseReason)) 
+	THEN 'Joining Bonus has been uploaded by '+CONVERT(VARCHAR(20),PJB.CREATEDBY)+' On '+CONVERT(VARCHAR(20),
+	PJB.CREATEDDATE, 100)
+	+' with different Amount,' ELSE NULL END), '') 
+
+	+
+	COALESCE(( CASE when PJB.AssociateID is not null AND PJB.ROWSTATUS=1 AND  
+			 PJB.AssociateID=SJB.AssociateID and PJB.NoInstallments <> SJB.NoInstallments
+			 and PJB.createddate > JT.DateOfJoining
+			 THEN 'No of installment is not the same as in the previous JB records'  ELSE NULL END),'')
+	AS EXCEPTIONREASON,
+	SJB.CREATEDBY,JT.BU ,SJB.NOInstallments,SJB.RetentionPeriod
+	INTO #PROCESSEDJB
+	FROM STG.JoiningBonus SJB WITH(NOLOCK)
+	INNER JOIN PR.JoiningBonus PJB WITH(NOLOCK) ON PJB.AssociateID=SJB.AssociateID 
+	AND PJB.PROJECTID=SJB.ProjectID AND PJB.RowStatus=1
+	INNER JOIN #JBTEMP JT WITH(NOLOCK) ON JT.AssociateID=SJB.AssociateID 
+	INNER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=4 AND MC.CDescription=SJB.BGstatus 
+	AND MC.RowStatus=1
+	INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+	AND PPM.RowStatus=1
+	
+   --------Insert query --------------
+	INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,SpecialCaseReason,ProjectId,
+	ExceptionReason,CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,NoInstallments,RetentionPeriod)	
+	SELECT AssociateID,DateOfJoining,BGstatus,Grade,Amount,InputRemarks,MC_A.CCodeId,ProjectId,ExceptionReason,
+	JB.CreatedBy,GETDATE(),1,JB.BU,MC_B.CCodeId ,JB.NOInstallments,JB.RetentionPeriod
+	FROM #PROCESSEDJB JB WITH(NOLOCK) 
+	LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=2 AND MC_A.CUserDefined1 = '3'
+	AND UPPER(MC_A.CDescription)=UPPER(LTRIM(RTRIM(JB.SpecialCaseReason))) 
+	AND MC_A.RowStatus=1 
+	LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5
+	AND MC_B.CDescription=JB.RecruitmentType
+	AND MC_B.RowStatus=1	
+	WHERE JB.EXCEPTIONREASON<>'' 
+--------------------- Delete data------------	
+   DELETE FROM STG.JoiningBonus WHERE PK_JoiningBonusID IN (SELECT PK_JoiningBonusID FROM #PROCESSEDJB
+   WHERE EXCEPTIONREASON<>''	)	
+
+    SELECT DISTINCT JB.PK_JoiningBonusID,JB.AssociateID,JT.DateOfJoining,MC.CCodeId AS BGstatus,JT.GRADE AS Grade,
+	JB.Amount,InputRemarks,SpecialCaseReason,JB.ProjectId,
+	COALESCE((CASE WHEN AD.Per_Org ='CWR' THEN 'Associate is a contractor,' ELSE NULL END), '')  
+	+
+	COALESCE((CASE WHEN JR.ACTION='TER' AND JR.Action_reason='CTE' AND AD.Per_Org <>'CWR' 
+	 AND (ISNULL(JB.SpecialCaseReason,'')<>(SELECT CDescription FROM MasterCodes WITH(NOLOCK) WHERE CParentRef=2 
+	 AND CCodeId=10))	
+	THEN 'Associate has converted from contractor to Employee,' ELSE NULL END), '')  
+	AS EXCEPTIONREASON,JB.CreatedBy,JT.BU,JB.RecruitmentType,JB.NoInstallments,JB.RetentionPeriod
+	INTO #CONTRACTOR 
+	FROM STG.JoiningBonus JB WITH(NOLOCK)	
+	INNER JOIN #JBTEMP JT WITH(NOLOCK) ON JT.AssociateID=JB.AssociateID
+	LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
+	ON AD.Associate_ID=JB.AssociateID  
+	LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+	ON JR.ACTION='TER' AND JR.Action_reason='CTE' AND 
+	JR.EMPLID=JT.AssociateID AND JR.EFFDT=JT.DateOfJoining
+	INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+	ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID 
+	AND PPM.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=4 
+	AND MC.CDescription=JB.BGstatus AND MC.RowStatus=1
+		
+   --------Insert query --------------
+    INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,ProjectId,InputRemarks,
+	SpecialCaseReason,ExceptionReason,CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,NoInstallments,
+	RetentionPeriod)
+	
+	SELECT JB.AssociateID,JB.DateOfJoining,JB.BGstatus,JB.Grade,JB.Amount,JB.ProjectId,
+	JB.InputRemarks,MC_A.CCodeId,JB.ExceptionReason,JB.CreatedBy,
+	GETDATE(),1,JB.BU,MC_B.CCodeId,JB.NoInstallments ,JB.RetentionPeriod
+	FROM #CONTRACTOR JB WITH(NOLOCK)
+	LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=2 
+	AND UPPER(MC_A.CDescription)=UPPER(LTRIM(RTRIM(JB.SpecialCaseReason)))
+	AND MC_A.RowStatus=1 AND MC_A.CUserDefined1 = '3'
+	LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+	AND MC_B.CDescription=JB.RecruitmentType 
+	AND MC_B.RowStatus=1	 
+	 WHERE EXCEPTIONREASON<>''	
+    	
+	DELETE FROM STG.JoiningBonus WHERE PK_JoiningBonusID IN (SELECT PK_JoiningBonusID 
+	FROM #CONTRACTOR 
+	WHERE EXCEPTIONREASON<>'')		
  
-DROP TABLE #TEMP  
-DROP TABLE #Tmp_NoPayMent  
-DROP TABLE #Tmp_SumPayment   
-DROP TABLE #Tmp_LessPayMentInFinancialYear  
-DROP TABLE #Tmp_NoPayMent_JB  
-DROP TABLE #Tmp_SumPayment_JB  
-DROP TABLE #Tmp_LessPayMentInFinancialYear_JB  
-DROP TABLE #DUPLICATES  
-DROP TABLE #TerminatedCases  
- 
- EXEC [Trunc].[usp_TruncateTable] 'STG.Reversal'
-  END TRY
+   --------Insert query --------------
+	INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,ProjectId,InputRemarks,
+	SpecialCaseReason,ExceptionReason,CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,NoInstallments,RetentionPeriod)
+		
+    SELECT DISTINCT JB.AssociateID,JT.DateOfJoining,MC.CCodeId,JT.GRADE,JB.Amount,JB.ProjectId,
+	InputRemarks,MC_A.CCodeId,
+    'Associate is not hired in India' AS ExceptionReason,JB.CreatedBy,GETDATE(),1,JT.BU,
+	MC_B.CCodeId,JB.NoInstallments,JB.RetentionPeriod
+    FROM STG.JoiningBonus JB WITH(NOLOCK)
+    INNER JOIN #JBTEMP JT WITH(NOLOCK) ON JT.AssociateID=JB.AssociateID    
+	INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK)
+	ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+	AND PPM.RowStatus=1
+	INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
+	ON HL.HCMLOCATIONCODE=JT.LOCATION 
+	LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) 
+	ON MC.CParentRef=4 AND MC.CDescription=JB.BGstatus 	AND MC.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=2 
+	AND UPPER(MC_A.CDescription)=UPPER(LTRIM(RTRIM(JB.SpecialCaseReason)))
+	AND MC_A.RowStatus=1 and MC_A.CUserDefined1='3'
+	LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+	AND MC_B.CDescription=JB.RecruitmentType AND MC_B.RowStatus=1	
+	WHERE HL.COUNTRY_ID<>'IND' 
+----------------- Delete data --------------	
+	DELETE FROM STG.JoiningBonus WHERE PK_JoiningBonusID IN (
+	SELECT JB.PK_JoiningBonusID FROM STG.JoiningBonus JB WITH(NOLOCK)
+	INNER JOIN #JBTEMP JT WITH(NOLOCK) ON JT.AssociateID=JB.AssociateID  
+	INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+	ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID 
+	AND PPM.RowStatus=1
+	INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK) 
+	ON HL.HCMLOCATIONCODE=JT.Location 
+	WHERE HL.COUNTRY_ID<>'IND')	
+	
+   --------Insert query --------------
+	INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,ProjectId,InputRemarks,
+	SpecialCaseReason,ExceptionReason,CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,
+	NoInstallments,RetentionPeriod)
+
+	SELECT JB.AssociateID,JT.DateOfJoining,MC.CCodeId,JT.GRADE,JB.Amount,JB.ProjectId,InputRemarks,MC_A.CCodeId,
+	'Associate has not completed Eligible days criteria,' AS ExceptionReason,JB.CreatedBy,GETDATE(),1,JT.BU,
+	MC_B.CCodeId,JB.NoInstallments,JB.RetentionPeriod
+	FROM STG.JoiningBonus JB WITH(NOLOCK)
+	INNER JOIN #JBTEMP JT WITH(NOLOCK) ON JT.AssociateID=JB.AssociateID  	  
+	INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK)
+	ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID 
+	AND PPM.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) 
+	ON MC.CParentRef=4 AND MC.CDescription=JB.BGstatus 
+	AND MC.RowStatus=1
+	LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=2
+	AND UPPER(MC_A.CDescription)=UPPER(LTRIM(RTRIM(JB.SpecialCaseReason)))
+	AND MC_A.RowStatus=1 and MC_A.CUserDefined1='3'
+	LEFT OUTER JOIN MasterCodes MC_B WITH(NOLOCK) ON MC_B.CParentRef=5 
+	AND MC_B.CDescription=JB.RecruitmentType 
+	AND MC_B.RowStatus=1	
+	WHERE DATEDIFF(DAY,JT.DateOfJoining, GETDATE())<=@ELIGIBLEDAYS 
+	AND isnull(JB.SpecialCaseReason,'')<>(SELECT CDESCRIPTION 
+	FROM MASTERCODES WITH(NOLOCK) WHERE CPARENTREF=2 
+	AND CCODEID=4 AND CUserDefined1 = '3' AND RowStatus=1)
+	
+	DELETE FROM STG.JoiningBonus WHERE PK_JoiningBonusID IN (SELECT PK_JoiningBonusID 
+	FROM STG.JoiningBonus JB WITH(NOLOCK)
+	INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
+	ON AD.Associate_ID=JB.AssociateID 
+	WHERE DATEDIFF(DAY,AD.DateOfJoining, GETDATE())<=@ELIGIBLEDAYS AND (JB.SpecialCaseReason IS NULL 
+	OR JB.SpecialCaseReason='')) 
+	
+    SELECT DISTINCT JB.AssociateID,JT.DateOfJoining,MC.CCodeId AS BGstatus,JT.GRADE AS Grade,JB.InputRemarks, 
+	JB.SpecialCaseReason,
+	JB.ProjectId,JB.Amount,MC_A.CCodeId RecruitmentType,JT.COMPANY,JT.BU,
+	COALESCE((CASE WHEN CD.Job_Family='' OR CD.Job_Family IS NULL 
+	THEN 'Associate''s Grade is InValid,' ELSE NULL END), '') 
+	+
+	COALESCE((CASE WHEN (JB.AMOUNT IS NULL OR JB.AMOUNT='') THEN 'Amount is Mandatory,' 
+	WHEN (JB.AMOUNT<>'' AND ISNUMERIC(JB.AMOUNT) <> 1 OR CONVERT(MONEY,JB.AMOUNT)<1)	
+	THEN 'Amount is InValid,' ELSE NULL END), '')
+	+
+	COALESCE((CASE WHEN LEN(JB.ProjectID) <> 10 OR (SELECT COUNT(1) 
+	FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus WITH (NOLOCK)
+	WHERE Project_Status='A' and EFF_STATUS = 'A' AND effdt = (select max(effdt) 
+	from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
+	where project_Id=CONVERT(VARCHAR(10),JB.ProjectID))AND EFFSEQ = 
+	(select max(EFFSEQ) from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus
+	where project_Id=CONVERT(VARCHAR(10),JB.ProjectID)) AND PROJECT_ID=CONVERT(VARCHAR(10),JB.ProjectID))=0  
+	THEN 'ProjectId is Invalid,' ELSE NULL END), '')   	
+	+
+	COALESCE((CASE WHEN PSM.SetId IS NULL  
+	THEN 'Associate''s SetID is not eligible for Joining Bonus,' ELSE NULL END), '') 
+	+
+	COALESCE((CASE WHEN PGM.GradeLevelId IS NULL 
+	THEN 'Associate''s Grade is not eligible for Joining Bonus,' ELSE NULL END), '')  
+	+	
+	COALESCE((CASE WHEN (UPPER(LTRIM(RTRIM(JB.BGstatus)))=(SELECT UPPER(CDescription) 
+	FROM MASTERCODES WHERE CPARENTREF=4 
+	AND CUSERDEFINED4=0 AND ROWSTATUS=1) OR JB.BGstatus IS NULL OR JB.BGstatus='') 
+	 THEN ' BG Status is Invalid,' ELSE NULL END), '')
+	+
+	COALESCE((CASE WHEN (UPPER(LTRIM(RTRIM(JB.RecruitmentType))) NOT IN 
+	(SELECT UPPER(CDESCRIPTION) FROM MASTERCODES WHERE CPARENTREF=5 AND ROWSTATUS=1)
+	  OR JB.RECRUITMENTTYPE IS NULL OR JB.RECRUITMENTTYPE='') 			       
+	 THEN 'RecruitmentType is Invalid,' ELSE NULL END), '')
+	+
+	COALESCE((CASE WHEN JB.RecruitmentType='Lateral' AND PGAM.RecruitmentType=1 
+	 AND (JB.SpecialCaseReason IS NULL OR JB.SpecialCaseReason='')
+	 AND PGAM.MaxAmount<>0 
+	 AND JB.AMOUNT NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+	 THEN 'The Amount doesnot match with the Policy Amount'
+	WHEN JB.RecruitmentType='Campus' AND PGAM.RecruitmentType=2 
+	AND (JB.SpecialCaseReason IS NULL OR JB.SpecialCaseReason='') 
+	AND PGAM.MaxAmount<>0
+	AND JB.AMOUNT NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+	THEN 'The Amount doesnot match with the Policy Amount'
+	WHEN JB.RecruitmentType='Merger and Acquisition' AND PGAM.RecruitmentType=3 
+	AND (JB.SpecialCaseReason IS NULL OR JB.SpecialCaseReason='') 
+	AND PGAM.MaxAmount<>0
+	AND JB.AMOUNT NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+	THEN 'The Amount doesnot match with the Policy Amount' END), '')AS EXPREMARKS,JB.CreatedBy,
+	JB.NoInstallments,JB.RetentionPeriod
+	INTO #TEMP3
+	FROM STG.JoiningBonus JB WITH (NOLOCK)
+	INNER JOIN #JBTEMP JT WITH(NOLOCK) ON JT.AssociateID=JB.AssociateID	 
+	INNER JOIN CentralRepository.dbo.vw_CentralRepository_Designation CD WITH(NOLOCK) 
+	ON CD.JobCode=JT.Grade	AND CD.Bussiness_unit=JT.BU
+	LEFT OUTER JOIN Policy.SetIdMaster PSM WITH(NOLOCK) ON PSM.SetId=JT.BU AND PSM.RowStatus=1 
+	AND PSM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+	LEFT OUTER JOIN Policy.GradeMaster PGM WITH(NOLOCK) ON PGM.GradeLevelId=CD.Job_Family AND PGM.RowStatus=1 AND 
+	PGM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+	LEFT OUTER JOIN Policy.PolicyMaster PPM WITH(NOLOCK)
+	ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PPM.RowStatus=1
+	INNER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=4 
+	AND MC.CDescription=JB.BGstatus AND MC.RowStatus=1
+	INNER JOIN MasterCodes MC_A WITH(NOLOCK) ON MC_A.CParentRef=5 
+	AND MC_A.CDescription=JB.RecruitmentType AND MC_A.RowStatus=1
+	LEFT OUTER JOIN Policy.GradeAmountMaster PGAM WITH(NOLOCK) 
+	ON PGAM.GradeLevelId=CD.Job_Family
+	AND PGAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PGAM.RowStatus=1 
+	AND PGAM.RECRUITMENTTYPE=MC_A.CCodeId
+
+		
+   --------Insert query --------------
+  INSERT INTO EXP.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,ProjectId,RecruitmentType,
+  InputRemarks,SpecialCaseReason,ExceptionReason,TT.CreatedBy,CreatedDate,RowStatus,SetID,NoInstallments,RetentionPeriod)
+	
+	SELECT TT.AssociateID,TT.DateOfJoining,TT.BGstatus,TT.Grade,TT.Amount,TT.ProjectId,TT.RecruitmentType,
+	TT.InputRemarks,MC.CCodeId,TT.EXPREMARKS,TT.CreatedBy,GETDATE(),1,TT.BU ,TT.NoInstallments,TT.RetentionPeriod
+	FROM #TEMP3  TT
+	LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON CParentRef=2
+	AND UPPER(CDescription)=UPPER(LTRIM(RTRIM(TT.SpecialCaseReason))) AND RowStatus=1 
+	AND CUserDefined1=3	WHERE EXPREMARKS <>''
+	
+   --------Insert query --------------
+    INSERT INTO PR.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,Status,ProjectId,
+	RecruitmentType,InputRemarks,SpecialCaseReason,CompanyID,SetID,CreatedBy,CreatedDate,RowStatus,NoInstallments, RetentionPeriod)
+	SELECT AssociateID,DateOfJoining,BGstatus,Grade,Amount,1,ProjectId,TT.RecruitmentType,
+	InputRemarks,MC.CCodeId,COMPANY,BU,TT.CreatedBy,GETDATE(),1 ,
+	 TT.NoInstallments,
+	 	(Case When  (TT.RecruitmentType in (1,3) and TT.NoInstallments in (1,2))  then 1 
+		When (TT.RecruitmentType in (1,3) and TT.NoInstallments in (4,5))   then 2 
+		When TT.RecruitmentType=2 Then TT.RetentionPeriod
+		else TT.RetentionPeriod end)	
+	FROM #TEMP3 TT 
+	LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON CParentRef=2
+	AND UPPER(CDescription)=UPPER(LTRIM(RTRIM(TT.SpecialCaseReason))) AND RowStatus=1 
+	AND CUserDefined1=3	WHERE EXPREMARKS=''  
+
+	---------------Drop temp table -----------
+	DROP TABLE #TEMP
+	DROP TABLE #TEMP3
+	DROP TABLE #DUPLICATES
+	DROP TABLE #CONTRACTOR
+	DROP TABLE #PROCESSEDJB
+	DROP TABLE #JBTEMP
+	DROP TABLE #JBLATESTJOBTEMP 
+	DROP TABLE #TEMP_ASSOACTIVECHK
+	drop table #MORETHANTWO
+
+	EXEC [Trunc].[usp_TruncateTable] 'STG.JoiningBonus'
+END 
+ END TRY
  BEGIN CATCH
  SELECT @@ERROR
  END CATCH 

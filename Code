@@ -1,4 +1,4 @@
- USE [OneC_SPay]
+USE [OneC_SPay]
 GO
 /****** Object:  StoredProcedure [dbo].[Usp_ProcessReversal]    Script Date: 11-12-2025 10:44:54 ******/
 SET ANSI_NULLS ON
@@ -15,7 +15,244 @@ AS
 BEGIN  
 BEGIN TRY
 SET NOCOUNT ON  
--------Inserting data-------
+ 
+UPDATE ERB  
+SET ERB.RowStatus=0,ERB.ModifiedBy=SRB.CreatedBy,ERB.ModifiedDate=GETDATE()  
+FROM EXP.Reversal ERB WITH(NOLOCK)  
+INNER JOIN STG.Reversal SRB WITH(NOLOCK) ON ERB.AssociateID=SRB.AssociateID
+AND ERB.FK_ComponentID=SRB.Fk_componentGroupID  
+WHERE ERB.RowStatus=1 AND SRB.RowStatus=1  
+ 
+SELECT AssociateID INTO #DUPLICATES FROM STG.Reversal WITH(NOLOCK)  
+GROUP BY AssociateID HAVING COUNT(AssociateID)>1  
+ -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT SR.FK_ComponentGroupID,SR.ASSOCIATEID, Amount,SR.InputRemarks,
+'Duplicate data found in same upload,',SR.CreatedBy, GETDATE(),1  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN #DUPLICATES DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID  
+WHERE SR.RowStatus=1  
+ 
+  -------Deleting data-------
+DELETE FROM STG.Reversal WHERE AssociateID IN (SELECT AssociateID FROM #DUPLICATES)  
+
+ SELECT DISTINCT STSI.AssociateID,STSI.Fk_componentGroupID, 
+ 'Data is already avaliable for this month' ExceptionRemarks INTO #SAMEDATA 
+	 FROM PR.Reversal PTSI WITH (NOLOCK)
+	 inner join STG.Reversal STSI WITH (NOLOCK) ON PTSI.AssociateID=STSI.AssociateID 
+	 WHERE PTSI.Rowstatus=1 
+	 and PTSI.Fk_ComponentID= STSI.Fk_componentGroupID
+	 and month(PTSI.CreatedDate)=month(Getdate()) and YEAR(PTSI.CreatedDate)=Year(Getdate())
+	  -------Inserting data-------
+	 INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks,
+	 ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT SR.FK_ComponentGroupID,SR.ASSOCIATEID, Amount,SR.InputRemarks,
+ExceptionRemarks,SR.CreatedBy, GETDATE(),1  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN #SAMEDATA DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID   
+and SR.Fk_componentGroupID = DUP.Fk_componentGroupID
+WHERE SR.RowStatus=1   AND ISNULL(DUP.ExceptionRemarks,'')<>''
+ -------Deleting data-------
+DELETE SR FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN #SAMEDATA DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID   
+and SR.Fk_componentGroupID = DUP.Fk_componentGroupID
+WHERE SR.RowStatus=1   AND ISNULL(DUP.ExceptionRemarks,'')<>''
+	 
+SELECT EMPLID,ACTION,ACTION_REASON,EMPL_STATUS,EFFDT  
+INTO #TerminatedCases  
+FROM  
+(SELECT DENSE_RANK() OVER (PARTITION BY JREF.EMPLID
+ORDER BY JREF.EFFDT DESC,JREF.EFFSEQ DESC,JREF.EMPL_RCD DESC) AS RANK ,  
+JREF.EMPLID,JREF.ACTION,JREF.ACTION_REASON,JREF.EMPL_STATUS,JREF.EFFDT FROM  
+CentralRepository..VW_CENTRALREPOSITORY_JOB_REFERENCE JREF  
+INNER JOIN STG.Reversal STREV ON STREV.AssociateID=JREF.EMPLID  
+WHERE ACTION='TER') A WHERE A.Rank=1  
+
+SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
+ 
+COALESCE((CASE WHEN LEN(SR.ASSOCIATEID) not in (6,7) THEN 'AssociateId is InValid,' ELSE NULL END), '')  
++
+COALESCE((CASE WHEN (ISNUMERIC(SR.AMOUNT) <> 1 OR CONVERT(MONEY,SR.AMOUNT)<=0)  
+THEN 'Amount is InValid,' ELSE NULL END), '') AS EXPREMARKS  
+INTO #TEMP  
+FROM STG.Reversal SR WITH (NOLOCK)  
+LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK) 
+ON AD.ASSOCIATE_ID = SR.ASSOCIATEID  
+LEFT OUTER JOIN #TerminatedCases TRC ON(TRC.EMPLID=SR.ASSOCIATEID)  
+WHERE SR.RowStatus=1  
+ 
+  -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #TEMP WHERE EXPREMARKS <>''  
+ 
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #TEMP WHERE EXPREMARKS <>'')  
+
+SELECT distinct SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
+ 
+COALESCE((CASE WHEN ISNULL(REF.AssociateID,0) = 0 THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
+AS EXPREMARKS  
+,SR.CreatedDate,REF.ModifiedDate  
+INTO #Tmp_NoPayMentNP  
+FROM STG.Reversal SR WITH (NOLOCK)  
+LEFT OUTER JOIN PR.NoticePay REF WITH (NOLOCK) ON REF.AssociateID=SR.AssociateID AND REF.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=1  
+   -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks,
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMentNP WHERE EXPREMARKS <>''  
+  -------Deleting data-------
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMentNP WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=1  
+  -------Inserting data-------
+INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status, 
+InputRemarks, CreatedBy, CreatedDate,RowStatus,ProjectID)  
+SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,
+SR.InputRemarks,SR.CreatedBy, GETDATE(),1,REF.ProjectID  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
+INNER JOIN PR.NoticePay REF WITH (NOLOCK) ON REF.AssociateID=SR.AssociateID AND REF.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=1  
+ 
+SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
+ 
+COALESCE((CASE WHEN ISNULL(REF.ReferrorAssociateID,0) = 0 
+THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
+AS EXPREMARKS  
+,SR.CreatedDate,REF.ModifiedDate  
+INTO #Tmp_NoPayMent  
+FROM STG.Reversal SR WITH (NOLOCK)  
+LEFT OUTER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
+  -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMent WHERE EXPREMARKS <>''  
+  -------Deleting data-------
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMent WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=2  
+
+SELECT SR.ASSOCIATEID,SR.Fk_componentGroupID, SUM(MYPAY.Amount) AS MyPayAmount,MAX(MYPAY.CreatedDate) AS CreatedDate  
+INTO #Tmp_SumPayment  
+FROM STG.Reversal SR WITH (NOLOCK)  
+INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
+INNER JOIN TRN.MyPayData MYPAY WITH (NOLOCK) ON REF.ReferrorAssociateID=MYPAY.AssociateID 
+AND MYPAY.FK_ComponentID=SR.Fk_componentGroupID  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
+AND 1=(CASE  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (4,5,6) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)+1=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
+ELSE 0 END)  
+ 
+GROUP BY SR.ASSOCIATEID,SR.Fk_componentGroupID  
+ 
+ SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy  
+,SR.CreatedDate AS ReversalDate,  
+(CASE WHEN SR.Amount <= SUMMYPAY.MyPayAmount THEN ''  
+ELSE 'Reversed Amount is Greater than Amount Paid' END)  
+AS EXPREMARKS  
+INTO #Tmp_LessPayMentInFinancialYear  
+FROM STG.Reversal SR WITH (NOLOCK)  
+INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
+INNER JOIN #Tmp_SumPayment SUMMYPAY WITH (NOLOCK) ON REF.ReferrorAssociateID=SUMMYPAY.AssociateID 
+AND SUMMYPAY.Fk_componentGroupID=SR.Fk_componentGroupID  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
+ -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_LessPayMentInFinancialYear WHERE EXPREMARKS <>''  
+  -------Deleting data-------
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId
+FROM #Tmp_LessPayMentInFinancialYear WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=2  
+ -------Inserting data-------
+INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status, InputRemarks, 
+CreatedBy, CreatedDate,RowStatus,ProjectID)  
+SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,SR.InputRemarks,
+SR.CreatedBy, GETDATE(),1,REF.ProjectID  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
+INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
+ 
+SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
+ 
+COALESCE((CASE WHEN ISNULL(JB.AssociateID,0) = 0 THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
+AS EXPREMARKS  
+,SR.CreatedDate,JB.ModifiedDate  
+INTO #Tmp_NoPayMent_JB  
+FROM STG.Reversal SR WITH (NOLOCK)  
+LEFT OUTER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+  -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks,
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMent_JB WHERE EXPREMARKS <>''  
+ 
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMent_JB WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=3  
+
+SELECT SR.ASSOCIATEID,SR.Fk_componentGroupID, SUM(MYPAY.Amount) AS MyPayAmount,MAX(MYPAY.CreatedDate) AS CreatedDate  
+INTO #Tmp_SumPayment_JB  
+FROM STG.Reversal SR WITH (NOLOCK)  
+INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
+INNER JOIN TRN.MyPayData MYPAY WITH (NOLOCK) ON JB.AssociateID=MYPAY.AssociateID
+AND MYPAY.FK_ComponentID=SR.Fk_componentGroupID  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+AND 1=(CASE  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (4,5,6) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)+1=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
+ELSE 0 END)  
+ 
+GROUP BY SR.ASSOCIATEID,SR.Fk_componentGroupID  
+
+SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy  
+,SR.CreatedDate AS ReversalDate,  
+(CASE WHEN SR.Amount <= SUMMYPAY.MyPayAmount THEN ''  
+ELSE 'Reversed Amount is Greater than Amount Paid' END)  
+AS EXPREMARKS  
+INTO #Tmp_LessPayMentInFinancialYear_JB  
+FROM STG.Reversal SR WITH (NOLOCK)  
+INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
+INNER JOIN #Tmp_SumPayment_JB SUMMYPAY WITH (NOLOCK) ON JB.AssociateID=SUMMYPAY.AssociateID 
+AND SUMMYPAY.Fk_componentGroupID=SR.Fk_componentGroupID  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+ 
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_LessPayMentInFinancialYear_JB WHERE EXPREMARKS <>''  
+
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId 
+FROM #Tmp_LessPayMentInFinancialYear_JB WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=3  
+ -------Inserting data-------
 INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status,
 InputRemarks, CreatedBy, CreatedDate,RowStatus,ProjectID)  
 SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,
@@ -24,3 +261,20 @@ FROM STG.Reversal SR WITH(NOLOCK)
 INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
 INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
 WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+ 
+DROP TABLE #TEMP  
+DROP TABLE #Tmp_NoPayMent  
+DROP TABLE #Tmp_SumPayment   
+DROP TABLE #Tmp_LessPayMentInFinancialYear  
+DROP TABLE #Tmp_NoPayMent_JB  
+DROP TABLE #Tmp_SumPayment_JB  
+DROP TABLE #Tmp_LessPayMentInFinancialYear_JB  
+DROP TABLE #DUPLICATES  
+DROP TABLE #TerminatedCases  
+ 
+ EXEC [Trunc].[usp_TruncateTable] 'STG.Reversal'
+  END TRY
+ BEGIN CATCH
+ SELECT @@ERROR
+ END CATCH 
+END

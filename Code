@@ -6,3 +6,7 @@
    CAD.Associate_ID=PRR.AssociateID 
    INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=PRR.FK_ComponentID
    WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.Status=1 AND CM.RowStatus=1
+
+
+SELECT Associate_ID, Project_ID, Allocation_Start_Date, Allocation_End_Date, Assignment_Status  
+  FROM CentralRepository .. vw_CentralRepository_Allocation WHERE Associate_ID = '2240616'

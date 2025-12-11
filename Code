@@ -1,9 +1,8 @@
-SELECT DISTINCT ISNULL(EXR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
-	ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(EXR.Amount,'') AS Amount,
-	ISNULL(EXR.InputRemarks,'') AS Remarks,ISNULL(ExceptionRemarks,'') AS ExceptionRemarks   
-		FROM EXP.Reversal EXR WITH(NOLOCK) 
-		LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
-		CAD.Associate_ID=EXR.AssociateID 
-		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=EXR.FK_ComponentID
-		WHERE EXR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND CM.RowStatus=1 
-		END
+ SELECT DISTINCT ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
+   ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(PRR.ProjectID,'') AS ProjectID,
+   ISNULL(PRR.Amount,'') AS Amount,ISNULL(PRR.InputRemarks,'') AS Remarks   
+   FROM PR.Reversal PRR WITH(NOLOCK)
+   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+   CAD.Associate_ID=PRR.AssociateID 
+   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=PRR.FK_ComponentID
+   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.Status=1 AND CM.RowStatus=1

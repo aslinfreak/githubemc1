@@ -1,11 +1,408 @@
-Aslin joined the team recently and has made a good start in a short span. He quickly took knowledge transfer sessions and demonstrated the ability to grasp GoPerform application functionalities. He contributed to the development of the admin batch job process and the job track change functionality in GoPerform. Despite being new to the project, he showed good understanding and delivered quality work, reflecting a strong learning attitude and dedication. As he continues, Aslin is encouraged to build deeper functional and technical knowledge, take ownership of end-to-end tasks, and proactively collaborate with the team.
-Aslin joined the team recently and has made a good start in a short span. He has promoted to Programmer analyst. He quickly took knowledge transfer sessions and demonstrated the ability to grasp Special Pay application functionalities. He contributed to the L2 Support and monthly support for Push activity. Improving your time management skills should be a priority as it affects the efficiency and productivity. Please continue to put more effort to improve yourself technically. Keep up your good work and focus on communication skill with the team and involve in the discussions actively.
-Go Perform work:
-Developed and enhanced ASP.NET MVC applications by adding new database fields, updating Razor Views, Controllers, Models, and performing SQL table alterations.
-Successfully enhanced the existing GoPerform’s Batch job Process by modifying Razor Views, Controller actions, Model classes, and SQL tables without impacting existing functionalities.
-Special pay work:
-Ticket support
-DML support
-SIT Bug fixes
-Development
-Production deployment support
+
+-- ==================================================================================================================       
+-- AUTHOR     : TEAM
+-- CREATE DATE: JULY 20, 2020    
+-- DESCRIPTION: Added the documentation for the stored procedure
+-- ================================================================================================================== 
+CREATE PROCEDURE  [dbo].[usp_JB_InsertValidUploaderData]
+(   @AssociateID INT,
+	@ComponentId INT,
+	@LoginID INT,
+	@Amount MONEY,
+	@InputRemarks VARCHAR(100),
+	@SpecialCaseReason VARCHAR(500),
+	@BGstatus VARCHAR(100),
+    @RecruitmentType VARCHAR(10),
+    @ProjectID VARCHAR(50)=NULL,
+	@MailUploadId VARCHAR(50)=NULL,
+	@NoInstallments varchar (20),
+	@RetentionPeriod varchar(20)=NULL
+)
+
+AS
+SET NOCOUNT ON
+BEGIN
+BEGIN TRY
+
+--Declaration
+DECLARE @ELIGIBLEDAYS INT   
+DECLARE @SpecialCaseReasonText varchar(100)
+DECLARE @RecruitmentTypeText varchar(100)
+DECLARE @BGstatusText VARCHAR(50)
+DECLARE @DateofJoining DATETIME
+DECLARE @Grade VARCHAR(20)
+DECLARE @SetID VARCHAR(10)
+DECLARE @ComponentCountryMappingID INT
+declare @AssociateIDChar char(11)
+--------------ComponentCountrymappingID----------------------
+
+
+select @AssociateIDChar = CONVERT(varchar(11),@AssociateID)
+Select @ComponentCountrymappingID = Pk_ComponentCountryMappingID 
+from ComponentCountryMapping CCM With (nolock)
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentID=CCM.FK_ComponentID
+INNER JOIN ComponentGroupMaster STP WITH (NOLOCK) ON  CM.RowStatus=1 
+AND CM.FK_ComponentGroupID = STP.PK_ComponentGroupID
+where CCM.Fk_ComponentCountryID=1 and CCM.Rowstatus=1  AND CM.FK_ComponentGroupID = 3
+---------------BGStatusText---------------------
+SELECT @BGstatusText=CDescription FROM MasterCodes WITH(NOLOCK) 
+WHERE CParentRef=4 AND CCodeId=@BGstatus AND RowStatus=1 
+
+SELECT @RecruitmentTypeText=CDescription FROM MasterCodes WITH(NOLOCK) 
+WHERE CParentRef=5 AND CCodeId=@RecruitmentType AND RowStatus=1  
+IF((ISNULL(@SpecialCaseReason,'')='') OR @SpecialCaseReason IN (0,-1))
+
+
+DECLARE @NoOFInstallText varchar(20)
+Set @NoOFInstallText=(Select CDescription FROM MasterCodes WITH(NOLOCK) 
+WHERE CParentRef=55 AND RowStatus=1 and CUserDefined1=3 and CCodeId='1'
+and CUserDefined2 is not null)
+
+IF((ISNULL(@SpecialCaseReason,'')='') OR @SpecialCaseReason IN (0,-1))
+BEGIN
+SET @SpecialCaseReasonText=''
+
+SET @SpecialCaseReason=''
+Set @MailUploadId=(case when isnull(@SpecialCaseReason,'')='' or isnull(@SpecialCaseReason,'')= '-1' then '0' else @MailUploadId end)		
+
+END
+ELSE
+BEGIN
+	SELECT @SpecialCaseReasonText=CDescription FROM MasterCodes WITH(NOLOCK)
+	WHERE CParentRef=2 AND CCodeId=@SpecialCaseReason AND RowStatus=1 and CUserDefined1=3     
+END
+--------------EligibleDays----------------
+SET @ELIGIBLEDAYS=(SELECT EligibleDays FROM Policy.PolicyMaster WITH(NOLOCK)
+WHERE FK_ComponentCountryMappingID=@ComponentCountryMappingID and Rowstatus=1)
+
+		CREATE TABLE #JBEXCEPTIONS
+		(
+			EXCEPTIONREASON VARCHAR(8000) NULL
+		)	
+		SELECT A.EMPLID AS AssociateID,A.DateOfJoining AS DateOfJoining,A.DEPTID AS Department,A.JOBCODE AS Grade,
+		A.LOCATION AS LOCATION,A.COMPANY AS COMPANY,A.BUSINESS_UNIT AS BU  INTO #JBTEMP
+		FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID 
+		ORDER BY JR.EFFDT DESC,JR.EFFSEQ DESC,JR.EMPL_RCD DESC) AS Rank,
+		JR.EMPLID,JR.EMPL_RCD,JR.EFFDT,JR.EFFSEQ,JR.DEPTID,JR.JOBCODE,
+		JR.LOCATION,JR.COMPANY,JR.BUSINESS_UNIT,AD.DateOfJoining 
+		FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+		INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
+		AD.Associate_ID=@AssociateIDChar WHERE ISNUMERIC(JR.EMPLID)=1 AND  JR.EFFDT=AD.DateOfJoining AND 
+		JR.EMPLID=@AssociateIDChar) A WHERE A.Rank=1		
+	
+	SELECT A.EMPLID AS AssociateID,ACTION,ACTION_REASON,EMPL_STATUS
+		INTO #JBLATESTJOBTEMP
+		FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID
+		ORDER BY JR.EFFDT DESC,JR.EFFSEQ DESC,JR.EMPL_RCD DESC) AS Rank ,
+		JR.EMPLID,JR.ACTION,JR.ACTION_REASON,JR.EMPL_STATUS 
+		FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+		--LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
+		--AD.Associate_ID=@AssociateID
+		WHERE ISNUMERIC(JR.EMPLID)=1 AND  
+		JR.EMPLID=@AssociateIDChar) A WHERE A.Rank=1
+		------------Inserting Data into Joining Bonus Table------------------
+		 INSERT INTO #JBEXCEPTIONS(EXCEPTIONREASON)
+			SELECT 	DISTINCT	
+			COALESCE((CASE WHEN AD.IsActive NOT IN ('A','L') THEN 
+						(CASE WHEN AD.IsActive='S' AND JBReason.ACTION<>'ABS' THEN NULL 
+							ELSE 'Associate is InActive,' END)
+						ELSE NULL END), '') 	
+						+
+			COALESCE((CASE WHEN (JBReason.ACTION = 'RES' OR JBReason.ACTION_REASON = 'RES' OR
+			AD.ACTION = 'RES' OR AD.ACTION_REASON = 'RES') 
+			THEN 'Associate is in Resignation Status,' ELSE NULL END), '')       				
+			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+			INNER JOIN #JBLATESTJOBTEMP JBReason ON(JBReason.AssociateID=AD.Associate_ID)
+			WHERE AD.Associate_ID=@AssociateIDChar
+		
+		UNION ALL
+
+			SELECT 	DISTINCT	
+				--Validate Associate data
+			COALESCE((CASE WHEN LEN(@AssociateID) not in (6,7) THEN 'AssociateID is InValid,' ELSE NULL END), '') 
+			+
+			COALESCE((CASE WHEN LEN(@ProjectID) <> 10 or 
+					(SELECT COUNT(1) FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus WITH (NOLOCK)
+					 WHERE Project_Status='A' and EFF_STATUS = 'A' AND effdt = (select max(effdt) 
+					 from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
+					 where project_Id=convert(varchar(10),@ProjectID)) AND 
+					 EFFSEQ = (select max(EFFSEQ) from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
+					 WITH(NOLOCK)
+					 where project_Id=convert(varchar(10),@ProjectID)) AND 
+					 PROJECT_ID=convert(varchar(10),@ProjectID))=0  THEN 'ProjectId is Invalid,' ELSE NULL END), '')  
+			+
+			COALESCE((CASE WHEN (@Amount IS NULL or @Amount='') THEN 'Amount is Mandatory,' 
+			WHEN (@Amount<>'' AND ISNUMERIC(@Amount) <> 1 OR @Amount<1)	THEN 'Amount is InValid,' ELSE NULL END), '')
+			+
+			COALESCE((CASE WHEN AD.COMPANY IS NULL THEN 'Company Unavailable,' ELSE NULL END), '')  
+			+
+			COALESCE((CASE WHEN AD.BUSINESS_UNIT IS NULL THEN 'SetId Unavailable,' ELSE NULL END), '')
+			AS EXCEPTIONREASON			
+			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+			WHERE AD.Associate_ID=@AssociateIDChar
+
+
+			UNION ALL
+
+			--Validate dualProjectID
+			SELECT  distinct 'Dual-ProjectID has been uploaded without special case reason,'  
+			FROM PR.JOININGBONUS PNP WITH(NOLOCK)    
+			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
+			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(PNP.SpecialCaseReason)))  
+			AND MC.RowStatus=1 and MC.CUserDefined1=3 
+			WHERE ((MC.CCodeId is null or MC.CCodeId<>12) and @SpecialCaseReasonText<>'Dual-ProjectID')
+			and AssociateID=@AssociateID and ProjectId<>@ProjectID
+
+			UNION ALL
+			
+			--Validate the dual ProjectID
+			SELECT  DISTINCT 
+			'Uploaded data have more than one projectid-Dual Project-ID,' 
+			FROM PR.JoiningBonus pnp WITH(NOLOCK) 
+			LEFT OUTER JOIN MASTERCODES MC WITH(NOLOCK) ON MC.CPARENTREF=2 AND
+			UPPER(MC.CDESCRIPTION)=UPPER(LTRIM(RTRIM(@SPECIALCASEREASONTEXT)))  
+			AND MC.ROWSTATUS=1 AND MC.CUSERDEFINED1=3 AND MC.CCODEID=12
+			WHERE PNP.ASSOCIATEID IN (SELECT ASSOCIATEID FROM PR.JoiningBonus WITH (NOLOCK)
+			WHERE ROWSTATUS=1 AND STATUS IN (1,3,4,5) AND 
+			ASSOCIATEID=@ASSOCIATEID AND PROJECTID<>@PROJECTID
+			GROUP BY ASSOCIATEID HAVING COUNT(ASSOCIATEID)>1)
+
+			UNION ALL
+				
+				--Validate joining Bonus
+			SELECT  DISTINCT 
+			'JOINING BONUS has been already uploaded/Processed for the same associate more than two projects,' 
+			FROM PR.JoiningBonus PNP WITH(NOLOCK) 
+			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
+			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(@SpecialCaseReasonText)))  
+			AND MC.RowStatus=1 and MC.CUserDefined1=3 and MC.CCodeid=12
+			WHERE PNP.ASSOCIATEID IN (select PNP.associateid from pr.JoiningBonus PNP WITH(NOLOCK)
+			where rowstatus=1 and status in (1,5)
+			group by  PNP.associateid having count(PNP.AssociateID)>1) 
+			and PNP.AssociateID=@AssociateID and PNP.ProjectID=@PROJECTID
+
+			union all
+
+			SELECT  DISTINCT 
+			'Dual-ProjectID case without special case reason,' 
+			FROM PR.JOININGBONUS PNP  WITH(NOLOCK) 
+			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
+			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(@SpecialCaseReasonText)))  
+			AND MC.RowStatus=1 and MC.CUserDefined1=3 and MC.CCodeid=12
+			WHERE @AssociateID IN (select PNP.associateid from pr.JoiningBonus PNP where rowstatus=1 and status in (1,5)
+			group by  PNP.associateid having count(PNP.AssociateID)>0) and
+			MC.CDescription is null and PNP.AssociateID=@AssociateID AND PNP.ProjectId<>@ProjectID
+
+			UNION ALL
+
+			SELECT	DISTINCT		
+			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.STATUS=5 AND PJB.ROWSTATUS=1 AND 
+			(ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
+			THEN 'Joining Bonus has been processed for Associate on the month of '+
+			DATENAME(MM, PJB.CREATEDDATE) + ' ' + CAST(YEAR(PJB.CREATEDDATE) AS VARCHAR(4))+','	ELSE NULL END), '')  
+			+
+			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.ROWSTATUS=1 AND PJB.STATUS NOT IN (2,5) AND 
+			@Amount=PJB.AMOUNT  AND (ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
+			THEN 'Joining Bonus has been uploaded by '+CONVERT(VARCHAR(20),PJB.CREATEDBY)
+			+' On '+CONVERT(VARCHAR(20),PJB.CREATEDDATE, 100)
+			+',' ELSE NULL END), '') 
+			+
+			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.ROWSTATUS=1 AND PJB.STATUS NOT IN (2,5) AND @Amount<>'' 
+			AND @Amount<>PJB.AMOUNT  AND (ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
+			THEN 'Joining Bonus has been uploaded by '+CONVERT(VARCHAR(20),PJB.CREATEDBY)
+			+' On '+CONVERT(VARCHAR(20),PJB.CREATEDDATE, 100)
+			+' with different Amount,' ELSE NULL END), '')   			
+
+			AS EXCEPTIONREASON
+			FROM  PR.JoiningBonus PJB WITH(NOLOCK)  
+			WHERE PJB.AssociateID=@AssociateID	and PJB.ProjectId=@ProjectID AND PJB.RowStatus=1		
+				
+			UNION ALL
+
+			--select COALESCE(( CASE when PJB.AssociateID is not null AND PJB.ROWSTATUS=1 AND  
+			-- PJB.AssociateID=@AssociateID and PJB.NoInstallments <> @NoOfInstallments
+			-- and PJB.createddate > AD.DateOfJoining
+			--THEN 'No of installment is not the same as in the previous JB records'  ELSE NULL END),'')
+			--AS EXCEPTIONREASON			
+			--FROM PR.JoiningBonus PJB WITH(NOLOCK) 
+			-- INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) on		
+			-- AD.Associate_ID=PJB.AssociateID
+			--WHERE   AD.Associate_ID=@AssociateIDCharSELECT 
+			SELECT
+			COALESCE((
+					CASE 
+						WHEN @RecruitmentType = 3 AND @NoInstallments = '-1' AND @RetentionPeriod = '-1' 
+							THEN 'Please select value from either one of the field "No of Instalments" or "Retention period",' 
+						WHEN @RecruitmentType = 1 AND @NoInstallments = '-1' 
+							THEN 'Please select value from No of Instalments,' 
+						WHEN @RecruitmentType = 2 AND @RetentionPeriod = '-1' 
+							THEN 'Please select value from Retention period,' 
+        		ELSE NULL 
+					END
+				), '') AS EXCEPTIONREASON
+
+			UNION ALL
+
+			SELECT DISTINCT
+			COALESCE((CASE WHEN AD.Per_Org ='CWR' THEN 'Associate is a contractor,' ELSE NULL END), '')  
+			+
+			COALESCE((CASE WHEN JR.ACTION='TER' AND JR.Action_reason='CTE' AND AD.Per_Org <>'CWR'
+					AND (ISNULL(@SpecialCaseReasonText,'')<>(SELECT CDescription FROM MasterCodes WITH(NOLOCK)
+					WHERE CParentRef=2 AND CCodeId=10 and Cuserdefined1=3))
+					THEN 'Associate has been converted from contractor to Employee,' ELSE NULL END), '')  
+			AS EXCEPTIONREASON			
+			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 			
+			INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+			ON JR.ACTION='TER' AND JR.Action_reason='CTE' 
+			AND JR.EFFDT=AD.DateOfJoining
+			WHERE ISNUMERIC(JR.EMPLID)=1 AND  AD.Associate_ID=@AssociateIDChar AND JR.EMPLID=@AssociateIDChar
+
+			UNION ALL
+
+			SELECT DISTINCT 
+			'Associate is not hired in India,' AS ExceptionReason			
+			FROM  CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+			INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+			INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK)
+			ON HL.HCMLOCATIONCODE=AD.ParentHCMLocationCode 
+			WHERE HL.COUNTRY_ID<>'IND' AND AD.Associate_ID=@AssociateIDChar
+		
+			UNION ALL
+
+			SELECT DISTINCT
+			'Associate has not completed Eligible days criteria,' AS ExceptionReason
+			FROM  CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+			INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+			WHERE DATEDIFF(DAY,AD.DateOfJoining, GETDATE())<=@ELIGIBLEDAYS AND
+			(@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='')
+			AND AD.Associate_ID=@AssociateIDChar 
+			AND LTRIM(RTRIM(@SpecialCaseReasonText))<>(SELECT CDESCRIPTION FROM MASTERCODES WITH(NOLOCK)
+			WHERE CPARENTREF=2 AND CCODEID=4  AND CUserDefined1 = 3 AND RowStatus=1)
+
+			UNION ALL		
+	--Validate Associate data
+			SELECT DISTINCT
+			COALESCE((CASE WHEN UPPER(LTRIM(RTRIM(@BGstatusText)))=(SELECT UPPER(CDescription) FROM MASTERCODES 
+			WITH(NOLOCK)
+			WHERE CPARENTREF=4 AND CUSERDEFINED4=0 AND ROWSTATUS=1)  			
+			THEN
+			(SELECT CDescription + ',' FROM MasterCodes where CParentRef=21 AND CCodeId=0) ELSE NULL END), '')
+			+
+			COALESCE((CASE WHEN ISNUMERIC(@Amount) <> 1 THEN 'Amount is InValid,' ELSE NULL END), '')
+			+
+			COALESCE((CASE WHEN PSM.SetId is null  THEN
+			'Associate''s SetID is not eligible for Joining Bonus,' ELSE NULL END), '') 
+			+
+			COALESCE((CASE WHEN PGM.GradeLevelId is null  THEN 
+			'Associate''s grade is not eligible for Joining Bonus,' ELSE NULL END), '') 
+			+
+			COALESCE((CASE WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='LATERAL' AND PGAM.RecruitmentType=1 
+			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
+			AND PGAM.MaxAmount<>0
+			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+			THEN 'The Amount doesnot match with the Policy Amount,'
+			WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='CAMPUS' AND PGAM.RecruitmentType=2 
+			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
+			AND PGAM.MaxAmount<>0
+			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+			THEN 'The Amount doesnot match with the Policy Amount,'
+			WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='MERGER AND ACQUISITION' AND PGAM.RecruitmentType=3
+			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
+			AND PGAM.MaxAmount<>0
+			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+			THEN 'The Amount doesnot match with the Policy Amount,'END), '')
+			+
+			COALESCE((CASE WHEN @NoOFInstallText is null  THEN
+			'NoOfInstallments is mandatory,' ELSE NULL END), '') AS EXPREMARKS						   
+			FROM #JBTEMP JT WITH(NOLOCK) 
+			LEFT OUTER JOIN Policy.SetIdMaster PSM WITH(NOLOCK) ON PSM.SetId=JT.BU AND PSM.RowStatus=1 
+			AND PSM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+			LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation CD WITH(NOLOCK) ON CD.JobCode=JT.GRADE
+			AND CD.Bussiness_unit=JT.BU
+			LEFT OUTER JOIN Policy.GradeMaster PGM WITH(NOLOCK) ON PGM.GradeLevelId=CD.Job_Family AND PGM.RowStatus=1 
+			AND PGM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+			LEFT OUTER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+			ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PPM.RowStatus=1
+			LEFT OUTER JOIN Policy.GradeAmountMaster PGAM WITH(NOLOCK) ON PGAM.GradeLevelId=CD.Job_Family
+			AND PGAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PGAM.RowStatus=1 
+			AND PGAM.RECRUITMENTTYPE=@RecruitmentType
+   
+	  DELETE FROM #JBEXCEPTIONS where EXCEPTIONREASON=''
+			
+		DECLARE @JBException VARCHAR(8000)  
+		SELECT @JBException = COALESCE(@JBException + ', ', '') + EXCEPTIONREASON FROM #JBEXCEPTIONS
+		SELECT @JBException=replace(@JBException,',,',',')
+	  
+	  --Check JBException
+	  IF(@JBException= (SELECT CDescription + ',' FROM MasterCodes WITH(NOLOCK) where CParentRef=21 AND CCodeId=0))
+	  BEGIN	
+			   
+	        SELECT @DateofJoining=DateOfJoining,@Grade=Grade,@SetID=BU  FROM #JBTEMP
+			
+	        UPDATE EXP.JoiningBonus
+			SET Rowstatus=0,ModifiedBy=@LoginID,ModifiedDate=GETDATE() 
+			WHERE AssociateID=CONVERT(VARCHAR(11),@AssociateID) AND RowStatus=1
+
+			INSERT 
+			INTO EXP.JoiningBonus
+			      (AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,ProjectId,SpecialCaseReason,ExceptionReason,
+			        CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,SplCaseMailUploadId,NoInstallments)
+            VALUES(CONVERT(VARCHAR(10),@AssociateID),@DateofJoining,@BGstatus,@Grade,@Amount,
+			@InputRemarks,@ProjectID,@SpecialCaseReason,
+			'BG Status is Invalid',@LoginID,GETDATE(),1,@SetID, @RecruitmentType,@MailUploadId,@NoInstallments)
+			       
+		    SELECT @JBException AS STATUS
+
+      END
+
+        --Check JBException    
+    ELSE IF(@JBException IS NULL OR @JBException='')      
+         
+        BEGIN    
+
+		UPDATE EXP.JoiningBonus
+		SET Rowstatus=0,ModifiedBy=@LoginID,ModifiedDate=GETDATE() WHERE AssociateID=CONVERT(VARCHAR(10),@AssociateID) 
+		AND RowStatus=1
+
+		INSERT INTO PR.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,Status,ProjectId,RecruitmentType,
+        InputRemarks,SpecialCaseReason,CompanyID,SetID,CreatedBy,CreatedDate,RowStatus,SplCaseMailUploadId,NoInstallments,RetentionPeriod)      
+                 
+	    SELECT @AssociateID,JT.DateOfJoining,@BGstatus,JT.GRADE,@Amount,1,@PROJECTID,@RecruitmentType,@InputRemarks,
+	    @SpecialCaseReason,JT.Company,JT.BU,@LoginID,GETDATE(),1,
+		(case when isnull(@SpecialCaseReason,'')='' or isnull(@SpecialCaseReason,'')= '-1' then '0' else @MailUploadId end)
+		as Mailuploadid	,@NoInstallments,
+		(Case When (@RecruitmentType in (1,3) and @NoInstallments in (1,2))  then 1 
+		When (@RecruitmentType in (1,3) and @NoInstallments in (4,5))   then 2 
+		When @RecruitmentType=2 Then @RetentionPeriod
+		else @RetentionPeriod end)        
+		FROM #JBTEMP JT WITH(NOLOCK) 
+	    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Designation CD_A WITH(NOLOCK) ON CD_A.JobCode=JT.GRADE 
+	    AND CD_A.Bussiness_unit=JT.BU  
+	    INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+		ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PPM.RowStatus=1
+
+        SELECT 'success' AS STATUS
+        END
+        
+       ELSE
+        BEGIN
+        
+        SELECT REPLACE(@JBException,(SELECT CDescription + ',' FROM MasterCodes WITH(NOLOCK)
+		where CParentRef=21 AND CCodeId=0),'') AS STATUS
+        
+        END 
+        
+    DROP TABLE  #JBEXCEPTIONS   
+    DROP TABLE  #JBTEMP
+    DROP TABLE #JBLATESTJOBTEMP
+	 END TRY
+ BEGIN CATCH
+ SELECT @@ERROR
+ END CATCH  
+ END
+
+ /******************************************************************
+This User-defined Stored Procedure
+used in SPAY  to allow 
+faster execution and reduce network traffic.
+****************************************************************/

@@ -1,12 +1,30 @@
- SELECT DISTINCT ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
-   ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(PRR.ProjectID,'') AS ProjectID,
-   ISNULL(PRR.Amount,'') AS Amount,ISNULL(PRR.InputRemarks,'') AS Remarks   
-   FROM PR.Reversal PRR WITH(NOLOCK)
-   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
-   CAD.Associate_ID=PRR.AssociateID 
-   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=PRR.FK_ComponentID
-   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.Status=1 AND CM.RowStatus=1
+SELECT DISTINCT  
+       ISNULL(PRR.AssociateID,'') AS AssociateID,
+       ISNULL(LTRIM(RTRIM(CAD.Associate_FirstName)),'') + ' ' + 
+       ISNULL(LTRIM(RTRIM(CAD.Associate_LastName)),'') AS AssociateName,
+       AL.Project_ID AS ProjectID,   -- << Always fetch ACTIVE Project
+       ISNULL(PRR.Amount,'') AS Amount,
+       ISNULL(PRR.InputRemarks,'') AS Remarks
+FROM PR.Reversal PRR WITH(NOLOCK)
 
+-- Associate Details  
+LEFT JOIN CENTRALREPOSITORY.dbo.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK)
+    ON CAD.Associate_ID = PRR.AssociateID
 
-SELECT Associate_ID, Project_ID, Allocation_Start_Date, Allocation_End_Date, Assignment_Status  
-  FROM CentralRepository .. vw_CentralRepository_Allocation WHERE Associate_ID = '2240616'
+-- Component check  
+INNER JOIN ComponentMaster CM WITH(NOLOCK)
+    ON CM.PK_ComponentId = PRR.FK_ComponentID
+    AND CM.RowStatus = 1
+    AND CM.FK_ComponentGroupID = @componentGroupId
+
+-- >>> ADD THIS JOIN TO ACTIVE PROJECT <<< --
+INNER JOIN CentralRepository..vw_CentralRepository_Allocation AL WITH(NOLOCK)
+    ON AL.Associate_ID = PRR.AssociateID
+    AND AL.Assignment_Status = 'A'     -- Only ACTIVE project
+    AND (
+            AL.Allocation_End_Date IS NULL
+            OR AL.Allocation_End_Date >= GETDATE()
+        )
+
+WHERE PRR.RowStatus = 1
+  AND PRR.Status = 1;

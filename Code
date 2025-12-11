@@ -1,408 +1,273 @@
-
--- ==================================================================================================================       
--- AUTHOR     : TEAM
--- CREATE DATE: JULY 20, 2020    
--- DESCRIPTION: Added the documentation for the stored procedure
--- ================================================================================================================== 
-CREATE PROCEDURE  [dbo].[usp_JB_InsertValidUploaderData]
-(   @AssociateID INT,
-	@ComponentId INT,
-	@LoginID INT,
-	@Amount MONEY,
-	@InputRemarks VARCHAR(100),
-	@SpecialCaseReason VARCHAR(500),
-	@BGstatus VARCHAR(100),
-    @RecruitmentType VARCHAR(10),
-    @ProjectID VARCHAR(50)=NULL,
-	@MailUploadId VARCHAR(50)=NULL,
-	@NoInstallments varchar (20),
-	@RetentionPeriod varchar(20)=NULL
-)
-
-AS
-SET NOCOUNT ON
-BEGIN
+--===================================================================
+-- AUTHOR			: AUTHOR
+-- CREATE DATE		: MAY 29, 2022
+-- DESCRIPTION		: TO get Process Reversal
+--===================================================================   
+CREATE PROCEDURE [dbo].[Usp_ProcessReversal]  
+AS  
+BEGIN  
 BEGIN TRY
+SET NOCOUNT ON  
+ 
+UPDATE ERB  
+SET ERB.RowStatus=0,ERB.ModifiedBy=SRB.CreatedBy,ERB.ModifiedDate=GETDATE()  
+FROM EXP.Reversal ERB WITH(NOLOCK)  
+INNER JOIN STG.Reversal SRB WITH(NOLOCK) ON ERB.AssociateID=SRB.AssociateID
+AND ERB.FK_ComponentID=SRB.Fk_componentGroupID  
+WHERE ERB.RowStatus=1 AND SRB.RowStatus=1  
+ 
+SELECT AssociateID INTO #DUPLICATES FROM STG.Reversal WITH(NOLOCK)  
+GROUP BY AssociateID HAVING COUNT(AssociateID)>1  
+ -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT SR.FK_ComponentGroupID,SR.ASSOCIATEID, Amount,SR.InputRemarks,
+'Duplicate data found in same upload,',SR.CreatedBy, GETDATE(),1  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN #DUPLICATES DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID  
+WHERE SR.RowStatus=1  
+ 
+  -------Deleting data-------
+DELETE FROM STG.Reversal WHERE AssociateID IN (SELECT AssociateID FROM #DUPLICATES)  
 
---Declaration
-DECLARE @ELIGIBLEDAYS INT   
-DECLARE @SpecialCaseReasonText varchar(100)
-DECLARE @RecruitmentTypeText varchar(100)
-DECLARE @BGstatusText VARCHAR(50)
-DECLARE @DateofJoining DATETIME
-DECLARE @Grade VARCHAR(20)
-DECLARE @SetID VARCHAR(10)
-DECLARE @ComponentCountryMappingID INT
-declare @AssociateIDChar char(11)
---------------ComponentCountrymappingID----------------------
+ SELECT DISTINCT STSI.AssociateID,STSI.Fk_componentGroupID, 
+ 'Data is already avaliable for this month' ExceptionRemarks INTO #SAMEDATA 
+	 FROM PR.Reversal PTSI WITH (NOLOCK)
+	 inner join STG.Reversal STSI WITH (NOLOCK) ON PTSI.AssociateID=STSI.AssociateID 
+	 WHERE PTSI.Rowstatus=1 
+	 and PTSI.Fk_ComponentID= STSI.Fk_componentGroupID
+	 and month(PTSI.CreatedDate)=month(Getdate()) and YEAR(PTSI.CreatedDate)=Year(Getdate())
+	  -------Inserting data-------
+	 INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks,
+	 ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT SR.FK_ComponentGroupID,SR.ASSOCIATEID, Amount,SR.InputRemarks,
+ExceptionRemarks,SR.CreatedBy, GETDATE(),1  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN #SAMEDATA DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID   
+and SR.Fk_componentGroupID = DUP.Fk_componentGroupID
+WHERE SR.RowStatus=1   AND ISNULL(DUP.ExceptionRemarks,'')<>''
+ -------Deleting data-------
+DELETE SR FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN #SAMEDATA DUP WITH(NOLOCK) ON DUP.AssociateID=SR.AssociateID   
+and SR.Fk_componentGroupID = DUP.Fk_componentGroupID
+WHERE SR.RowStatus=1   AND ISNULL(DUP.ExceptionRemarks,'')<>''
+	 
+SELECT EMPLID,ACTION,ACTION_REASON,EMPL_STATUS,EFFDT  
+INTO #TerminatedCases  
+FROM  
+(SELECT DENSE_RANK() OVER (PARTITION BY JREF.EMPLID
+ORDER BY JREF.EFFDT DESC,JREF.EFFSEQ DESC,JREF.EMPL_RCD DESC) AS RANK ,  
+JREF.EMPLID,JREF.ACTION,JREF.ACTION_REASON,JREF.EMPL_STATUS,JREF.EFFDT FROM  
+CentralRepository..VW_CENTRALREPOSITORY_JOB_REFERENCE JREF  
+INNER JOIN STG.Reversal STREV ON STREV.AssociateID=JREF.EMPLID  
+WHERE ACTION='TER') A WHERE A.Rank=1  
 
+SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
+ 
+COALESCE((CASE WHEN LEN(SR.ASSOCIATEID) not in (6,7) THEN 'AssociateId is InValid,' ELSE NULL END), '')  
++
+COALESCE((CASE WHEN (ISNUMERIC(SR.AMOUNT) <> 1 OR CONVERT(MONEY,SR.AMOUNT)<=0)  
+THEN 'Amount is InValid,' ELSE NULL END), '') AS EXPREMARKS  
+INTO #TEMP  
+FROM STG.Reversal SR WITH (NOLOCK)  
+LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK) 
+ON AD.ASSOCIATE_ID = SR.ASSOCIATEID  
+LEFT OUTER JOIN #TerminatedCases TRC ON(TRC.EMPLID=SR.ASSOCIATEID)  
+WHERE SR.RowStatus=1  
+ 
+  -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #TEMP WHERE EXPREMARKS <>''  
+ 
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #TEMP WHERE EXPREMARKS <>'')  
 
-select @AssociateIDChar = CONVERT(varchar(11),@AssociateID)
-Select @ComponentCountrymappingID = Pk_ComponentCountryMappingID 
-from ComponentCountryMapping CCM With (nolock)
-INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentID=CCM.FK_ComponentID
-INNER JOIN ComponentGroupMaster STP WITH (NOLOCK) ON  CM.RowStatus=1 
-AND CM.FK_ComponentGroupID = STP.PK_ComponentGroupID
-where CCM.Fk_ComponentCountryID=1 and CCM.Rowstatus=1  AND CM.FK_ComponentGroupID = 3
----------------BGStatusText---------------------
-SELECT @BGstatusText=CDescription FROM MasterCodes WITH(NOLOCK) 
-WHERE CParentRef=4 AND CCodeId=@BGstatus AND RowStatus=1 
+SELECT distinct SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
+ 
+COALESCE((CASE WHEN ISNULL(REF.AssociateID,0) = 0 THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
+AS EXPREMARKS  
+,SR.CreatedDate,REF.ModifiedDate  
+INTO #Tmp_NoPayMentNP  
+FROM STG.Reversal SR WITH (NOLOCK)  
+LEFT OUTER JOIN PR.NoticePay REF WITH (NOLOCK) ON REF.AssociateID=SR.AssociateID AND REF.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=1  
+   -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks,
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMentNP WHERE EXPREMARKS <>''  
+  -------Deleting data-------
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMentNP WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=1  
+  -------Inserting data-------
+INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status, 
+InputRemarks, CreatedBy, CreatedDate,RowStatus,ProjectID)  
+SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,
+SR.InputRemarks,SR.CreatedBy, GETDATE(),1,REF.ProjectID  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
+INNER JOIN PR.NoticePay REF WITH (NOLOCK) ON REF.AssociateID=SR.AssociateID AND REF.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=1  
+ 
+SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
+ 
+COALESCE((CASE WHEN ISNULL(REF.ReferrorAssociateID,0) = 0 
+THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
+AS EXPREMARKS  
+,SR.CreatedDate,REF.ModifiedDate  
+INTO #Tmp_NoPayMent  
+FROM STG.Reversal SR WITH (NOLOCK)  
+LEFT OUTER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
+  -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMent WHERE EXPREMARKS <>''  
+  -------Deleting data-------
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMent WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=2  
 
-SELECT @RecruitmentTypeText=CDescription FROM MasterCodes WITH(NOLOCK) 
-WHERE CParentRef=5 AND CCodeId=@RecruitmentType AND RowStatus=1  
-IF((ISNULL(@SpecialCaseReason,'')='') OR @SpecialCaseReason IN (0,-1))
+SELECT SR.ASSOCIATEID,SR.Fk_componentGroupID, SUM(MYPAY.Amount) AS MyPayAmount,MAX(MYPAY.CreatedDate) AS CreatedDate  
+INTO #Tmp_SumPayment  
+FROM STG.Reversal SR WITH (NOLOCK)  
+INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
+INNER JOIN TRN.MyPayData MYPAY WITH (NOLOCK) ON REF.ReferrorAssociateID=MYPAY.AssociateID 
+AND MYPAY.FK_ComponentID=SR.Fk_componentGroupID  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
+AND 1=(CASE  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (4,5,6) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)+1=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
+ELSE 0 END)  
+ 
+GROUP BY SR.ASSOCIATEID,SR.Fk_componentGroupID  
+ 
+ SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy  
+,SR.CreatedDate AS ReversalDate,  
+(CASE WHEN SR.Amount <= SUMMYPAY.MyPayAmount THEN ''  
+ELSE 'Reversed Amount is Greater than Amount Paid' END)  
+AS EXPREMARKS  
+INTO #Tmp_LessPayMentInFinancialYear  
+FROM STG.Reversal SR WITH (NOLOCK)  
+INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
+INNER JOIN #Tmp_SumPayment SUMMYPAY WITH (NOLOCK) ON REF.ReferrorAssociateID=SUMMYPAY.AssociateID 
+AND SUMMYPAY.Fk_componentGroupID=SR.Fk_componentGroupID  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
+ -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_LessPayMentInFinancialYear WHERE EXPREMARKS <>''  
+  -------Deleting data-------
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId
+FROM #Tmp_LessPayMentInFinancialYear WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=2  
+ -------Inserting data-------
+INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status, InputRemarks, 
+CreatedBy, CreatedDate,RowStatus,ProjectID)  
+SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,SR.InputRemarks,
+SR.CreatedBy, GETDATE(),1,REF.ProjectID  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
+INNER JOIN PR.ReferralBonus REF WITH (NOLOCK) ON REF.ReferrorAssociateID=SR.AssociateID AND REF.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=2  
+ 
+SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy,  
+ 
+COALESCE((CASE WHEN ISNULL(JB.AssociateID,0) = 0 THEN 'No Payment Done For this AssociateId,' ELSE NULL END), '')  
+AS EXPREMARKS  
+,SR.CreatedDate,JB.ModifiedDate  
+INTO #Tmp_NoPayMent_JB  
+FROM STG.Reversal SR WITH (NOLOCK)  
+LEFT OUTER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+  -------Inserting data-------
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks,
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_NoPayMent_JB WHERE EXPREMARKS <>''  
+ 
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId FROM #Tmp_NoPayMent_JB WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=3  
 
+SELECT SR.ASSOCIATEID,SR.Fk_componentGroupID, SUM(MYPAY.Amount) AS MyPayAmount,MAX(MYPAY.CreatedDate) AS CreatedDate  
+INTO #Tmp_SumPayment_JB  
+FROM STG.Reversal SR WITH (NOLOCK)  
+INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
+INNER JOIN TRN.MyPayData MYPAY WITH (NOLOCK) ON JB.AssociateID=MYPAY.AssociateID
+AND MYPAY.FK_ComponentID=SR.Fk_componentGroupID  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+AND 1=(CASE  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (4,5,6) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)+1=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) AND (MONTH(SR.CreatedDate)) IN (4,5,6,7,8,9,10,11,12) THEN 1  
+WHEN  
+YEAR(MYPAY.CreatedDate)=YEAR(SR.CreatedDate) AND  
+(MONTH(MYPAY.CreatedDate)) IN (1,2,3) AND (MONTH(SR.CreatedDate)) IN (1,2,3) THEN 1  
+ELSE 0 END)  
+ 
+GROUP BY SR.ASSOCIATEID,SR.Fk_componentGroupID  
 
-DECLARE @NoOFInstallText varchar(20)
-Set @NoOFInstallText=(Select CDescription FROM MasterCodes WITH(NOLOCK) 
-WHERE CParentRef=55 AND RowStatus=1 and CUserDefined1=3 and CCodeId='1'
-and CUserDefined2 is not null)
+SELECT SR.PK_ReversalId,SR.Fk_componentGroupID,SR.ASSOCIATEID, SR.Amount,SR.InputRemarks,SR.CreatedBy  
+,SR.CreatedDate AS ReversalDate,  
+(CASE WHEN SR.Amount <= SUMMYPAY.MyPayAmount THEN ''  
+ELSE 'Reversed Amount is Greater than Amount Paid' END)  
+AS EXPREMARKS  
+INTO #Tmp_LessPayMentInFinancialYear_JB  
+FROM STG.Reversal SR WITH (NOLOCK)  
+INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
+INNER JOIN #Tmp_SumPayment_JB SUMMYPAY WITH (NOLOCK) ON JB.AssociateID=SUMMYPAY.AssociateID 
+AND SUMMYPAY.Fk_componentGroupID=SR.Fk_componentGroupID  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+ 
+INSERT INTO EXP.Reversal(FK_ComponentID, AssociateID,Amount, InputRemarks, 
+ExceptionRemarks, CreatedBy, CreatedDate,RowStatus)  
+SELECT Fk_componentGroupID, ASSOCIATEID,Amount,InputRemarks, 
+EXPREMARKS,CREATEDBY, GETDATE(),1 FROM #Tmp_LessPayMentInFinancialYear_JB WHERE EXPREMARKS <>''  
 
-IF((ISNULL(@SpecialCaseReason,'')='') OR @SpecialCaseReason IN (0,-1))
-BEGIN
-SET @SpecialCaseReasonText=''
-
-SET @SpecialCaseReason=''
-Set @MailUploadId=(case when isnull(@SpecialCaseReason,'')='' or isnull(@SpecialCaseReason,'')= '-1' then '0' else @MailUploadId end)		
-
-END
-ELSE
-BEGIN
-	SELECT @SpecialCaseReasonText=CDescription FROM MasterCodes WITH(NOLOCK)
-	WHERE CParentRef=2 AND CCodeId=@SpecialCaseReason AND RowStatus=1 and CUserDefined1=3     
-END
---------------EligibleDays----------------
-SET @ELIGIBLEDAYS=(SELECT EligibleDays FROM Policy.PolicyMaster WITH(NOLOCK)
-WHERE FK_ComponentCountryMappingID=@ComponentCountryMappingID and Rowstatus=1)
-
-		CREATE TABLE #JBEXCEPTIONS
-		(
-			EXCEPTIONREASON VARCHAR(8000) NULL
-		)	
-		SELECT A.EMPLID AS AssociateID,A.DateOfJoining AS DateOfJoining,A.DEPTID AS Department,A.JOBCODE AS Grade,
-		A.LOCATION AS LOCATION,A.COMPANY AS COMPANY,A.BUSINESS_UNIT AS BU  INTO #JBTEMP
-		FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID 
-		ORDER BY JR.EFFDT DESC,JR.EFFSEQ DESC,JR.EMPL_RCD DESC) AS Rank,
-		JR.EMPLID,JR.EMPL_RCD,JR.EFFDT,JR.EFFSEQ,JR.DEPTID,JR.JOBCODE,
-		JR.LOCATION,JR.COMPANY,JR.BUSINESS_UNIT,AD.DateOfJoining 
-		FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
-		INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
-		AD.Associate_ID=@AssociateIDChar WHERE ISNUMERIC(JR.EMPLID)=1 AND  JR.EFFDT=AD.DateOfJoining AND 
-		JR.EMPLID=@AssociateIDChar) A WHERE A.Rank=1		
-	
-	SELECT A.EMPLID AS AssociateID,ACTION,ACTION_REASON,EMPL_STATUS
-		INTO #JBLATESTJOBTEMP
-		FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID
-		ORDER BY JR.EFFDT DESC,JR.EFFSEQ DESC,JR.EMPL_RCD DESC) AS Rank ,
-		JR.EMPLID,JR.ACTION,JR.ACTION_REASON,JR.EMPL_STATUS 
-		FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
-		--LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
-		--AD.Associate_ID=@AssociateID
-		WHERE ISNUMERIC(JR.EMPLID)=1 AND  
-		JR.EMPLID=@AssociateIDChar) A WHERE A.Rank=1
-		------------Inserting Data into Joining Bonus Table------------------
-		 INSERT INTO #JBEXCEPTIONS(EXCEPTIONREASON)
-			SELECT 	DISTINCT	
-			COALESCE((CASE WHEN AD.IsActive NOT IN ('A','L') THEN 
-						(CASE WHEN AD.IsActive='S' AND JBReason.ACTION<>'ABS' THEN NULL 
-							ELSE 'Associate is InActive,' END)
-						ELSE NULL END), '') 	
-						+
-			COALESCE((CASE WHEN (JBReason.ACTION = 'RES' OR JBReason.ACTION_REASON = 'RES' OR
-			AD.ACTION = 'RES' OR AD.ACTION_REASON = 'RES') 
-			THEN 'Associate is in Resignation Status,' ELSE NULL END), '')       				
-			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
-			INNER JOIN #JBLATESTJOBTEMP JBReason ON(JBReason.AssociateID=AD.Associate_ID)
-			WHERE AD.Associate_ID=@AssociateIDChar
-		
-		UNION ALL
-
-			SELECT 	DISTINCT	
-				--Validate Associate data
-			COALESCE((CASE WHEN LEN(@AssociateID) not in (6,7) THEN 'AssociateID is InValid,' ELSE NULL END), '') 
-			+
-			COALESCE((CASE WHEN LEN(@ProjectID) <> 10 or 
-					(SELECT COUNT(1) FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus WITH (NOLOCK)
-					 WHERE Project_Status='A' and EFF_STATUS = 'A' AND effdt = (select max(effdt) 
-					 from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
-					 where project_Id=convert(varchar(10),@ProjectID)) AND 
-					 EFFSEQ = (select max(EFFSEQ) from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
-					 WITH(NOLOCK)
-					 where project_Id=convert(varchar(10),@ProjectID)) AND 
-					 PROJECT_ID=convert(varchar(10),@ProjectID))=0  THEN 'ProjectId is Invalid,' ELSE NULL END), '')  
-			+
-			COALESCE((CASE WHEN (@Amount IS NULL or @Amount='') THEN 'Amount is Mandatory,' 
-			WHEN (@Amount<>'' AND ISNUMERIC(@Amount) <> 1 OR @Amount<1)	THEN 'Amount is InValid,' ELSE NULL END), '')
-			+
-			COALESCE((CASE WHEN AD.COMPANY IS NULL THEN 'Company Unavailable,' ELSE NULL END), '')  
-			+
-			COALESCE((CASE WHEN AD.BUSINESS_UNIT IS NULL THEN 'SetId Unavailable,' ELSE NULL END), '')
-			AS EXCEPTIONREASON			
-			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
-			WHERE AD.Associate_ID=@AssociateIDChar
-
-
-			UNION ALL
-
-			--Validate dualProjectID
-			SELECT  distinct 'Dual-ProjectID has been uploaded without special case reason,'  
-			FROM PR.JOININGBONUS PNP WITH(NOLOCK)    
-			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
-			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(PNP.SpecialCaseReason)))  
-			AND MC.RowStatus=1 and MC.CUserDefined1=3 
-			WHERE ((MC.CCodeId is null or MC.CCodeId<>12) and @SpecialCaseReasonText<>'Dual-ProjectID')
-			and AssociateID=@AssociateID and ProjectId<>@ProjectID
-
-			UNION ALL
-			
-			--Validate the dual ProjectID
-			SELECT  DISTINCT 
-			'Uploaded data have more than one projectid-Dual Project-ID,' 
-			FROM PR.JoiningBonus pnp WITH(NOLOCK) 
-			LEFT OUTER JOIN MASTERCODES MC WITH(NOLOCK) ON MC.CPARENTREF=2 AND
-			UPPER(MC.CDESCRIPTION)=UPPER(LTRIM(RTRIM(@SPECIALCASEREASONTEXT)))  
-			AND MC.ROWSTATUS=1 AND MC.CUSERDEFINED1=3 AND MC.CCODEID=12
-			WHERE PNP.ASSOCIATEID IN (SELECT ASSOCIATEID FROM PR.JoiningBonus WITH (NOLOCK)
-			WHERE ROWSTATUS=1 AND STATUS IN (1,3,4,5) AND 
-			ASSOCIATEID=@ASSOCIATEID AND PROJECTID<>@PROJECTID
-			GROUP BY ASSOCIATEID HAVING COUNT(ASSOCIATEID)>1)
-
-			UNION ALL
-				
-				--Validate joining Bonus
-			SELECT  DISTINCT 
-			'JOINING BONUS has been already uploaded/Processed for the same associate more than two projects,' 
-			FROM PR.JoiningBonus PNP WITH(NOLOCK) 
-			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
-			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(@SpecialCaseReasonText)))  
-			AND MC.RowStatus=1 and MC.CUserDefined1=3 and MC.CCodeid=12
-			WHERE PNP.ASSOCIATEID IN (select PNP.associateid from pr.JoiningBonus PNP WITH(NOLOCK)
-			where rowstatus=1 and status in (1,5)
-			group by  PNP.associateid having count(PNP.AssociateID)>1) 
-			and PNP.AssociateID=@AssociateID and PNP.ProjectID=@PROJECTID
-
-			union all
-
-			SELECT  DISTINCT 
-			'Dual-ProjectID case without special case reason,' 
-			FROM PR.JOININGBONUS PNP  WITH(NOLOCK) 
-			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
-			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(@SpecialCaseReasonText)))  
-			AND MC.RowStatus=1 and MC.CUserDefined1=3 and MC.CCodeid=12
-			WHERE @AssociateID IN (select PNP.associateid from pr.JoiningBonus PNP where rowstatus=1 and status in (1,5)
-			group by  PNP.associateid having count(PNP.AssociateID)>0) and
-			MC.CDescription is null and PNP.AssociateID=@AssociateID AND PNP.ProjectId<>@ProjectID
-
-			UNION ALL
-
-			SELECT	DISTINCT		
-			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.STATUS=5 AND PJB.ROWSTATUS=1 AND 
-			(ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
-			THEN 'Joining Bonus has been processed for Associate on the month of '+
-			DATENAME(MM, PJB.CREATEDDATE) + ' ' + CAST(YEAR(PJB.CREATEDDATE) AS VARCHAR(4))+','	ELSE NULL END), '')  
-			+
-			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.ROWSTATUS=1 AND PJB.STATUS NOT IN (2,5) AND 
-			@Amount=PJB.AMOUNT  AND (ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
-			THEN 'Joining Bonus has been uploaded by '+CONVERT(VARCHAR(20),PJB.CREATEDBY)
-			+' On '+CONVERT(VARCHAR(20),PJB.CREATEDDATE, 100)
-			+',' ELSE NULL END), '') 
-			+
-			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.ROWSTATUS=1 AND PJB.STATUS NOT IN (2,5) AND @Amount<>'' 
-			AND @Amount<>PJB.AMOUNT  AND (ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
-			THEN 'Joining Bonus has been uploaded by '+CONVERT(VARCHAR(20),PJB.CREATEDBY)
-			+' On '+CONVERT(VARCHAR(20),PJB.CREATEDDATE, 100)
-			+' with different Amount,' ELSE NULL END), '')   			
-
-			AS EXCEPTIONREASON
-			FROM  PR.JoiningBonus PJB WITH(NOLOCK)  
-			WHERE PJB.AssociateID=@AssociateID	and PJB.ProjectId=@ProjectID AND PJB.RowStatus=1		
-				
-			UNION ALL
-
-			--select COALESCE(( CASE when PJB.AssociateID is not null AND PJB.ROWSTATUS=1 AND  
-			-- PJB.AssociateID=@AssociateID and PJB.NoInstallments <> @NoOfInstallments
-			-- and PJB.createddate > AD.DateOfJoining
-			--THEN 'No of installment is not the same as in the previous JB records'  ELSE NULL END),'')
-			--AS EXCEPTIONREASON			
-			--FROM PR.JoiningBonus PJB WITH(NOLOCK) 
-			-- INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) on		
-			-- AD.Associate_ID=PJB.AssociateID
-			--WHERE   AD.Associate_ID=@AssociateIDCharSELECT 
-			SELECT
-			COALESCE((
-					CASE 
-						WHEN @RecruitmentType = 3 AND @NoInstallments = '-1' AND @RetentionPeriod = '-1' 
-							THEN 'Please select value from either one of the field "No of Instalments" or "Retention period",' 
-						WHEN @RecruitmentType = 1 AND @NoInstallments = '-1' 
-							THEN 'Please select value from No of Instalments,' 
-						WHEN @RecruitmentType = 2 AND @RetentionPeriod = '-1' 
-							THEN 'Please select value from Retention period,' 
-        		ELSE NULL 
-					END
-				), '') AS EXCEPTIONREASON
-
-			UNION ALL
-
-			SELECT DISTINCT
-			COALESCE((CASE WHEN AD.Per_Org ='CWR' THEN 'Associate is a contractor,' ELSE NULL END), '')  
-			+
-			COALESCE((CASE WHEN JR.ACTION='TER' AND JR.Action_reason='CTE' AND AD.Per_Org <>'CWR'
-					AND (ISNULL(@SpecialCaseReasonText,'')<>(SELECT CDescription FROM MasterCodes WITH(NOLOCK)
-					WHERE CParentRef=2 AND CCodeId=10 and Cuserdefined1=3))
-					THEN 'Associate has been converted from contractor to Employee,' ELSE NULL END), '')  
-			AS EXCEPTIONREASON			
-			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 			
-			INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
-			ON JR.ACTION='TER' AND JR.Action_reason='CTE' 
-			AND JR.EFFDT=AD.DateOfJoining
-			WHERE ISNUMERIC(JR.EMPLID)=1 AND  AD.Associate_ID=@AssociateIDChar AND JR.EMPLID=@AssociateIDChar
-
-			UNION ALL
-
-			SELECT DISTINCT 
-			'Associate is not hired in India,' AS ExceptionReason			
-			FROM  CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
-			INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
-			INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK)
-			ON HL.HCMLOCATIONCODE=AD.ParentHCMLocationCode 
-			WHERE HL.COUNTRY_ID<>'IND' AND AD.Associate_ID=@AssociateIDChar
-		
-			UNION ALL
-
-			SELECT DISTINCT
-			'Associate has not completed Eligible days criteria,' AS ExceptionReason
-			FROM  CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
-			INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
-			WHERE DATEDIFF(DAY,AD.DateOfJoining, GETDATE())<=@ELIGIBLEDAYS AND
-			(@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='')
-			AND AD.Associate_ID=@AssociateIDChar 
-			AND LTRIM(RTRIM(@SpecialCaseReasonText))<>(SELECT CDESCRIPTION FROM MASTERCODES WITH(NOLOCK)
-			WHERE CPARENTREF=2 AND CCODEID=4  AND CUserDefined1 = 3 AND RowStatus=1)
-
-			UNION ALL		
-	--Validate Associate data
-			SELECT DISTINCT
-			COALESCE((CASE WHEN UPPER(LTRIM(RTRIM(@BGstatusText)))=(SELECT UPPER(CDescription) FROM MASTERCODES 
-			WITH(NOLOCK)
-			WHERE CPARENTREF=4 AND CUSERDEFINED4=0 AND ROWSTATUS=1)  			
-			THEN
-			(SELECT CDescription + ',' FROM MasterCodes where CParentRef=21 AND CCodeId=0) ELSE NULL END), '')
-			+
-			COALESCE((CASE WHEN ISNUMERIC(@Amount) <> 1 THEN 'Amount is InValid,' ELSE NULL END), '')
-			+
-			COALESCE((CASE WHEN PSM.SetId is null  THEN
-			'Associate''s SetID is not eligible for Joining Bonus,' ELSE NULL END), '') 
-			+
-			COALESCE((CASE WHEN PGM.GradeLevelId is null  THEN 
-			'Associate''s grade is not eligible for Joining Bonus,' ELSE NULL END), '') 
-			+
-			COALESCE((CASE WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='LATERAL' AND PGAM.RecruitmentType=1 
-			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
-			AND PGAM.MaxAmount<>0
-			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
-			THEN 'The Amount doesnot match with the Policy Amount,'
-			WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='CAMPUS' AND PGAM.RecruitmentType=2 
-			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
-			AND PGAM.MaxAmount<>0
-			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
-			THEN 'The Amount doesnot match with the Policy Amount,'
-			WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='MERGER AND ACQUISITION' AND PGAM.RecruitmentType=3
-			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
-			AND PGAM.MaxAmount<>0
-			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
-			THEN 'The Amount doesnot match with the Policy Amount,'END), '')
-			+
-			COALESCE((CASE WHEN @NoOFInstallText is null  THEN
-			'NoOfInstallments is mandatory,' ELSE NULL END), '') AS EXPREMARKS						   
-			FROM #JBTEMP JT WITH(NOLOCK) 
-			LEFT OUTER JOIN Policy.SetIdMaster PSM WITH(NOLOCK) ON PSM.SetId=JT.BU AND PSM.RowStatus=1 
-			AND PSM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
-			LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation CD WITH(NOLOCK) ON CD.JobCode=JT.GRADE
-			AND CD.Bussiness_unit=JT.BU
-			LEFT OUTER JOIN Policy.GradeMaster PGM WITH(NOLOCK) ON PGM.GradeLevelId=CD.Job_Family AND PGM.RowStatus=1 
-			AND PGM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
-			LEFT OUTER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
-			ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PPM.RowStatus=1
-			LEFT OUTER JOIN Policy.GradeAmountMaster PGAM WITH(NOLOCK) ON PGAM.GradeLevelId=CD.Job_Family
-			AND PGAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PGAM.RowStatus=1 
-			AND PGAM.RECRUITMENTTYPE=@RecruitmentType
-   
-	  DELETE FROM #JBEXCEPTIONS where EXCEPTIONREASON=''
-			
-		DECLARE @JBException VARCHAR(8000)  
-		SELECT @JBException = COALESCE(@JBException + ', ', '') + EXCEPTIONREASON FROM #JBEXCEPTIONS
-		SELECT @JBException=replace(@JBException,',,',',')
-	  
-	  --Check JBException
-	  IF(@JBException= (SELECT CDescription + ',' FROM MasterCodes WITH(NOLOCK) where CParentRef=21 AND CCodeId=0))
-	  BEGIN	
-			   
-	        SELECT @DateofJoining=DateOfJoining,@Grade=Grade,@SetID=BU  FROM #JBTEMP
-			
-	        UPDATE EXP.JoiningBonus
-			SET Rowstatus=0,ModifiedBy=@LoginID,ModifiedDate=GETDATE() 
-			WHERE AssociateID=CONVERT(VARCHAR(11),@AssociateID) AND RowStatus=1
-
-			INSERT 
-			INTO EXP.JoiningBonus
-			      (AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,ProjectId,SpecialCaseReason,ExceptionReason,
-			        CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,SplCaseMailUploadId,NoInstallments)
-            VALUES(CONVERT(VARCHAR(10),@AssociateID),@DateofJoining,@BGstatus,@Grade,@Amount,
-			@InputRemarks,@ProjectID,@SpecialCaseReason,
-			'BG Status is Invalid',@LoginID,GETDATE(),1,@SetID, @RecruitmentType,@MailUploadId,@NoInstallments)
-			       
-		    SELECT @JBException AS STATUS
-
-      END
-
-        --Check JBException    
-    ELSE IF(@JBException IS NULL OR @JBException='')      
-         
-        BEGIN    
-
-		UPDATE EXP.JoiningBonus
-		SET Rowstatus=0,ModifiedBy=@LoginID,ModifiedDate=GETDATE() WHERE AssociateID=CONVERT(VARCHAR(10),@AssociateID) 
-		AND RowStatus=1
-
-		INSERT INTO PR.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,Status,ProjectId,RecruitmentType,
-        InputRemarks,SpecialCaseReason,CompanyID,SetID,CreatedBy,CreatedDate,RowStatus,SplCaseMailUploadId,NoInstallments,RetentionPeriod)      
-                 
-	    SELECT @AssociateID,JT.DateOfJoining,@BGstatus,JT.GRADE,@Amount,1,@PROJECTID,@RecruitmentType,@InputRemarks,
-	    @SpecialCaseReason,JT.Company,JT.BU,@LoginID,GETDATE(),1,
-		(case when isnull(@SpecialCaseReason,'')='' or isnull(@SpecialCaseReason,'')= '-1' then '0' else @MailUploadId end)
-		as Mailuploadid	,@NoInstallments,
-		(Case When (@RecruitmentType in (1,3) and @NoInstallments in (1,2))  then 1 
-		When (@RecruitmentType in (1,3) and @NoInstallments in (4,5))   then 2 
-		When @RecruitmentType=2 Then @RetentionPeriod
-		else @RetentionPeriod end)        
-		FROM #JBTEMP JT WITH(NOLOCK) 
-	    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Designation CD_A WITH(NOLOCK) ON CD_A.JobCode=JT.GRADE 
-	    AND CD_A.Bussiness_unit=JT.BU  
-	    INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
-		ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PPM.RowStatus=1
-
-        SELECT 'success' AS STATUS
-        END
-        
-       ELSE
-        BEGIN
-        
-        SELECT REPLACE(@JBException,(SELECT CDescription + ',' FROM MasterCodes WITH(NOLOCK)
-		where CParentRef=21 AND CCodeId=0),'') AS STATUS
-        
-        END 
-        
-    DROP TABLE  #JBEXCEPTIONS   
-    DROP TABLE  #JBTEMP
-    DROP TABLE #JBLATESTJOBTEMP
-	 END TRY
+DELETE FROM STG.Reversal WHERE PK_ReversalId IN (SELECT PK_ReversalId 
+FROM #Tmp_LessPayMentInFinancialYear_JB WHERE EXPREMARKS <>'')  
+AND Fk_componentGroupID=3  
+ -------Inserting data-------
+INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status,
+InputRemarks, CreatedBy, CreatedDate,RowStatus,ProjectID)  
+SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,
+SR.InputRemarks,SR.CreatedBy, GETDATE(),1,JB.ProjectID  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
+INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3  
+ 
+DROP TABLE #TEMP  
+DROP TABLE #Tmp_NoPayMent  
+DROP TABLE #Tmp_SumPayment   
+DROP TABLE #Tmp_LessPayMentInFinancialYear  
+DROP TABLE #Tmp_NoPayMent_JB  
+DROP TABLE #Tmp_SumPayment_JB  
+DROP TABLE #Tmp_LessPayMentInFinancialYear_JB  
+DROP TABLE #DUPLICATES  
+DROP TABLE #TerminatedCases  
+ 
+ EXEC [Trunc].[usp_TruncateTable] 'STG.Reversal'
+  END TRY
  BEGIN CATCH
  SELECT @@ERROR
- END CATCH  
- END
-
- /******************************************************************
-This User-defined Stored Procedure
-used in SPAY  to allow 
-faster execution and reduce network traffic.
-****************************************************************/
+ END CATCH 
+END

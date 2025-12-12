@@ -1,279 +1,407 @@
--- ==============================================================================================  
--- AUTHOR     : ROSHAN (262578)  
--- CREATE DATE: JUNE 24, 2013  
--- DESCRIPTION: TO GET FINAL VALID DATA REPORT 
 
---MODIFIED BY   : ROSHAN(262578)
---MODIFIED DATE : JANUARY 27, 2014
---PURPOSE       : FOR ADDING THE COMPONENTGROUP SHIFT TYPE ALLOWANCE
-
---MODIFIED BY   : Chitra A(316271)
---MODIFIED DATE : July 6, 2015
---Description   : FOR ADDING THE COMPONENTGROUP TRT Special Inputs
--- ============================================================================================    
-CREATE PROCEDURE [dbo].[usp_GetFinalValidDataReport]  
-(
-@componentGroupId INT,
-@Month INT,
-@Year INT,
-@LoginID INT,
-@RoleID INT
+-- ==================================================================================================================       
+-- AUTHOR     : TEAM
+-- CREATE DATE: JULY 20, 2020    
+-- DESCRIPTION: Added the documentation for the stored procedure
+-- ================================================================================================================== 
+CREATE PROCEDURE  [dbo].[usp_JB_InsertValidUploaderData]
+(   @AssociateID INT,
+	@ComponentId INT,
+	@LoginID INT,
+	@Amount MONEY,
+	@InputRemarks VARCHAR(100),
+	@SpecialCaseReason VARCHAR(500),
+	@BGstatus VARCHAR(100),
+    @RecruitmentType VARCHAR(10),
+    @ProjectID VARCHAR(50)=NULL,
+	@MailUploadId VARCHAR(50)=NULL,
+	@NoInstallments varchar (20),
+	@RetentionPeriod varchar(20)=NULL
 )
-AS  
-SET NOCOUNT ON  
-BEGIN  
+
+AS
+SET NOCOUNT ON
+BEGIN
 BEGIN TRY
---Notice Pay Buy out-payout
-  IF(@componentGroupId=1)
-	BEGIN 
-		 SELECT PNP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-		 +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS NAME,
-		  AD.JobCode+' - '+DESG.JobCodeDescription AS GRADE,
-		 REPLACE(CONVERT(VARCHAR(11), AD.DateOfJoining, 106), ' ', '-') AS DateOfJoining,PNP.Amount,
-		 LOC.City AS  PresentHCMLocationCode,PNP.ProjectId,PNP.CompanyId,PNP.SetId,
-		 ISNULL((PNP.InputRemarks),'') AS REMARKS , (CASE WHEN PNP.Status=1 THEN 'Valid' WHEN PNP.Status=5 
-		 THEN 'Processed' END) AS STATUS,PNP.AdvisedBy,
-		 (CASE WHEN PNP.SpecialCaseReason=7 THEN 'Approved Payment'  ELSE '' END) AS SpecialCaseReason 
-		 FROM PR.NoticePay PNP WITH(NOLOCK) 
-		 LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-		 ON AD.Associate_ID=PNP.AssociateID
-		 LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)
-		 ON DESG.JobCode=AD.JobCode 
-		 AND DESG.Bussiness_unit=AD.Business_Unit 
-		 LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC WITH(NOLOCK)
-		 ON LOC.HCMLocationCode=AD.PresentHCMLocationCode 
-		 AND LOC.Business_Unit=AD.Business_Unit 
-		 WHERE PNP.Status IN (1,5) AND PNP.RowStatus=1 
-		 AND DATEPART(MM,PNP.CreatedDate)=@Month 
-		 AND DATEPART(YY,PNP.CreatedDate)=@Year
-	 END
-	 
-	 --Referral Bonus-payout
-  IF(@componentGroupId=2)
-	BEGIN 
 
-		SELECT PRB.ReferrorAssociateID,ISNULL(LTRIM(RTRIM(CD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(CD.Associate_LastName)),'') AS REFERRORNAME ,
-		REPLACE(CONVERT(VARCHAR(11), CD.DateOfJoining, 106), ' ', '-') AS REFERRORDOJ,
-		REFERRERPRESENT.JobCode+' - '+REFERRERPRESENT.JobCodeDescription AS ReferrorLevel,		
-		REFERRERPRESENTDEP.Dept_Desc AS ReferrorDepartment,REFERRERPAST.JobCode+' - '+REFERRERPAST.
-		JobCodeDescription AS ReferrorLevelWhileReferring,
-		REFERRERPASTDEP.Dept_Desc AS ReferrorDepartmentWhileReferring,CD.Company AS REFERRERCOMPANY,
-		LOC.City AS LOC_OF_REFERRER,
-		PRB.ReferrerSetID AS REFERRER_SETID,
-		(CASE WHEN PRB.ReferrorBGstatus=1 THEN 'Positive' 
-				      WHEN PRB.ReferrorBGstatus=2 THEN 'Negative'
-                      WHEN PRB.ReferrorBGstatus=3 THEN 'WIP'      
-                      WHEN PRB.ReferrorBGstatus=4 THEN 'NA' 
-                      ELSE '' END) AS ReferrorBGstatus,	
-		PRB.RefereeAssociateID AS REFREEID,
-		ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS REFEREENAME,
-		CONVERT(VARCHAR,PRB.RefereeDOJ,101) AS RefereeDOJ,		
-		REFEREE.JobCode+' - '+REFEREE.JobCodeDescription AS REFREEGRADECODE,		
-		REFEREEDEP.Dept_Desc  AS RefereeDepartment,LOC_A.City AS LOC_OF_REFREE,PRB.ProjectId,
-		(CASE WHEN PRB.RefereeBGstatus=1 THEN 'Positive' 
-				      WHEN PRB.RefereeBGstatus=2 THEN 'Negative'
-                      WHEN PRB.RefereeBGstatus=3 THEN 'WIP'      
-                      WHEN PRB.RefereeBGstatus=4 THEN 'NA' 
-                      ELSE '' END) AS RefereeBGstatus,PRB.Amount,PPM.Currency,	
-		(CASE WHEN PRB.SpecialCaseReason=1 THEN 'Double Referral Bonus'
-                      WHEN PRB.SpecialCaseReason=2 THEN 'Second Installment'
-					  WHEN PRB.SpecialCaseReason=3 THEN 'Third Installment'
-					  WHEN PRB.SpecialCaseReason=4 THEN 'Early Payout Case'
-					  WHEN PRB.SpecialCaseReason=5 THEN 'Approved Amount Deviation'
-					  WHEN PRB.SpecialCaseReason=6
-					  THEN 'Other Geography referral Bonus' ELSE '' END) AS SpecialCaseReason,PRB.InputRemarks,	
-		(CASE WHEN PRB.Status=1 THEN 'Valid' WHEN PRB.Status=5 THEN 'Processed' END) AS STATUS    
-		FROM PR.ReferralBonus PRB WITH(NOLOCK) 
-		  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-		  ON AD.Associate_ID=PRB.RefereeAssociateID
-		  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)
-		  ON CD.Associate_ID=PRB.ReferrorAssociateID
-		  LEFT OUTER  JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentID=2
-		  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC_A WITH(NOLOCK)
-		  ON LOC_A.HCMLocationCode=AD.PresentHCMLocationCode 
-		  AND LOC_A.Business_Unit=AD.Business_Unit 
-		  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC WITH(NOLOCK) 
-		  ON LOC.HCMLocationCode=CD.PresentHCMLocationCode 
-		  AND LOC.Business_Unit=CD.Business_Unit 		
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFERRERPAST WITH(NOLOCK)
-		  ON REFERRERPAST.JobCode=PRB.ReferrorGrade  
-		  AND REFERRERPAST.Bussiness_unit=PRB.ReferrerSetID	    
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFERRERPRESENT WITH(NOLOCK)
-		  ON REFERRERPRESENT.JobCode=CD.JobCode 
-		  AND REFERRERPRESENT.Bussiness_unit=CD.Business_Unit	    
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation REFEREE WITH(NOLOCK)
-		  ON REFEREE.JobCode=AD.JobCode
-		  AND REFEREE.Bussiness_unit=AD.Business_Unit		    	
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERPASTDEP WITH(NOLOCK) 
-		  on REFERRERPASTDEP.Dept_ID=PRB.ReferrorDepartment
-		  AND REFERRERPASTDEP.Business_Unit=PRB.ReferrerSetID		    
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFERRERPRESENTDEP WITH(NOLOCK) 
-		  on REFERRERPRESENTDEP.Dept_ID=CD.Dept_ID
-		  AND REFERRERPRESENTDEP.Business_Unit=CD.Business_Unit	        
-		  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Department REFEREEDEP WITH(NOLOCK) 
-		  on REFEREEDEP.Dept_ID=AD.Dept_ID
-		  AND REFEREEDEP.Business_Unit=AD.Business_Unit	    
-		  WHERE PRB.Status IN (1,5) AND PRB.RowStatus=1 AND DATEPART(MM,PRB.CreatedDate)=@Month 
-		  AND DATEPART(YY,PRB.CreatedDate)=@Year
-		
-	 END	 
- 
- --Joining Bonus-payout
-  IF(@componentGroupId=3)
-	BEGIN 
+--Declaration
+DECLARE @ELIGIBLEDAYS INT   
+DECLARE @SpecialCaseReasonText varchar(100)
+DECLARE @RecruitmentTypeText varchar(100)
+DECLARE @BGstatusText VARCHAR(50)
+DECLARE @DateofJoining DATETIME
+DECLARE @Grade VARCHAR(20)
+DECLARE @SetID VARCHAR(10)
+DECLARE @ComponentCountryMappingID INT
+declare @AssociateIDChar char(11)
+--------------ComponentCountrymappingID----------------------
+
+
+select @AssociateIDChar = CONVERT(varchar(11),@AssociateID)
+Select @ComponentCountrymappingID = Pk_ComponentCountryMappingID 
+from ComponentCountryMapping CCM With (nolock)
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentID=CCM.FK_ComponentID
+INNER JOIN ComponentGroupMaster STP WITH (NOLOCK) ON  CM.RowStatus=1 
+AND CM.FK_ComponentGroupID = STP.PK_ComponentGroupID
+where CCM.Fk_ComponentCountryID=1 and CCM.Rowstatus=1  AND CM.FK_ComponentGroupID = 3
+---------------BGStatusText---------------------
+SELECT @BGstatusText=CDescription FROM MasterCodes WITH(NOLOCK) 
+WHERE CParentRef=4 AND CCodeId=@BGstatus AND RowStatus=1 
+
+SELECT @RecruitmentTypeText=CDescription FROM MasterCodes WITH(NOLOCK) 
+WHERE CParentRef=5 AND CCodeId=@RecruitmentType AND RowStatus=1  
+IF((ISNULL(@SpecialCaseReason,'')='') OR @SpecialCaseReason IN (0,-1))
+
+
+DECLARE @NoOFInstallText varchar(20)
+Set @NoOFInstallText=(Select CDescription FROM MasterCodes WITH(NOLOCK) 
+WHERE CParentRef=55 AND RowStatus=1 and CUserDefined1=3 and CCodeId='1'
+and CUserDefined2 is not null)
+
+IF((ISNULL(@SpecialCaseReason,'')='') OR @SpecialCaseReason IN (0,-1))
+BEGIN
+SET @SpecialCaseReasonText=''
+
+SET @SpecialCaseReason=''
+Set @MailUploadId=(case when isnull(@SpecialCaseReason,'')='' or isnull(@SpecialCaseReason,'')= '-1' then '0' else @MailUploadId end)		
+
+END
+ELSE
+BEGIN
+	SELECT @SpecialCaseReasonText=CDescription FROM MasterCodes WITH(NOLOCK)
+	WHERE CParentRef=2 AND CCodeId=@SpecialCaseReason AND RowStatus=1 and CUserDefined1=3     
+END
+--------------EligibleDays----------------
+SET @ELIGIBLEDAYS=(SELECT EligibleDays FROM Policy.PolicyMaster WITH(NOLOCK)
+WHERE FK_ComponentCountryMappingID=@ComponentCountryMappingID and Rowstatus=1)
+
+		CREATE TABLE #JBEXCEPTIONS
+		(
+			EXCEPTIONREASON VARCHAR(8000) NULL
+		)	
+		SELECT A.EMPLID AS AssociateID,A.DateOfJoining AS DateOfJoining,A.DEPTID AS Department,A.JOBCODE AS Grade,
+		A.LOCATION AS LOCATION,A.COMPANY AS COMPANY,A.BUSINESS_UNIT AS BU  INTO #JBTEMP
+		FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID 
+		ORDER BY JR.EFFDT DESC,JR.EFFSEQ DESC,JR.EMPL_RCD DESC) AS Rank,
+		JR.EMPLID,JR.EMPL_RCD,JR.EFFDT,JR.EFFSEQ,JR.DEPTID,JR.JOBCODE,
+		JR.LOCATION,JR.COMPANY,JR.BUSINESS_UNIT,AD.DateOfJoining 
+		FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+		INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
+		AD.Associate_ID=@AssociateIDChar WHERE ISNUMERIC(JR.EMPLID)=1 AND  JR.EFFDT=AD.DateOfJoining AND 
+		JR.EMPLID=@AssociateIDChar) A WHERE A.Rank=1		
 	
-		SELECT PJB.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS Name,
-		DESG.JobCode+' - '+DESG.JobCodeDescription AS GRADE,
-		REPLACE(CONVERT(VARCHAR(11), AD.DateOfJoining, 106), ' ', '-') AS DateOfJoining,PJB.Amount,		
-		(CASE WHEN PJB.BGstatus=1 THEN 'Positive' 
-				      WHEN PJB.BGstatus=2 THEN 'Negative'
-                      WHEN PJB.BGstatus=3 THEN 'WIP'      
-                      WHEN PJB.BGstatus=4 THEN 'NA' 
-                      ELSE '' END) AS BGstatus,				
-		LOC.City AS LOCATION,PJB.ProjectId,
-		(CASE WHEN PJB.SpecialCaseReason=1 THEN 'Double Referral Bonus'
-                      WHEN PJB.SpecialCaseReason=2 THEN 'Second Installment'
-					  WHEN PJB.SpecialCaseReason=3 THEN 'Third Installment'
-					  WHEN PJB.SpecialCaseReason=4 THEN 'Early Payout Case'
-					  WHEN PJB.SpecialCaseReason=5 THEN 'Approved Amount Deviation'
-					  WHEN PJB.SpecialCaseReason=6
-					  THEN 'Other Geography referral Bonus' ELSE '' END) AS SpecialCaseReason,		
-		PJB.InputRemarks AS REMARKS,PJB.CompanyID,PJB.SetID AS SETID,
-		(CASE WHEN PJB.Status=1 THEN 'Valid' WHEN PJB.Status=5 THEN 'Processed' END) AS STATUS  
-	  FROM PR.JoiningBonus PJB WITH(NOLOCK) 
-	  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-	  ON AD.Associate_ID=PJB.AssociateID
-	  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION LOC WITH(NOLOCK) 
-	  ON LOC.HCMLocationCode=AD.PresentHCMLocationCode 
-	  AND LOC.Business_Unit=AD.Business_Unit 
-	  LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation DESG WITH(NOLOCK)
-	  ON DESG.JobCode=PJB.Grade 
-	  AND DESG.Bussiness_unit=PJB.SetID
-	  WHERE PJB.Status IN (1,5) AND PJB.RowStatus=1 AND DATEPART(MM,PJB.CreatedDate)=@Month
-	  AND DATEPART(YY,PJB.CreatedDate)=@Year
+	SELECT A.EMPLID AS AssociateID,ACTION,ACTION_REASON,EMPL_STATUS
+		INTO #JBLATESTJOBTEMP
+		FROM (SELECT DENSE_RANK() OVER (PARTITION BY EMPLID
+		ORDER BY JR.EFFDT DESC,JR.EFFSEQ DESC,JR.EMPL_RCD DESC) AS Rank ,
+		JR.EMPLID,JR.ACTION,JR.ACTION_REASON,JR.EMPL_STATUS 
+		FROM CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+		--LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) ON 
+		--AD.Associate_ID=@AssociateID
+		WHERE ISNUMERIC(JR.EMPLID)=1 AND  
+		JR.EMPLID=@AssociateIDChar) A WHERE A.Rank=1
+		------------Inserting Data into Joining Bonus Table------------------
+		 INSERT INTO #JBEXCEPTIONS(EXCEPTIONREASON)
+			SELECT 	DISTINCT	
+			COALESCE((CASE WHEN AD.IsActive NOT IN ('A','L') THEN 
+						(CASE WHEN AD.IsActive='S' AND JBReason.ACTION<>'ABS' THEN NULL 
+							ELSE 'Associate is InActive,' END)
+						ELSE NULL END), '') 	
+						+
+			COALESCE((CASE WHEN (JBReason.ACTION = 'RES' OR JBReason.ACTION_REASON = 'RES' OR
+			AD.ACTION = 'RES' OR AD.ACTION_REASON = 'RES') 
+			THEN 'Associate is in Resignation Status,' ELSE NULL END), '')       				
+			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+			INNER JOIN #JBLATESTJOBTEMP JBReason ON(JBReason.AssociateID=AD.Associate_ID)
+			WHERE AD.Associate_ID=@AssociateIDChar
 		
-	 END	 	 
-	 
-	 --CIS Shift Allowances
-  IF(@componentGroupId=4)
-     BEGIN
-  
-  --Approver
-  IF(@RoleID=4)
-	  BEGIN
+		UNION ALL
 
-		 CREATE TABLE #COMPONENTS (ComponentID INT,ProjectID VARCHAR(50))
-        	  
-		 INSERT INTO #COMPONENTS (ComponentID,ProjectID)
-		 EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID  
-          
-		  --select associate details
-		SELECT STP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,
-		STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,
-		CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,
-		STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,
-		CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'
-		+CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,
-		STP.Amount AS EligibleAmount, STP.CreatedBy AS UploaderID,
-		ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,CPM.PROJECT_MANAGER AS PMID,
-		ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '
-		+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName, 
-		(CASE WHEN STP.Status=1 THEN 'Valid' WHEN STP.Status=5 THEN 'Processed'
-		WHEN STP.Status=4 THEN 'ReSubmitted' END) AS Status 
-		FROM PR.ShiftTimePayout STP WITH(NOLOCK) 
-		INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID
-		INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID
-		LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-		ON AD.Associate_ID=STP.AssociateID 
-		LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK) 
-		ON UD.Associate_ID=STP.CreatedBy 
-		LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)
-		ON CPM.PROJECT_ID=STP.ProjectID
-		LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK) 
-		ON PD.Associate_ID=CPM.PROJECT_MANAGER
-		INNER JOIN #COMPONENTS CMTS WITH(NOLOCK) ON  CMTS.ComponentID=STP.Fk_ComponentID
-		AND CMTS.ProjectID=STP.ProjectID
-		WHERE STP.Status IN (1,5,4) AND STP.RowStatus=1 AND DATEPART(MM,STP.CreatedDate)=@Month 
-		AND DATEPART(YY,STP.CreatedDate)=@Year
-          
-		  --drop temp table
-		DROP TABLE  #COMPONENTS 
+			SELECT 	DISTINCT	
+				--Validate Associate data
+			COALESCE((CASE WHEN LEN(@AssociateID) not in (6,7) THEN 'AssociateID is InValid,' ELSE NULL END), '') 
+			+
+			COALESCE((CASE WHEN LEN(@ProjectID) <> 10 or 
+					(SELECT COUNT(1) FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Set_ProjectStatus WITH (NOLOCK)
+					 WHERE Project_Status='A' and EFF_STATUS = 'A' AND effdt = (select max(effdt) 
+					 from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
+					 where project_Id=convert(varchar(10),@ProjectID)) AND 
+					 EFFSEQ = (select max(EFFSEQ) from [CentralRepository].DBO.vw_CentralRepository_Set_ProjectStatus 
+					 WITH(NOLOCK)
+					 where project_Id=convert(varchar(10),@ProjectID)) AND 
+					 PROJECT_ID=convert(varchar(10),@ProjectID))=0  THEN 'ProjectId is Invalid,' ELSE NULL END), '')  
+			+
+			COALESCE((CASE WHEN (@Amount IS NULL or @Amount='') THEN 'Amount is Mandatory,' 
+			WHEN (@Amount<>'' AND ISNUMERIC(@Amount) <> 1 OR @Amount<1)	THEN 'Amount is InValid,' ELSE NULL END), '')
+			+
+			COALESCE((CASE WHEN AD.COMPANY IS NULL THEN 'Company Unavailable,' ELSE NULL END), '')  
+			+
+			COALESCE((CASE WHEN AD.BUSINESS_UNIT IS NULL THEN 'SetId Unavailable,' ELSE NULL END), '')
+			AS EXCEPTIONREASON			
+			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+			WHERE AD.Associate_ID=@AssociateIDChar
 
-	END 
 
-  ELSE
-	  BEGIN
-		--selecting associate details
-			SELECT STP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-			+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,
-			STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,
-			CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,
-			STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,
-			CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'
-			+CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,
-			STP.Amount AS EligibleAmount, STP.CreatedBy AS UploaderID,
-			ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '
-			+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,CPM.PROJECT_MANAGER AS PMID,
-			ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '
-			+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName, 
-			(CASE WHEN STP.Status=1 THEN 'Valid' WHEN STP.Status=5 THEN 'Processed'  WHEN STP.Status=4 
-			THEN 'ReSubmitted' END) AS Status 
-			FROM PR.ShiftTimePayout STP WITH(NOLOCK) 
-			INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID
-			INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID
-			LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 
-			ON AD.Associate_ID=STP.AssociateID 
-			LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK) 
-			ON UD.Associate_ID=STP.CreatedBy 
-			LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK) 
-			ON CPM.PROJECT_ID=STP.ProjectID
-			LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK) 
-			ON PD.Associate_ID=CPM.PROJECT_MANAGER
-			WHERE STP.Status IN (1,5,4) AND STP.RowStatus=1 AND DATEPART(MM,STP.CreatedDate)=@Month
-			AND DATEPART(YY,STP.CreatedDate)=@Year
-	  END 
-  END
+			UNION ALL
 
-  --Check componetGropiId is >4
-  if(@componentGroupId>4)
-  BEGIN
-  SELECT AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,ProjectID,CUM.CurrencyCode,PCUD.CurrencyValue,
-  TRT.Amount,TRT.InvoiceNumber,TRT.RewardName, COALESCE( ApproverID , '' )  ApproverID,
-  ISNULL(LTRIM(RTRIM(CD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(CD.Associate_LastName)),'') AS ApproverName,
-  isnull(TRT.Vertical,'') Vertical,Case When TRT.Funded=1 then 'Project' when TRT.Funded=2 then 'Client' else '' end
-  Funded,TRT.UploaderID, 
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,
-  isnull(MC.Cdescription,'') SpecialCaseReason,
-  isnull(TRT.InputRemarks,'') InputRemarks,	isnull(MC_A.Cdescription,'') AS Status 
- FROM PR.TRTSPECIALINPUTS TRT
-  INNER JOIN CurrencyMaster Cum WITH (NOLOCK) ON TRT.FK_CurrencyID=Cum.PK_CurrencyID and CUM.Rowstatus=1
-  INNER JOIN PR.CurrencyUpdatedata PCUD WITH (NOLOCK) on TRT.Fk_CurrencyID=PCUD.Fk_CurrencyID and PCUD.Rowstatus=1
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-  ON AD.Associate_ID=TRT.AssociateID 
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK) 
-  ON CD.Associate_ID=isnull(TRT.ApproverID,'')
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)
-  ON UD.Associate_ID=TRT.UploaderID  
-  LEFT OUTER JOIN mastercodes MC on MC.CParentref=2 and MC.CUserdefined1=5 and MC.Rowstatus=1 
-  and MC.CCodeid=TRT.SpecialCaseReason
-  LEFT Outer Join MasterCodes MC_A on MC_A.CParentRef=3 and TRT.Status=MC_A.CCodeId and MC_A.RowStatus=1 
-  and MC_A.Cuserdefined1='PR'
-  WHERE TRT.Status IN (1,5,8,9,10,11) AND TRT.RowStatus=1 AND DATEPART(MM,TRT.CreatedDate)=@month 
-  AND DATEPART(YY,TRT.CreatedDate)=@year and Fk_Componentid=@componentGroupID
-  END
-   END TRY
+			--Validate dualProjectID
+			SELECT  distinct 'Dual-ProjectID has been uploaded without special case reason,'  
+			FROM PR.JOININGBONUS PNP WITH(NOLOCK)    
+			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
+			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(PNP.SpecialCaseReason)))  
+			AND MC.RowStatus=1 and MC.CUserDefined1=3 
+			WHERE ((MC.CCodeId is null or MC.CCodeId<>12) and @SpecialCaseReasonText<>'Dual-ProjectID')
+			and AssociateID=@AssociateID and ProjectId<>@ProjectID
+
+			UNION ALL
+			
+			--Validate the dual ProjectID
+			SELECT  DISTINCT 
+			'Uploaded data have more than one projectid-Dual Project-ID,' 
+			FROM PR.JoiningBonus pnp WITH(NOLOCK) 
+			LEFT OUTER JOIN MASTERCODES MC WITH(NOLOCK) ON MC.CPARENTREF=2 AND
+			UPPER(MC.CDESCRIPTION)=UPPER(LTRIM(RTRIM(@SPECIALCASEREASONTEXT)))  
+			AND MC.ROWSTATUS=1 AND MC.CUSERDEFINED1=3 AND MC.CCODEID=12
+			WHERE PNP.ASSOCIATEID IN (SELECT ASSOCIATEID FROM PR.JoiningBonus WITH (NOLOCK)
+			WHERE ROWSTATUS=1 AND STATUS IN (1,3,4,5) AND 
+			ASSOCIATEID=@ASSOCIATEID AND PROJECTID<>@PROJECTID
+			GROUP BY ASSOCIATEID HAVING COUNT(ASSOCIATEID)>1)
+
+			UNION ALL
+				
+				--Validate joining Bonus
+			SELECT  DISTINCT 
+			'JOINING BONUS has been already uploaded/Processed for the same associate more than two projects,' 
+			FROM PR.JoiningBonus PNP WITH(NOLOCK) 
+			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
+			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(@SpecialCaseReasonText)))  
+			AND MC.RowStatus=1 and MC.CUserDefined1=3 and MC.CCodeid=12
+			WHERE PNP.ASSOCIATEID IN (select PNP.associateid from pr.JoiningBonus PNP WITH(NOLOCK)
+			where rowstatus=1 and status in (1,5)
+			group by  PNP.associateid having count(PNP.AssociateID)>1) 
+			and PNP.AssociateID=@AssociateID and PNP.ProjectID=@PROJECTID
+
+			union all
+
+			SELECT  DISTINCT 
+			'Dual-ProjectID case without special case reason,' 
+			FROM PR.JOININGBONUS PNP  WITH(NOLOCK) 
+			LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=2 AND 
+			UPPER(MC.CDescription)=UPPER(LTRIM(RTRIM(@SpecialCaseReasonText)))  
+			AND MC.RowStatus=1 and MC.CUserDefined1=3 and MC.CCodeid=12
+			WHERE @AssociateID IN (select PNP.associateid from pr.JoiningBonus PNP where rowstatus=1 and status in (1,5)
+			group by  PNP.associateid having count(PNP.AssociateID)>0) and
+			MC.CDescription is null and PNP.AssociateID=@AssociateID AND PNP.ProjectId<>@ProjectID
+
+			UNION ALL
+
+			SELECT	DISTINCT		
+			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.STATUS=5 AND PJB.ROWSTATUS=1 AND 
+			(ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
+			THEN 'Joining Bonus has been processed for Associate on the month of '+
+			DATENAME(MM, PJB.CREATEDDATE) + ' ' + CAST(YEAR(PJB.CREATEDDATE) AS VARCHAR(4))+','	ELSE NULL END), '')  
+			+
+			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.ROWSTATUS=1 AND PJB.STATUS NOT IN (2,5) AND 
+			@Amount=PJB.AMOUNT  AND (ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
+			THEN 'Joining Bonus has been uploaded by '+CONVERT(VARCHAR(20),PJB.CREATEDBY)
+			+' On '+CONVERT(VARCHAR(20),PJB.CREATEDDATE, 100)
+			+',' ELSE NULL END), '') 
+			+
+			COALESCE((CASE WHEN ((PJB.AssociateID IS NOT NULL) AND PJB.ROWSTATUS=1 AND PJB.STATUS NOT IN (2,5) AND @Amount<>'' 
+			AND @Amount<>PJB.AMOUNT  AND (ISNULL(@SpecialCaseReasonText,'')='' OR PJB.SpecialCaseReason=@SpecialCaseReason)) 
+			THEN 'Joining Bonus has been uploaded by '+CONVERT(VARCHAR(20),PJB.CREATEDBY)
+			+' On '+CONVERT(VARCHAR(20),PJB.CREATEDDATE, 100)
+			+' with different Amount,' ELSE NULL END), '')   			
+
+			AS EXCEPTIONREASON
+			FROM  PR.JoiningBonus PJB WITH(NOLOCK)  
+			WHERE PJB.AssociateID=@AssociateID	and PJB.ProjectId=@ProjectID AND PJB.RowStatus=1		
+				
+			UNION ALL
+
+			--select COALESCE(( CASE when PJB.AssociateID is not null AND PJB.ROWSTATUS=1 AND  
+			-- PJB.AssociateID=@AssociateID and PJB.NoInstallments <> @NoOfInstallments
+			-- and PJB.createddate > AD.DateOfJoining
+			--THEN 'No of installment is not the same as in the previous JB records'  ELSE NULL END),'')
+			--AS EXCEPTIONREASON			
+			--FROM PR.JoiningBonus PJB WITH(NOLOCK) 
+			-- INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) on		
+			-- AD.Associate_ID=PJB.AssociateID
+			--WHERE   AD.Associate_ID=@AssociateIDCharSELECT 
+			SELECT
+			COALESCE((
+					CASE 
+						WHEN @RecruitmentType = 3 AND @NoInstallments = '-1' AND @RetentionPeriod = '-1' 
+							THEN 'Please select value from either one of the field "No of Instalments" or "Retention period",' 
+						WHEN @RecruitmentType = 1 AND @NoInstallments = '-1' 
+							THEN 'Please select value from No of Instalments,' 
+						WHEN @RecruitmentType = 2 AND @RetentionPeriod = '-1' 
+							THEN 'Please select value from Retention period,' 
+        		ELSE NULL 
+					END
+				), '') AS EXCEPTIONREASON
+
+			UNION ALL
+
+			SELECT DISTINCT
+			COALESCE((CASE WHEN AD.Per_Org ='CWR' THEN 'Associate is a contractor,' ELSE NULL END), '')  
+			+
+			COALESCE((CASE WHEN JR.ACTION='TER' AND JR.Action_reason='CTE' AND AD.Per_Org <>'CWR'
+					AND (ISNULL(@SpecialCaseReasonText,'')<>(SELECT CDescription FROM MasterCodes WITH(NOLOCK)
+					WHERE CParentRef=2 AND CCodeId=10 and Cuserdefined1=3))
+					THEN 'Associate has been converted from contractor to Employee,' ELSE NULL END), '')  
+			AS EXCEPTIONREASON			
+			FROM CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK) 			
+			INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_JOB_REFERENCE JR WITH(NOLOCK) 
+			ON JR.ACTION='TER' AND JR.Action_reason='CTE' 
+			AND JR.EFFDT=AD.DateOfJoining
+			WHERE ISNUMERIC(JR.EMPLID)=1 AND  AD.Associate_ID=@AssociateIDChar AND JR.EMPLID=@AssociateIDChar
+
+			UNION ALL
+
+			SELECT DISTINCT 
+			'Associate is not hired in India,' AS ExceptionReason			
+			FROM  CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+			INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+			INNER JOIN CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_HCMLOCATION HL WITH(NOLOCK)
+			ON HL.HCMLOCATIONCODE=AD.ParentHCMLocationCode 
+			WHERE HL.COUNTRY_ID<>'IND' AND AD.Associate_ID=@AssociateIDChar
+		
+			UNION ALL
+
+			SELECT DISTINCT
+			'Associate has not completed Eligible days criteria,' AS ExceptionReason
+			FROM  CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+			INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+			WHERE DATEDIFF(DAY,AD.DateOfJoining, GETDATE())<=@ELIGIBLEDAYS AND
+			(@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='')
+			AND AD.Associate_ID=@AssociateIDChar 
+			AND LTRIM(RTRIM(@SpecialCaseReasonText))<>(SELECT CDESCRIPTION FROM MASTERCODES WITH(NOLOCK)
+			WHERE CPARENTREF=2 AND CCODEID=4  AND CUserDefined1 = 3 AND RowStatus=1)
+
+			UNION ALL		
+	--Validate Associate data
+			SELECT DISTINCT
+			COALESCE((CASE WHEN UPPER(LTRIM(RTRIM(@BGstatusText)))=(SELECT UPPER(CDescription) FROM MASTERCODES 
+			WITH(NOLOCK)
+			WHERE CPARENTREF=4 AND CUSERDEFINED4=0 AND ROWSTATUS=1)  			
+			THEN
+			(SELECT CDescription + ',' FROM MasterCodes where CParentRef=21 AND CCodeId=0) ELSE NULL END), '')
+			+
+			COALESCE((CASE WHEN ISNUMERIC(@Amount) <> 1 THEN 'Amount is InValid,' ELSE NULL END), '')
+			+
+			COALESCE((CASE WHEN PSM.SetId is null  THEN
+			'Associate''s SetID is not eligible for Joining Bonus,' ELSE NULL END), '') 
+			+
+			COALESCE((CASE WHEN PGM.GradeLevelId is null  THEN 
+			'Associate''s grade is not eligible for Joining Bonus,' ELSE NULL END), '') 
+			+
+			COALESCE((CASE WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='LATERAL' AND PGAM.RecruitmentType=1 
+			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
+			AND PGAM.MaxAmount<>0
+			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+			THEN 'The Amount doesnot match with the Policy Amount,'
+			WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='CAMPUS' AND PGAM.RecruitmentType=2 
+			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
+			AND PGAM.MaxAmount<>0
+			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+			THEN 'The Amount doesnot match with the Policy Amount,'
+			WHEN UPPER(LTRIM(RTRIM(@RecruitmentTypeText)))='MERGER AND ACQUISITION' AND PGAM.RecruitmentType=3
+			AND (@SpecialCaseReasonText IS NULL OR @SpecialCaseReasonText='') 
+			AND PGAM.MaxAmount<>0
+			AND @Amount NOT BETWEEN PGAM.MinAmount AND PGAM.MaxAmount 
+			THEN 'The Amount doesnot match with the Policy Amount,'END), '')
+			+
+			COALESCE((CASE WHEN @NoOFInstallText is null  THEN
+			'NoOfInstallments is mandatory,' ELSE NULL END), '') AS EXPREMARKS						   
+			FROM #JBTEMP JT WITH(NOLOCK) 
+			LEFT OUTER JOIN Policy.SetIdMaster PSM WITH(NOLOCK) ON PSM.SetId=JT.BU AND PSM.RowStatus=1 
+			AND PSM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+			LEFT OUTER JOIN CentralRepository.dbo.vw_CentralRepository_Designation CD WITH(NOLOCK) ON CD.JobCode=JT.GRADE
+			AND CD.Bussiness_unit=JT.BU
+			LEFT OUTER JOIN Policy.GradeMaster PGM WITH(NOLOCK) ON PGM.GradeLevelId=CD.Job_Family AND PGM.RowStatus=1 
+			AND PGM.FK_ComponentCountryMappingID=@ComponentCountryMappingID
+			LEFT OUTER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+			ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PPM.RowStatus=1
+			LEFT OUTER JOIN Policy.GradeAmountMaster PGAM WITH(NOLOCK) ON PGAM.GradeLevelId=CD.Job_Family
+			AND PGAM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PGAM.RowStatus=1 
+			AND PGAM.RECRUITMENTTYPE=@RecruitmentType
+   
+	  DELETE FROM #JBEXCEPTIONS where EXCEPTIONREASON=''
+			
+		DECLARE @JBException VARCHAR(8000)  
+		SELECT @JBException = COALESCE(@JBException + ', ', '') + EXCEPTIONREASON FROM #JBEXCEPTIONS
+		SELECT @JBException=replace(@JBException,',,',',')
+	  
+	  --Check JBException
+	  IF(@JBException= (SELECT CDescription + ',' FROM MasterCodes WITH(NOLOCK) where CParentRef=21 AND CCodeId=0))
+	  BEGIN	
+			   
+	        SELECT @DateofJoining=DateOfJoining,@Grade=Grade,@SetID=BU  FROM #JBTEMP
+			
+	        UPDATE EXP.JoiningBonus
+			SET Rowstatus=0,ModifiedBy=@LoginID,ModifiedDate=GETDATE() 
+			WHERE AssociateID=CONVERT(VARCHAR(11),@AssociateID) AND RowStatus=1
+
+			INSERT 
+			INTO EXP.JoiningBonus
+			      (AssociateID,DOJ,BGstatus,Grade,Amount,InputRemarks,ProjectId,SpecialCaseReason,ExceptionReason,
+			        CreatedBy,CreatedDate,RowStatus,SetID,RecruitmentType,SplCaseMailUploadId,NoInstallments)
+            VALUES(CONVERT(VARCHAR(10),@AssociateID),@DateofJoining,@BGstatus,@Grade,@Amount,
+			@InputRemarks,@ProjectID,@SpecialCaseReason,
+			'BG Status is Invalid',@LoginID,GETDATE(),1,@SetID, @RecruitmentType,@MailUploadId,@NoInstallments)
+			       
+		    SELECT @JBException AS STATUS
+
+      END
+
+        --Check JBException    
+    ELSE IF(@JBException IS NULL OR @JBException='')      
+         
+        BEGIN    
+
+		UPDATE EXP.JoiningBonus
+		SET Rowstatus=0,ModifiedBy=@LoginID,ModifiedDate=GETDATE() WHERE AssociateID=CONVERT(VARCHAR(10),@AssociateID) 
+		AND RowStatus=1
+
+		INSERT INTO PR.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,Status,ProjectId,RecruitmentType,
+        InputRemarks,SpecialCaseReason,CompanyID,SetID,CreatedBy,CreatedDate,RowStatus,SplCaseMailUploadId,NoInstallments,RetentionPeriod)      
+                 
+	    SELECT @AssociateID,JT.DateOfJoining,@BGstatus,JT.GRADE,@Amount,1,@PROJECTID,@RecruitmentType,@InputRemarks,
+	    @SpecialCaseReason,JT.Company,JT.BU,@LoginID,GETDATE(),1,
+		(case when isnull(@SpecialCaseReason,'')='' or isnull(@SpecialCaseReason,'')= '-1' then '0' else @MailUploadId end)
+		as Mailuploadid	,@NoInstallments,
+		(Case When (@RecruitmentType in (1,3) and @NoInstallments in (1,2))  then 1 
+		When (@RecruitmentType in (1,3) and @NoInstallments in (4,5))   then 2 
+		When @RecruitmentType=2 Then @RetentionPeriod
+		else @RetentionPeriod end)        
+		FROM #JBTEMP JT WITH(NOLOCK) 
+	    INNER JOIN CentralRepository.dbo.vw_CentralRepository_Designation CD_A WITH(NOLOCK) ON CD_A.JobCode=JT.GRADE 
+	    AND CD_A.Bussiness_unit=JT.BU  
+	    INNER JOIN Policy.PolicyMaster PPM WITH(NOLOCK) 
+		ON PPM.FK_ComponentCountryMappingID=@ComponentCountryMappingID AND PPM.RowStatus=1
+
+        SELECT 'success' AS STATUS
+        END
+        
+       ELSE
+        BEGIN
+        
+        SELECT REPLACE(@JBException,(SELECT CDescription + ',' FROM MasterCodes WITH(NOLOCK)
+		where CParentRef=21 AND CCodeId=0),'') AS STATUS
+        
+        END 
+        
+    DROP TABLE  #JBEXCEPTIONS   
+    DROP TABLE  #JBTEMP
+    DROP TABLE #JBLATESTJOBTEMP
+	 END TRY
  BEGIN CATCH
  SELECT @@ERROR
- END CATCH 
-END
+ END CATCH  
+ END
 
-/******************************************************************
+ /******************************************************************
 This User-defined Stored Procedure
 used in SPAY  to allow 
 faster execution and reduce network traffic.

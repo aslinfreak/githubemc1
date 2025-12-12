@@ -1,30 +1,31 @@
-SELECT DISTINCT  
-       ISNULL(PRR.AssociateID,'') AS AssociateID,
-       ISNULL(LTRIM(RTRIM(CAD.Associate_FirstName)),'') + ' ' + 
-       ISNULL(LTRIM(RTRIM(CAD.Associate_LastName)),'') AS AssociateName,
-       AL.Project_ID AS ProjectID,   -- << Always fetch ACTIVE Project
-       ISNULL(PRR.Amount,'') AS Amount,
-       ISNULL(PRR.InputRemarks,'') AS Remarks
-FROM PR.Reversal PRR WITH(NOLOCK)
+   SELECT DISTINCT ISNULL(PRR.AssociateID,'') AS AssociateID,ISNULL(LTRIM(RTRIM(Associate_FirstName)),'')+' '+
+   ISNULL(LTRIM(RTRIM(Associate_LastName)),'') AS AssociateName,ISNULL(PRR.ProjectID,'') AS ProjectID,
+   ISNULL(PRR.Amount,'') AS Amount,ISNULL(PRR.InputRemarks,'') AS Remarks   
+   FROM PR.Reversal PRR WITH(NOLOCK)
+   LEFT OUTER JOIN  CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK) ON 
+   CAD.Associate_ID=PRR.AssociateID 
+   INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=PRR.FK_ComponentID
+   WHERE PRR.RowStatus=1 AND CM.FK_ComponentGroupID=@componentGroupId AND PRR.Status=1 AND CM.RowStatus=1
 
--- Associate Details  
-LEFT JOIN CENTRALREPOSITORY.dbo.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS CAD WITH(NOLOCK)
-    ON CAD.Associate_ID = PRR.AssociateID
+INSERT INTO PR.Reversal(FK_ComponentID, FK_MyPayComponentID, AssociateID, Amount, Status,
+InputRemarks, CreatedBy, CreatedDate,RowStatus,ProjectID)  
+SELECT DISTINCT SR.Fk_componentGroupID,CM.FK_MypayComponentId,SR.ASSOCIATEID,SR.Amount,1,
+SR.InputRemarks,SR.CreatedBy, GETDATE(),1,JB.ProjectID  
+FROM STG.Reversal SR WITH(NOLOCK)  
+INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=SR.Fk_componentGroupID AND CM.RowStatus=1  
+INNER JOIN PR.JoiningBonus JB WITH (NOLOCK) ON JB.AssociateID=SR.AssociateID AND JB.Status=5  
+WHERE SR.RowStatus=1 AND SR.Fk_componentGroupID=3 
 
--- Component check  
-INNER JOIN ComponentMaster CM WITH(NOLOCK)
-    ON CM.PK_ComponentId = PRR.FK_ComponentID
-    AND CM.RowStatus = 1
-    AND CM.FK_ComponentGroupID = @componentGroupId
-
--- >>> ADD THIS JOIN TO ACTIVE PROJECT <<< --
-INNER JOIN CentralRepository..vw_CentralRepository_Allocation AL WITH(NOLOCK)
-    ON AL.Associate_ID = PRR.AssociateID
-    AND AL.Assignment_Status = 'A'     -- Only ACTIVE project
-    AND (
-            AL.Allocation_End_Date IS NULL
-            OR AL.Allocation_End_Date >= GETDATE()
-        )
-
-WHERE PRR.RowStatus = 1
-  AND PRR.Status = 1;
+INSERT INTO PR.JoiningBonus(AssociateID,DOJ,BGstatus,Grade,Amount,Status,ProjectId,
+	RecruitmentType,InputRemarks,SpecialCaseReason,CompanyID,SetID,CreatedBy,CreatedDate,RowStatus,NoInstallments, RetentionPeriod)
+	SELECT AssociateID,DateOfJoining,BGstatus,Grade,Amount,1,ProjectId,TT.RecruitmentType,
+	InputRemarks,MC.CCodeId,COMPANY,BU,TT.CreatedBy,GETDATE(),1 ,
+	 TT.NoInstallments,
+	 	(Case When  (TT.RecruitmentType in (1,3) and TT.NoInstallments in (1,2))  then 1 
+		When (TT.RecruitmentType in (1,3) and TT.NoInstallments in (4,5))   then 2 
+		When TT.RecruitmentType=2 Then TT.RetentionPeriod
+		else TT.RetentionPeriod end)	
+	FROM #TEMP3 TT 
+	LEFT OUTER JOIN MasterCodes MC WITH(NOLOCK) ON CParentRef=2
+	AND UPPER(CDescription)=UPPER(LTRIM(RTRIM(TT.SpecialCaseReason))) AND RowStatus=1 
+	AND CUserDefined1=3	WHERE EXPREMARKS=''  

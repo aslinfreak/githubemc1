@@ -1,71 +1,376 @@
-$(document).on('click', '#editstartdate', function () {
-    $('.popup_new .innerErrorHolder').text('');
-    $("#editstartdate").datepicker("destroy");
-    $("#editstartdate").datepicker({ changeMonth: true, changeYear: true, prevText: "", nextText: "" });
-    var currentdate = new Date();
-    currentdate.setMonth(currentdate.getMonth() - 1, 15);
-    var prevmonthdate = new Date(currentdate);
-    var maximumdate = new Date(prevmonthdate);
-    maximumdate.setMonth(maximumdate.getMonth() - 6, 15);
-    var minimumdate = new Date(maximumdate);
+-- Table to store manager and portfolio information
 
-    $("#editstartdate").datepicker("option", "minDate", minimumdate);
-    $("#editstartdate").datepicker("option", "maxDate", prevmonthdate);
+DECLARE @ManagerPortfolio TABLE (
 
-});
-$(document).on('change', '#editstartdate', function () {
-    $("#editstartdate").datepicker({ changeMonth: true, changeYear: true, prevText: "", nextText: "" });
-    var fromdate = new Date($("#editstartdate").val());
-    var minimumdate = new Date(fromdate);
-    var fromdate1 = new Date($("#editstartdate").val());
-    fromdate1.setDate(fromdate.getDate() + 1);
-    var frommonth = fromdate.getMonth();
-    var frommonth1 = fromdate1.getMonth();
-    if (frommonth == frommonth1) {
-        fromdate.setDate(fromdate.getDate() + 1);
-    }
-    else {
-        fromdate.setDate(fromdate.getDate() + 0);
-    }
-    var toDate = new Date(fromdate);
+    ManagerId VARCHAR(11), 
 
-    $("#editenddate").datepicker("option", "minDate", minimumdate);
-    $("#editenddate").datepicker("option", "maxDate", toDate);
+    ManagerName VARCHAR(100), 
 
-});
+    PortfolioName VARCHAR(100)
 
+);
 
-//$(document).on('click', '#editexceptionstartdate', function () {
-//    $("#editexceptionstartdate").datepicker({ changeMonth: true, changeYear: true, prevText: "", nextText: "" });
-//    var currentdate = new Date();
-//    currentdate.setMonth(currentdate.getMonth() - 1, 15);
-//    var prevmonthdate = new Date(currentdate);
-//    var maximumdate = new Date(prevmonthdate);
-//    maximumdate.setMonth(maximumdate.getMonth() - 6, 15);
-//    var minimumdate = new Date(maximumdate);
+INSERT INTO @ManagerPortfolio (ManagerId, ManagerName, PortfolioName)
 
-//    $("#editexceptionstartdate").datepicker("option", "minDate", minimumdate);
-//    $("#editexceptionstartdate").datepicker("option", "maxDate", prevmonthdate);
-//});
+VALUES
 
-$(document).on('change', '#editexceptionstartdate', function () {
+('126860', 'Balakrishnan, Karpaga Sundaram', 'Financials & Operations IT Systems'),
 
-    $("#editexceptionstartdate").datepicker({ changeMonth: true, changeYear: true, prevText: "", nextText: "" });
-    var fromdate = new Date($("#editexceptionstartdate").val());
-    var minimumdate = new Date(fromdate);
-    var fromdate1 = new Date($("#editexceptionstartdate").val());
-    fromdate1.setDate(fromdate.getDate() + 1);
-    var frommonth = fromdate.getMonth();
-    var frommonth1 = fromdate1.getMonth();
-    if (frommonth == frommonth1) {
-        fromdate.setDate(fromdate.getDate() + 1);
-    }
-    else {
-        fromdate.setDate(fromdate.getDate() + 0);
-    }
-    var toDate = new Date(fromdate);
+('673225', 'Suresh', 'HR Services IT systems'),
 
-    $("#editexceptionenddate").datepicker("option", "minDate", minimumdate);
-    $("#editexceptionenddate").datepicker("option", "maxDate", toDate);
+('470277', 'Syam', 'IT Resiliency'),
 
-});
+('284377', 'Subramanian', 'Corporate services IT systems'),
+
+('943261', 'Susarla, Gayathri', 'Service Now'),
+
+('125118', 'Chandrasekar, Revathy', 'SSDLC'),
+
+('302196', 'Natarajan, Srividya', 'Agile Program/PowerApps'),
+
+('135464', 'Khade, Arti', 'CICD'),
+
+('175549', 'Mohan, Nagarajan', 'Automation'),
+
+('258281', 'Tincy', 'RPA'),
+
+('309989', 'Ravisharma, Sathyanarayanan', 'Automation'),
+
+('101668', 'Mukhopadhyay, Sankar Prasanna', 'RHMS'),
+
+('239519', 'Turnbull, Gregory', 'Greg Team');
+
+--('315883', 'Supnekar, Makarand', 'IT Build');
+
+DECLARE @Team TABLE (
+
+    AssociateId VARCHAR(11), 
+
+    AssociateName VARCHAR(100), 
+
+    DOB DATE, 
+
+    Age INT, 
+
+    DOJ DATE, 
+
+    WorkAnniversary INT, 
+
+    IsActive CHAR, 
+
+    Location VARCHAR(100), 
+
+    SupervisorId VARCHAR(11), 
+
+    SupervisorName VARCHAR(100),
+
+    SLM VARCHAR(100),
+
+    PortfolioName VARCHAR(100)
+
+);
+
+-- Loop to insert team members for each manager
+
+DECLARE @CurrentManagerId VARCHAR(11);
+
+DECLARE @CurrentManagerName VARCHAR(100);
+
+DECLARE @CurrentPortfolioName VARCHAR(100);
+
+DECLARE @SLM VARCHAR(100);
+
+DECLARE ManagerCursor CURSOR FOR
+
+SELECT ManagerId, ManagerName, PortfolioName
+
+FROM @ManagerPortfolio;
+
+OPEN ManagerCursor;
+
+FETCH NEXT FROM ManagerCursor INTO @CurrentManagerId, @CurrentManagerName, @CurrentPortfolioName;
+
+WHILE @@FETCH_STATUS = 0
+
+BEGIN
+
+    -- Get the SLM for the current manager
+
+    SELECT @SLM = (LTRIM(RTRIM(Associate_FirstName)) + ' ' + LTRIM(RTRIM(Associate_LastName)))
+
+    FROM [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details]
+
+    WHERE Associate_Id = @CurrentManagerId;
+
+    -- Insert Leads under Managers
+
+    INSERT INTO @Team (AssociateId, AssociateName, DOJ, IsActive, Location, SupervisorId, SupervisorName, SLM, PortfolioName)
+
+    SELECT DISTINCT 
+
+        a.Associate_ID,
+
+        (LTRIM(RTRIM(a.Associate_FirstName)) + ' ' + LTRIM(RTRIM(a.Associate_LastName))) AS AssociateName,
+
+        a.DateOfJoining,
+
+        a.IsActive,
+
+        a.PresentHCMLocationCode,
+
+        a.Supervisor_ID,
+
+        NULL,
+
+        @SLM,
+
+        @CurrentPortfolioName
+
+    FROM 
+
+        [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] AS a
+
+    WHERE 
+
+        a.Associate_ID = @CurrentManagerId
+
+        OR (a.Associate_ID IN (SELECT Associate_ID FROM [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] WHERE Supervisor_ID = @CurrentManagerId AND IsActive = 'A'));
+
+    -- Insert Senior and Junior Reportees under Leads
+
+    DECLARE @InsertedRows INT = 1;
+
+    WHILE @InsertedRows > 0
+
+    BEGIN
+
+        INSERT INTO @Team (AssociateId, AssociateName, DOJ, IsActive, Location, SupervisorId, SupervisorName, SLM, PortfolioName)
+
+        SELECT DISTINCT 
+
+            b.Associate_ID,
+
+            (LTRIM(RTRIM(b.Associate_FirstName)) + ' ' + LTRIM(RTRIM(b.Associate_LastName))) AS AssociateName,
+
+            b.DateOfJoining,
+
+            b.IsActive,
+
+            b.PresentHCMLocationCode,
+
+            b.Supervisor_ID,
+
+            NULL,
+
+            @SLM,
+
+            @CurrentPortfolioName
+
+        FROM 
+
+            [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] AS b
+
+        JOIN 
+
+            @Team AS t
+
+            ON b.Supervisor_ID = t.AssociateId
+
+        WHERE 
+
+            b.IsActive = 'A'
+
+            AND NOT EXISTS (SELECT 1 FROM @Team WHERE AssociateId = b.Associate_ID);
+
+        SET @InsertedRows = @@ROWCOUNT;
+
+    END
+
+    FETCH NEXT FROM ManagerCursor INTO @CurrentManagerId, @CurrentManagerName, @CurrentPortfolioName;
+
+END;
+
+CLOSE ManagerCursor;
+
+DEALLOCATE ManagerCursor;
+
+-- Create a temporary table to store the final output
+
+CREATE TABLE #FinalOutput (
+
+    ASSOCIATE_ID VARCHAR(11),
+
+    ASSOCIATE_NAME VARCHAR(100),
+
+    DEPT_DESC VARCHAR(100),
+
+    SUPERVISOR_ID VARCHAR(11),
+
+    SUPERVISOR_NAME VARCHAR(100),
+
+    SLM VARCHAR(100),
+
+    PortfolioName VARCHAR(100)
+
+);
+
+-- Insert final output into the temporary table
+
+INSERT INTO #FinalOutput (ASSOCIATE_ID, ASSOCIATE_NAME, DEPT_DESC, SUPERVISOR_ID, SUPERVISOR_NAME, SLM, PortfolioName)
+
+SELECT DISTINCT 
+
+    T.AssociateId AS ASSOCIATE_ID,
+
+    T.AssociateName AS ASSOCIATE_NAME,
+
+    D.JobCodeDescription AS DEPT_DESC,
+
+    T.SupervisorId AS SUPERVISOR_ID, 
+
+    (LTRIM(RTRIM(SUP.Associate_FirstName)) + ' ' + LTRIM(RTRIM(SUP.Associate_LastName))) AS Supervisor_Name,
+
+    T.SLM,
+
+    T.PortfolioName
+
+FROM 
+
+    @Team T
+
+INNER JOIN 
+
+    [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] AD
+
+    ON T.AssociateId = AD.Associate_ID
+
+INNER JOIN 
+
+    [CentralRepository].[dbo].[vw_CentralRepository_Designation] D
+
+    ON D.JobCode = AD.JobCode
+
+INNER JOIN 
+
+    [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] SUP
+
+    ON T.SupervisorId = SUP.Associate_ID
+
+WHERE 
+
+    D.Bussiness_unit = AD.Business_Unit
+
+ORDER BY 
+
+    T.SupervisorId DESC;
+
+--Insert Makarand and Hema into #FinalOutput
+
+INSERT INTO #FinalOutput(ASSOCIATE_ID, ASSOCIATE_NAME, SUPERVISOR_ID) 
+
+VALUES(315883, 'Makarand', NULL), (185400, 'Hema', NULL);
+
+-- Combined Select Statement with Employee Hierarchy, dept_desc, CityDesc, CountryDesc, and EmployeeLevel
+
+;WITH EMP_CTE AS (
+
+    SELECT 
+
+        ASSOCIATE_ID, 
+
+        ASSOCIATE_NAME, 
+
+        SUPERVISOR_ID, 
+
+        CAST('' AS VARCHAR(50)) AS ManagerName, 
+
+        5 AS EmployeeLevel 
+
+    FROM #FinalOutput 
+
+    WHERE SUPERVISOR_ID IS NULL
+
+    UNION ALL
+
+    SELECT 
+
+        T.ASSOCIATE_ID,
+
+        T.ASSOCIATE_NAME, 
+
+        T.SUPERVISOR_ID,
+
+        CAST(C.ASSOCIATE_NAME AS VARCHAR(50)) AS ManagerName, 
+
+        EmployeeLevel + 1 AS EmployeeLevel 
+
+    FROM #FinalOutput AS T
+
+    INNER JOIN EMP_CTE AS C 
+
+        ON C.ASSOCIATE_ID = T.SUPERVISOR_ID
+
+)
+
+SELECT 
+
+    FO.ASSOCIATE_ID, 
+
+    FO.ASSOCIATE_NAME, 
+
+	FO.DEPT_DESC AS Grade,
+
+    FO.SUPERVISOR_ID, 
+
+    FO.SUPERVISOR_NAME,
+
+    FO.SLM,
+
+    FO.PortfolioName,
+
+	DEP.dept_desc,
+
+AD.per_org,
+
+	AD.jobcode,	
+
+    LOC.CityDesc,
+
+    LOC.CountryDesc,
+
+    EMP_CTE.EmployeeLevel
+
+FROM 
+
+    #FinalOutput FO
+
+LEFT JOIN 
+
+    [CentralRepository].[dbo].[vw_CentralRepository_Associate_Details] AD
+
+    ON FO.ASSOCIATE_ID = AD.Associate_ID
+
+LEFT JOIN 
+
+    [CentralRepository].[dbo].[vw_CentralRepository_Department] DEP
+
+    ON AD.Dept_ID = DEP.Dept_ID 
+
+    AND AD.Business_Unit = DEP.Business_Unit
+
+LEFT JOIN 
+
+    [CentralRepository].[dbo].[vw_CentralRepository_locationmaster_locationmaster] LOC 
+
+    ON AD.presenthcmlocationcode = LOC.LocationCode
+
+LEFT JOIN 
+
+    EMP_CTE ON FO.ASSOCIATE_ID = EMP_CTE.ASSOCIATE_ID
+
+	order by fo.SLM
+
+-- Drop the temporary table
+
+DROP TABLE #FinalOutput;
+ 

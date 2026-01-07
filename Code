@@ -1,32 +1,3 @@
-<li class="mleft10">
-        <label class="mt-1">
-            Component
-        </label>
-        <select class="styled" name="bon" id="bonus" style=" height: 28px; text-indent: 3px !important;--bgX:60%;width:180px;">
-            <option value="-1">--Select Component--</option>
-        </select>
-    </li>
-</ul>
-<ul class="top_menus pull-right">
-    <li class="mleft40 ml-0 mt-1" id="upload" style="margin-left:245px;">
-        <span class="flft mleft20">
-            <img src="../Images/divider.png" />
-        </span> <a onclick="OnUploadButtonClick()" id="uploadData"
-                   class="flft mleft10 link uploadIcon" style="cursor: pointer;">
-            <img id="upload_img" src="../Images/upload_folder.png"  />
-            <span style="" class="">Upload Data</span>
-        </a><a id="clck" class="thickbox"></a>
-    </li>
-    <li class="mleft100 ml-0 mt-1" id="download">
-        <span class="flft mleft20">
-            <img src="../Images/divider.png" />
-        </span> <a onclick="opentemplate()" id="emptyTemplte" class="flft mleft10 link downloadIcon" style="cursor: pointer;">
-            <img src="../Images/download_folder.png"  />
-            <span>Download Empty Template</span>
-        </a>
-    </li>
-
-
 $(document).on('change', '#bonus', function () {
     OnLoad = 1;
     $("#NoData").remove();
@@ -47,7 +18,14 @@ $(document).on('change', '#bonus', function () {
     getcutoffDate();
     //if (comp == 2 || comp == 3 || comp == 15 || comp == 16 || comp == 17 || comp == 18 || comp == 19 || comp == 20 || comp == 21  || comp == 22 || comp == 23 || comp == 24 || comp == 25 || comp == 26 || comp == 27 || comp == 28 || comp == 29 || comp == 30 || comp == 31 || comp == 32 || comp == 33 || comp == 34 || comp == 35 || comp == 36 || comp == 37 || comp == 38 || comp == 39 || comp == 40 || comp == 42) {
     if (comp == 48 && CountryId == 17) {
-        populateTransportFilterDropdown();
+        //populateTransportFilterDropdown();
+        $('#upload').hide();
+        $('#download').hide();
+        $('#divFAQ').hide();
+    } else {
+        $('#upload').show();
+        $('#download').show();
+        $('#divFAQ').show();
     }
     else if ((comp == 22 || comp == 39 || comp == 101) && (CountryId == 8 || CountryId == 9)) {
         IsAssociateServianContino();

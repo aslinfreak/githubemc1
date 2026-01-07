@@ -1,23 +1,27 @@
-if (comp == 48 && CountryId == 17) {
-    populateTransportFilterDropdown();
-    $('#upload').css('display', 'none');
-    $('#download').css('display', 'none');
-    $('#divFAQ').css('display', 'none');
-}
-else if ((comp == 22 || comp == 39 || comp == 101) && (CountryId == 8 || CountryId == 9)) {
-    IsAssociateServianContino();
-    populateFilterDropdown();
-}
-else {
-    $('#upload').show();
-    $('#download').show();
-    $('#divFAQ').show();
+ if (comp == 48 && CountryId == 17) {
+     populateTransportFilterDropdown();
+     $('#upload').css('display', 'none');
+     $('#download').css('display', 'none');
+     $('#uploadData').css('display', 'none');
+     $('#emptyTemplte').css('display', 'none');
+     $('#divFAQ').css('display', 'none');
+ }
+ else if ((comp == 22 || comp == 39 || comp == 101) && (CountryId == 8 || CountryId == 9)) {
+     IsAssociateServianContino();
+     populateFilterDropdown();
+ }
+ else {
+     $('#upload').show();
+     $('#download').show();
+     $('#uploadData').show();
+     $('#emptyTemplte').show();
+     $('#divFAQ').show();
 
-    populateFilterDropdown();
-    if (comp == 22 && RoleId == 19 &&
-        (CountryId == 11 || CountryId == 12 || CountryId == 13 || CountryId == 8 || CountryId == 9)) {
-        $('#aid1').hide();
-        $('#aid2').hide();
-        $('#aid3').hide();
-    }
-}
+     populateFilterDropdown();
+     if (comp == 22 && RoleId == 19 &&
+         (CountryId == 11 || CountryId == 12 || CountryId == 13 || CountryId == 8 || CountryId == 9)) {
+         $('#aid1').hide();
+         $('#aid2').hide();
+         $('#aid3').hide();
+     }
+ }

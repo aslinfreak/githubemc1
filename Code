@@ -1,27 +1,335 @@
- if (comp == 48 && CountryId == 17) {
-     populateTransportFilterDropdown();
-     $('#upload').css('display', 'none');
-     $('#download').css('display', 'none');
-     $('#uploadData').css('display', 'none');
-     $('#emptyTemplte').css('display', 'none');
-     $('#divFAQ').css('display', 'none');
- }
- else if ((comp == 22 || comp == 39 || comp == 101) && (CountryId == 8 || CountryId == 9)) {
-     IsAssociateServianContino();
-     populateFilterDropdown();
- }
- else {
-     $('#upload').show();
-     $('#download').show();
-     $('#uploadData').show();
-     $('#emptyTemplte').show();
-     $('#divFAQ').show();
+This is my query,In that I change this line 
+PSTP.ModifiedBy RejectedBy -->to this
+(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,
+Similarly I need to change for the if(@componentid=35).Help me to fix where and how
 
-     populateFilterDropdown();
-     if (comp == 22 && RoleId == 19 &&
-         (CountryId == 11 || CountryId == 12 || CountryId == 13 || CountryId == 8 || CountryId == 9)) {
-         $('#aid1').hide();
-         $('#aid2').hide();
-         $('#aid3').hide();
-     }
- }
+
+IF(@componentid in (4,5,6))  
+ BEGIN  
+      IF(@Componentid=6 and @RoleID in (6,5)) --CIS Component  
+    BEGIN  
+             CREATE TABLE #COMPONENTSP (ComponentID INT,ProjectID VARCHAR(50))  
+    INSERT INTO #COMPONENTSP (ComponentID ,ProjectID )     
+    EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID,@ComponentGrpID    
+  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    (CASE  WHEN PSTP.TravelAllowance=1 THEN 'Yes'  
+    WHEN PSTP.TravelAllowance=0 THEN 'No' END) AS TravelAllowance,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    --(CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0 THEN 'Deleted' END)   
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+'  
+    WHEN PSTP.RowStatus=0 THEN 'Deleted' END)   
+    AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+          ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+          +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+                PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,PSTP.ModifiedDate 'Rejected\Deleteddate',  
+    PSTP.NSADate AS ShiftStartDate  
+    FROM PR.SHIFTTIMEPAYOUT PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK) ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID   
+    AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK) ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID   
+    AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)   
+    INNER JOIN #COMPONENTSP CMTS WITH(NOLOCK) ON  CMTS.ComponentID=PSTP.Fk_ComponentID   
+    AND CMTS.ProjectID=PSTP.ProjectID AND CMTS.ComponentID = @componentid  
+    --WHERE (PSTP.STATUS=3 OR PSTP.RowStatus=0)  
+    WHERE (PSTP.STATUS in (3,23,36,17) OR PSTP.RowStatus=0)  
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR  
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))  
+    AND  CM.PK_componentid=@componentid  
+      
+    DROP TABLE  #COMPONENTSP   
+  END   
+   ELSe IF(@Componentid not in (6) and @RoleID=6) --Not CIS Component  
+    BEGIN  
+      
+    INSERT INTO #COMPONENTS (ComponentID ,ProjectID )     
+    EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID,@ComponentGrpID    
+  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+    (CASE  WHEN PSTP.TravelAllowance=1 THEN 'Yes'  
+    WHEN PSTP.TravelAllowance=0 THEN 'No' END) AS TravelAllowance,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    --(CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0 THEN 'Deleted' END)   
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+'  
+    WHEN PSTP.RowStatus=0 THEN 'Deleted' END)   
+    AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+          ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+          +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+                PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,PSTP.ModifiedDate 'Rejected\Deleteddate',  
+    PSTP.NSADate AS ShiftStartDate  
+    FROM PR.SHIFTTIMEPAYOUT PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK) ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID   
+    AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK) ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID   
+    AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy )  
+    INNER JOIN #COMPONENTS CMTS WITH(NOLOCK) ON  CMTS.ComponentID=PSTP.Fk_ComponentID   
+    AND CMTS.ProjectID=PSTP.ProjectID AND CMTS.ComponentID = @componentid  
+    --WHERE (PSTP.STATUS=3 OR PSTP.RowStatus=0)  
+    WHERE (PSTP.STATUS in (3,23,36,17) OR PSTP.RowStatus=0)  
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR  
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))  
+    AND CM.PK_componentid=@componentid  
+    --Dropping temp table  
+    DROP TABLE  #COMPONENTS   
+  END   
+   ELSE   
+    BEGIN  
+    IF(@RoleID=1) --uploader role  
+    BEGIN  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+    (CASE  WHEN PSTP.TravelAllowance=1 THEN 'Yes'  
+    WHEN PSTP.TravelAllowance=0 THEN 'No' END) AS TravelAllowance,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+'  
+    WHEN PSTP.RowStatus=0 THEN 'Deleted' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+          ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+                PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,  
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.SHIFTTIMEPAYOUT PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK) ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID  
+    AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK) ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID   
+    AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)   
+    WHERE (PSTP.STATUS in (3,23,36,17) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR  
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid and PSTP.CreatedBy=@LoginID  
+    END  
+    ELSE IF(@componentid in (4,5) AND @RoleID in (2,3))  
+    BEGIN  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+    (CASE  WHEN PSTP.TravelAllowance=1 THEN 'Yes'  
+    WHEN PSTP.TravelAllowance=0 THEN 'No' END) AS TravelAllowance,isnull(SDA_OCA_Amount,0) as SDA_OCA_Amount1,  
+    isnull(SDA_OCA_Amount2,0) as SDA_OCA_Amount2,  
+    PSTP.Amount as TotalAmount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+'  
+    WHEN PSTP.RowStatus=0 THEN 'Deleted' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+          ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+    PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,  
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.SHIFTTIMEPAYOUT PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK) ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID  
+    AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK) ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID   
+    AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)   
+    WHERE (PSTP.STATUS in (3,23,36,17) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR  
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid  
+    END  
+    ELSE  IF (@componentid =5 AND @RoleID =19)
+	 BEGIN  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+    (CASE  WHEN PSTP.TravelAllowance=1 THEN 'Yes'  
+    WHEN PSTP.TravelAllowance=0 THEN 'No' END) AS TravelAllowance,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+'  
+    WHEN PSTP.RowStatus=0 THEN 'Deleted' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+          ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+                PSTP.CreatedDate UploadedDate,PSTP.ModifiedBy RejectedBy,  
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.SHIFTTIMEPAYOUT PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK) ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID  
+    AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK) ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID   
+    AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)   
+    WHERE (PSTP.STATUS in (3,23,36,17) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR  
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid  AND PSTP.CreatedBy = @LoginID
+    END  
+	ELSE
+    BEGIN  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+    (CASE  WHEN PSTP.TravelAllowance=1 THEN 'Yes'  
+    WHEN PSTP.TravelAllowance=0 THEN 'No' END) AS TravelAllowance,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+'  
+    WHEN PSTP.RowStatus=0 THEN 'Deleted' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+          ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+    PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,   
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.SHIFTTIMEPAYOUT PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK) ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID  
+    AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK) ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID   
+    AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)   
+    WHERE (PSTP.STATUS in (3,23,36,17) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR  
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid  
+    END  
+    END  
+ END  
+
+
+
+
+
+
+
+
+
+if(@componentid=35)  
+BEGIN  
+--------------Insert data--------------------  
+  INSERT INTO #RoleTable(Fk_RoleID)  
+  select CRM.FK_RoleID from Userrolemapping URM with (nolock)  
+  inner join ComponentRoleMapping CRM with (nolock)   
+  on URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID and URM.RowStatus=1  
+  INNER jOIN ComponentMaster CM with (nolock)   
+  on CM.PK_ComponentId=@COMPONENTID and CRM.RowStatus=1   
+  INNER JOIN COMPONENTCOUNTRYMAPPING CCM WITH(NOLOCK)   
+  ON CCM.PK_COMPONENTCOUNTRYMAPPINGID=CRM.FK_COMPONENTCOUNTRYMAPPINGID  
+  where associateid=@LOGINID and CM.RowStatus=1   
+  
+select @RolePriority=0 from #RoleTable where Fk_RoleID not in (8,3) and Fk_Roleid in (1,7,9)   
+select @RolePriority =1 from #RoleTable where Fk_RoleID in (8,3)   
+Declare @Startmonth int,@EndMonth int  
+Select @Startmonth= CASE WHEN  @QUARTER=2 then 1   
+when @QUARTER=3 then @QUARTER+1 when @QUARTER=4 then @QUARTER+3   
+when @QUARTER=5 then @QUARTER+5 end  
+Select @EndMonth=@Startmonth+2  
+  
+/*check Quarter 1*/  
+if(@QUARTER =1)  
+BEGIN  
+ SElect @Startmonth= CASE WHEN @QUARTER=1 then @QUARTER end  
+ Select @EndMonth=12  
+END  
+  if(@RolePriority=0)  
+  BEGIN  
+  SELECT PCBA.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+  Level,isnull(BUProposedCBAAmount,'') BUProposedCBAAmount,  
+  isnull(PreviousCBAAmountProposed,'') PreviousCBAAmountProposed,isnull(Amount,'') FinalCBAAmount,  
+  isnull(MC.CDescription,'') SpecialCaseReason,isnull(PCBA.InputRemarks,'') InputRemarks,   
+  CASE when Status=3 then 'Rejected' else 'Deleted' end Status,  
+  PCBA.Createdby TalentManagerID,  
+  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+  +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS TalentManagerName,  
+  PCBA.CreatedDate UploadedDate,PCBA.ModifiedDate 'Rejected\Deleteddate'  
+  FROM PR.CognizantBusinessAllowance PCBA WITH (NOLOCK)  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+  ON AD.Associate_ID=PCBA.AssociateID   
+  LEFT OUTER JOIN mastercodes MC WITH(NOLOCK) on MC.CParentref=2 and MC.CUserdefined1=6   
+  and MC.Rowstatus=1 and MC.CCodeid=PCBA.SpecialCaseReason  
+  LEFT Outer Join MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
+  and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+  ON UD.Associate_ID=PCBA.CreatedBy   
+  WHERE PCBA.CreatedBy=@LoginID and (PCBA.Status =3 or PCBA.RowStatus=0)   
+  AND (month(PCBA.createddate) between @Startmonth and @EndMonth) AND year(PCBA.CreatedDate)=@year    
+  
+  END  
+  ELSE  
+  BEGIN  
+  SELECT PCBA.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+  Level,isnull(BUProposedCBAAmount,'') BUProposedCBAAmount,  
+  isnull(PreviousCBAAmountProposed,'') PreviousCBAAmountProposed,isnull(Amount,'') FinalCBAAmount,  
+  isnull(MC.CDescription,'') SpecialCaseReason,isnull(PCBA.InputRemarks,'') InputRemarks,   
+  CASE when Status=3 then 'Rejected' else 'Deleted' end Status, PCBA.Createdby TalentManagerID,  
+  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+  +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS TalentManagerName,  
+  PCBA.CreatedDate UploadedDate,PCBA.ModifiedDate 'Rejected\Deleteddate'  
+  FROM PR.CognizantBusinessAllowance PCBA WITH (NOLOCK)  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+  ON AD.Associate_ID=PCBA.AssociateID   
+  LEFT OUTER JOIN mastercodes MC  WITH(NOLOCK) on MC.CParentref=2 and MC.CUserdefined1=6   
+  and MC.Rowstatus=1 and MC.CCodeid=PCBA.SpecialCaseReason  
+  LEFT Outer Join MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3   
+  and PCBA.Status=MC_A.CCodeId and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+  ON UD.Associate_ID=PCBA.CreatedBy   
+  WHERE (PCBA.Status =3 or PCBA.RowStatus=0)  
+  AND (month(PCBA.createddate) between @Startmonth and @EndMonth) AND year(PCBA.CreatedDate)=@year  
+END  
+END 

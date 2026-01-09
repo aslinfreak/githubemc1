@@ -1,168 +1,19 @@
- IF(@ComponentGrpID=7 and @componentid=0)      
-BEGIN  
-  --Project Manager  
-  IF(@RoleID=6)  
-  BEGIN  
-  --------------Insert data--------------------  
-  INSERT INTO @Project(ProjectID)  
-  Select P.Project_ID FROM CentralRepository.DBO.VW_Centralrepository_Project P WITH (NOLOCK)   
-  INNER JOIN Approval_MonthlyYearlyApprovals AMA WITH (NOLOCK) ON P.Project_ID=AMA.ProjectID  
-  INNER JOIN Centralrepository.dbo.vw_centralrepository_ProjectManager CRP WITH (NOLOCK)   
-  ON CRP.Project_Manager=@LoginID  
-  WHERE AMA.VerificationStatus=2  AND AMA.Rowstatus=1  and AMA.Fk_ComponentId=36  
-   
-  SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-  convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
-  Convert(varchar(5),StartTime) StartTime,Convert(Varchar(5),EndTime) EndTime,  
-  PCBA.ProjectID,Amount,isnull(TransportEligibility,'') TransportEligibility,BillingDetails,  
-  Grade,SetID,  
-  isnull(PCBA.CreatedBy, '' )  CreatedBy,Case when isnull(PCBA.Modifieddate,'')<>''  
-  then convert(datetime,PCBA.Modifieddate) else convert(datetime,PCBA.CreatedDate) end UploadedDate,   
-  CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status  
-  FROM PR.BPSSDA PCBA WITH (NOLOCK)  
-  INNER JOIN @Project C ON PCBA.ProjectID=C.ProjectID  
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)   
-  LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
-  and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
-  WHERE ((PCBA.Status IN (8,17,18,3,23,36) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))   
-  AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
-  (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))  
-  
-    END  
-  
-    /*Check Role is 10*/  
-    ELSE IF(@RoleID=10)  
-    BEGIN  
-   insert into @Customer(CustomerID)  
-   Select Customer_ID from CentralRepository.dbo.vw_centralrepository_Project CRP WITH (NOLOCK)  
-   INNER JOIN UserRoleMapping URM With (nolock)   
-   on Convert(varchar,CRP.Customer_ID)=URM.CustomerID  
-   INNER JOIN ComponentRoleMapping CRM with (NOLOCK)   
-   ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID  
-   INNER JOIN ComponentCountryMapping CCM WITH (NOLOCK)  
-   ON CCM.PK_ComponentCountryMappingID=CRM.FK_ComponentCountryMappingID  
-   INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_COmponentID=CCM.FK_ComponentID  
-   WHERE URM.RowStatus=1 and URM.AssociateID=@Loginid and CRM.RowStatus=1   
-   and CM.FK_ComponentGroupID=@ComponentGrpID and CRM.FK_RoleID=10  
-   and CCM.FK_ComponentCountryID=1 and CCM.RowStatus=1 and CM.RowStatus=1  
-   GROUP BY Customer_ID  
-  
-   INSERT INTO @Project(CustomerID,ProjectID)  
-   Select P.Customer_ID,P.Project_ID   
-   FROM CentralRepository.DBO.VW_Centralrepository_Project P WITH (NOLOCK)   
-   INNER JOIN Approval_MonthlyYearlyApprovals AMA WITH (NOLOCK) ON P.Project_ID=AMA.ProjectID  
-   INNER JOIN @Customer C ON C.CustomerID=P.Customer_ID  
-   WHERE AMA.VerificationStatus=2  AND AMA.Rowstatus=1      
-   and AMA.Fk_ComponentId=36  
-  
-     SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
-     ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-     +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-     convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
-     Convert(varchar(5),StartTime) StartTime,Convert(Varchar(5),EndTime) EndTime,PCBA.ProjectID,  
-     Amount,isnull(TransportEligibility,'') TransportEligibility,BillingDetails,Grade,SetID,  
-     isnull(PCBA.CreatedBy, '' )  CreatedBy,Case when isnull(PCBA.Modifieddate,'')<>''   
-     then convert(datetime,PCBA.Modifieddate) else convert(datetime,PCBA.Createddate) end UploadedDate,  
-     CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status    
-     FROM PR.BPSSDA PCBA WITH (NOLOCK)  
-     INNER JOIN @Project C ON PCBA.ProjectID=C.ProjectID  
-     LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-     ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)  
-     LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
-     and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
-     WHERE ((PCBA.Status IN (8,17,18) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))   
-       
-  END  
-    
-  /*Check Role is 11*/  
-  ELSE IF(@RoleID=11)  
-  BEGIN  
-    
-   insert into @Project(ProjectID)  
-    Select URM.ProjectID from Approval_MonthlyYearlyApprovals MYA WITH (NOLOCK)          
-    INNER JOIN UserRoleMapping URM WITH (NOLOCK) ON URM.ProjectID=MYA.ProjectID   
-    INNER JOIN ComponentRoleMapping CRM WITH (NOLOCK) ON   
-    URM.Fk_ComponentRoleID=CRM.PK_ComponentRoleID and CRM.FK_RoleID=11  
-    INNER JOIN ComponentCOuntryMapping CCM WITH (NOLOCK)   
-    ON CCM.PK_ComponentCountryMappingID=CRM.FK_ComponentCountryMappingID  
-    INNER JOIN ComponentMaster CM WITH (NOLOCK) ON CM.PK_COmponentID=CCM.FK_ComponentID  
-    WHERE  URM.AssociateID=@LoginID and URM.RowStatus=1 and CRM.RowStatus=1  and   
-    CCM.FK_ComponentCountryID=1 and MYA.Rowstatus=1 and MYA.Fk_ComponentID=36  
-    and CM.RowStatus=1 and CCM.Rowstatus=1  
-   --------------Insert data--------------------  
-   --INSERT INTO @Project(CustomerID,ProjectID)  
-   --Select P.Customer_ID,P.Project_ID   
-   --FROM CentralRepository.DBO.VW_Centralrepository_Project P WITH (NOLOCK)   
-   --INNER JOIN Approval_MonthlyYearlyApprovals AMA WITH (NOLOCK) ON P.Project_ID=AMA.ProjectID  
-   --INNER JOIN @Customer C ON C.CustomerID=P.Customer_ID  
-   --WHERE AMA.VerificationStatus=2  AND AMA.Rowstatus=1      
-   --and AMA.Fk_ComponentId=36  
-  
-     SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
-     ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-     +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-     convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
-     Convert(varchar(5),StartTime) StartTime,Convert(Varchar(5),EndTime) EndTime,C.ProjectID,Amount,  
-     isnull(TransportEligibility,'') TransportEligibility,BillingDetails,Grade,SetID,  
-     isnull(PCBA.CreatedBy, '' )  CreatedBy,Case when isnull(PCBA.Modifieddate,'')<>''   
-     then convert(datetime,PCBA.Modifieddate) else convert(datetime,PCBA.CreatedDate) end UploadedDate,  
-     CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status   
-     FROM PR.BPSSDA PCBA WITH (NOLOCK)  
-     INNER JOIN @Project C ON PCBA.ProjectID=C.ProjectID  
-     LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD   
-     WITH(NOLOCK) ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)       
-     LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
-     and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
-     WHERE ((PCBA.Status IN (8,17,18) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))  
-     AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
-     (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year)) --and PCBA.CreatedBy=@LoginID  
-     END  
-  ELSE IF(@RoleID in(2,3))  --Check Role is 2 or 3  
-  BEGIN  
-   SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
-     ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-     +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-     convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
-     Convert(varchar(5),StartTime) StartTime,Convert(Varchar(5),EndTime) EndTime,  
-     ProjectID,isnull(SDA_OCA_Amount,0) as SDA_OCA_Amount1,  
-     isnull(SDA_OCA_Amount2,0) as SDA_OCA_Amount2,  
-     Amount as TotalAmount,isnull(TransportEligibility,'') TransportEligibility,BillingDetails,Grade,  
-     SetID,isnull(PCBA.CreatedBy, '' )  CreatedBy, PCBA.CreatedDate as UploadedDate,  
-     (CASE WHEN PCBA.Status IN (8,3) THEN 'Rejected by PFSS admin'
-	 ELSE CONVERT(VARCHAR,PCBA.ModifiedBy) END) AS RejectedBy,PCBA.ModifiedDate as 'Rejected\Deleteddate',  
-     CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status,  
-     PCBA.RejectionReason  
-     FROM PR.BPSSDA PCBA WITH (NOLOCK)  
-     INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-     ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)  
-     INNER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
-     and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
-     WHERE ((PCBA.Status IN (8,17,18,3,23,36) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))  
-     AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
-     (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))  
-  END  
-     ELSE  
-     BEGIN  
-     SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
-     ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-     +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-     convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
-     Convert(varchar(5),StartTime) StartTime,Convert(Varchar(5),EndTime) EndTime,  
-     ProjectID,Amount,isnull(TransportEligibility,'') TransportEligibility,BillingDetails,Grade,  
-     SetID,isnull(PCBA.CreatedBy, '' )  CreatedBy, PCBA.CreatedDate as UploadedDate,  
-     PCBA.ModifiedBy RejectedBy,PCBA.ModifiedDate as 'Rejected\Deleteddate',  
-     CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status,  
-     PCBA.RejectionReason  
-     FROM PR.BPSSDA PCBA WITH (NOLOCK)  
-     INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-     ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)  
-     INNER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
-     and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
-     WHERE ((PCBA.Status IN (8,17,18,3,23,36) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))  
-     AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
-     (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))  
-     END    
-END  
+ SELECT DISTINCT PCBA.AssociateID,  
+   ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+   +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+ OfficeType,TravelType,StartDate,EndDate,StartTime,EndTime,ProjectID,Amount,Grade,SetID  
+   ,isnull(PCBA.CreatedBy, '' )  CreatedBy,PCBA.CreatedDate as UploadedDate,PCBA.RejectionReason,  
+   (CASE WHEN PCBA.Status in (8,3) THEN  'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PCBA.ModifiedBy) END) AS RejectedBy, PCBA.ModifiedDate as 'Rejected\Deleteddate',  
+   CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status ,  
+   PCBA.City  
+   FROM PR.BPSTRansportAllowance PCBA WITH (NOLOCK)  
+   Inner JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+   ON CONVERT(VARCHAR,AD.Associate_ID)=CONVERT(VARCHAR,PCBA.AssociateID)  
+   Inner JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
+   and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
+   WHERE ((PCBA.Status IN (3,8,17,18) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))   
+   AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
+   (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))  
+   END  
+END   

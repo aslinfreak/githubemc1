@@ -1,19 +1,44 @@
- SELECT DISTINCT PCBA.AssociateID,  
-   ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-   +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
- OfficeType,TravelType,StartDate,EndDate,StartTime,EndTime,ProjectID,Amount,Grade,SetID  
-   ,isnull(PCBA.CreatedBy, '' )  CreatedBy,PCBA.CreatedDate as UploadedDate,PCBA.RejectionReason,  
-   (CASE WHEN PCBA.Status in (8,3) THEN  'Rejected by PFSS admin'
-	ELSE CONVERT(VARCHAR,PCBA.ModifiedBy) END) AS RejectedBy, PCBA.ModifiedDate as 'Rejected\Deleteddate',  
-   CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status ,  
-   PCBA.City  
-   FROM PR.BPSTRansportAllowance PCBA WITH (NOLOCK)  
-   Inner JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-   ON CONVERT(VARCHAR,AD.Associate_ID)=CONVERT(VARCHAR,PCBA.AssociateID)  
-   Inner JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
-   and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
-   WHERE ((PCBA.Status IN (3,8,17,18) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))   
-   AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
-   (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))  
-   END  
-END   
+ --Transportation Reimbursement
+--/******CHECK COMPONENT ID*******/
+ELSE IF(@ComponentGrpID = 48 and @CountryID=17)
+ BEGIN
+	SELECT PMA.AssociateID, ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
+	+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,
+	REPLACE(CONVERT(VARCHAR(11), PMA.DOJ, 101), ' ', '-') AS AssignmentStartDate,
+	isnull(DATENAME(Month,DATEADD(MONTH,convert(int,PMA.PayrollMonth),-1)),'') AS MonthofDeclaration,
+	isnull(Year,'') as Year,
+	isnull(PMA.TransportationType,'') as TransportationType,
+	isnull(Fre.CDescription,'') as FrequencyType,ISNULL(PMA.MaritalStatus,'') as InvoiceNumber,
+	isnull(Spl.CDescription,'') as DeclaringMultipleAllowance,
+	--isnull(bus.CDescription,'') as PassAvailed,
+	--isnull(PMA.BuscardAmount,'') as PassAmount,
+	PMA.monthlyamount as InvoiceAmount,PMA.CalculatedAmount as AmountProcessedinSpay,
+	(CASE WHEN (PMA.RowStatus=0) THEN 'Deleted' ELSE (LTRIM(RTRIM(MC.CDescription))) END) STATUS,
+	PMA.Createdby as UploadedBy, CONVERT(VARCHAR, PMA.claimeddate, 101) AS UploadedDate,  
+	PMA.ModifiedBy as DeletedBy,
+	ISNULL(LTRIM(RTRIM(AD_B.Associate_FirstName)),'')+' '
+	+ISNULL(LTRIM(RTRIM(AD_B.Associate_LastName)),'') AS DeletionInitiatedBy,
+	CONVERT(VARCHAR, PMA.ModifiedDate, 101) AS DeletedDate, 
+	PMA.RejectedBy as RejectedBy,
+	ISNULL(LTRIM(RTRIM(AD_A.Associate_FirstName)),'')+' '
+	+ISNULL(LTRIM(RTRIM(AD_A.Associate_LastName)),'') AS RejecterName,
+	CONVERT(VARCHAR, PMA.RejectedDate, 101) AS RejectedDate, 
+	isnull(RejectionReason,'') as RejectionReason  
+	from PR.MaternityAllowance_APAC PMA WITH(NOLOCK)
+	INNER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
+	ON AD.Associate_ID=CONVERT(VARCHAR,PMA.AssociateID)
+	INNER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=3 AND MC.CCodeId = PMA.Status 
+	AND MC.Cuserdefined1='PR' and MC.Rowstatus=1
+	LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD_A WITH(NOLOCK) 
+	ON CONVERT(VARCHAR,AD_A.Associate_ID)=CONVERT(VARCHAR,PMA.RejectedBy)
+	LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD_B WITH(NOLOCK) 
+	ON CONVERT(VARCHAR,AD_B.Associate_ID)=CONVERT(VARCHAR,PMA.ModifiedBy)
+	INNER JOIN MASTERCODES Fre with(nolock) on Fre.Ccodeid=@ComponentGrpID and Fre.Cparentref=40 
+	and Fre.Cuserdefined1=PMA.FrequencyType and Fre.Rowstatus=1 and Fre.CUserDefined3=19
+	LEFT OUTER JOIN MASTERCODES Spl with(nolock) on Spl.CUserDefined1=@ComponentGrpID 
+	and Spl.Cparentref=2 and Spl.CCodeID=PMA.SpecialCaseReason and Spl.Rowstatus=1
+	WHERE PMA.Fk_Componentcountrymappingid=@ComponentCountryMappingId AND
+	(PMA.Status=3 AND PMA.Rowstatus=1 AND (DATEPART(MM,PMA.RejectedDate)=@Month AND DATEPART(YY,PMA.RejectedDate)=@Year))
+	OR (PMA.Rowstatus=0 AND (DATEPART(MM,PMA.claimeddate)=@Month AND DATEPART(YY,PMA.claimeddate)=@Year))
+
+ END

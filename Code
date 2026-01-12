@@ -1,44 +1,53 @@
- --Transportation Reimbursement
---/******CHECK COMPONENT ID*******/
-ELSE IF(@ComponentGrpID = 48 and @CountryID=17)
- BEGIN
-	SELECT PMA.AssociateID, ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '
-	+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,
-	REPLACE(CONVERT(VARCHAR(11), PMA.DOJ, 101), ' ', '-') AS AssignmentStartDate,
-	isnull(DATENAME(Month,DATEADD(MONTH,convert(int,PMA.PayrollMonth),-1)),'') AS MonthofDeclaration,
-	isnull(Year,'') as Year,
-	isnull(PMA.TransportationType,'') as TransportationType,
-	isnull(Fre.CDescription,'') as FrequencyType,ISNULL(PMA.MaritalStatus,'') as InvoiceNumber,
-	isnull(Spl.CDescription,'') as DeclaringMultipleAllowance,
-	--isnull(bus.CDescription,'') as PassAvailed,
-	--isnull(PMA.BuscardAmount,'') as PassAmount,
-	PMA.monthlyamount as InvoiceAmount,PMA.CalculatedAmount as AmountProcessedinSpay,
-	(CASE WHEN (PMA.RowStatus=0) THEN 'Deleted' ELSE (LTRIM(RTRIM(MC.CDescription))) END) STATUS,
-	PMA.Createdby as UploadedBy, CONVERT(VARCHAR, PMA.claimeddate, 101) AS UploadedDate,  
-	PMA.ModifiedBy as DeletedBy,
-	ISNULL(LTRIM(RTRIM(AD_B.Associate_FirstName)),'')+' '
-	+ISNULL(LTRIM(RTRIM(AD_B.Associate_LastName)),'') AS DeletionInitiatedBy,
-	CONVERT(VARCHAR, PMA.ModifiedDate, 101) AS DeletedDate, 
-	PMA.RejectedBy as RejectedBy,
-	ISNULL(LTRIM(RTRIM(AD_A.Associate_FirstName)),'')+' '
-	+ISNULL(LTRIM(RTRIM(AD_A.Associate_LastName)),'') AS RejecterName,
-	CONVERT(VARCHAR, PMA.RejectedDate, 101) AS RejectedDate, 
-	isnull(RejectionReason,'') as RejectionReason  
-	from PR.MaternityAllowance_APAC PMA WITH(NOLOCK)
-	INNER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)
-	ON AD.Associate_ID=CONVERT(VARCHAR,PMA.AssociateID)
-	INNER JOIN MasterCodes MC WITH(NOLOCK) ON MC.CParentRef=3 AND MC.CCodeId = PMA.Status 
-	AND MC.Cuserdefined1='PR' and MC.Rowstatus=1
-	LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD_A WITH(NOLOCK) 
-	ON CONVERT(VARCHAR,AD_A.Associate_ID)=CONVERT(VARCHAR,PMA.RejectedBy)
-	LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD_B WITH(NOLOCK) 
-	ON CONVERT(VARCHAR,AD_B.Associate_ID)=CONVERT(VARCHAR,PMA.ModifiedBy)
-	INNER JOIN MASTERCODES Fre with(nolock) on Fre.Ccodeid=@ComponentGrpID and Fre.Cparentref=40 
-	and Fre.Cuserdefined1=PMA.FrequencyType and Fre.Rowstatus=1 and Fre.CUserDefined3=19
-	LEFT OUTER JOIN MASTERCODES Spl with(nolock) on Spl.CUserDefined1=@ComponentGrpID 
-	and Spl.Cparentref=2 and Spl.CCodeID=PMA.SpecialCaseReason and Spl.Rowstatus=1
-	WHERE PMA.Fk_Componentcountrymappingid=@ComponentCountryMappingId AND
-	(PMA.Status=3 AND PMA.Rowstatus=1 AND (DATEPART(MM,PMA.RejectedDate)=@Month AND DATEPART(YY,PMA.RejectedDate)=@Year))
-	OR (PMA.Rowstatus=0 AND (DATEPART(MM,PMA.claimeddate)=@Month AND DATEPART(YY,PMA.claimeddate)=@Year))
-
- END
+if(@componentid=35)  
+BEGIN  
+--------------Insert data--------------------  
+  INSERT INTO #RoleTable(Fk_RoleID)  
+  select CRM.FK_RoleID from Userrolemapping URM with (nolock)  
+  inner join ComponentRoleMapping CRM with (nolock)   
+  on URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID and URM.RowStatus=1  
+  INNER jOIN ComponentMaster CM with (nolock)   
+  on CM.PK_ComponentId=@COMPONENTID and CRM.RowStatus=1   
+  INNER JOIN COMPONENTCOUNTRYMAPPING CCM WITH(NOLOCK)   
+  ON CCM.PK_COMPONENTCOUNTRYMAPPINGID=CRM.FK_COMPONENTCOUNTRYMAPPINGID  
+  where associateid=@LOGINID and CM.RowStatus=1   
+  
+select @RolePriority=0 from #RoleTable where Fk_RoleID not in (8,3) and Fk_Roleid in (1,7,9)   
+select @RolePriority =1 from #RoleTable where Fk_RoleID in (8,3)   
+Declare @Startmonth int,@EndMonth int  
+Select @Startmonth= CASE WHEN  @QUARTER=2 then 1   
+when @QUARTER=3 then @QUARTER+1 when @QUARTER=4 then @QUARTER+3   
+when @QUARTER=5 then @QUARTER+5 end  
+Select @EndMonth=@Startmonth+2  
+  
+/*check Quarter 1*/  
+if(@QUARTER =1)  
+BEGIN  
+ SElect @Startmonth= CASE WHEN @QUARTER=1 then @QUARTER end  
+ Select @EndMonth=12  
+END  
+  if(@RolePriority=0)  
+  BEGIN  
+  SELECT PCBA.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+  Level,isnull(BUProposedCBAAmount,'') BUProposedCBAAmount,  
+  isnull(PreviousCBAAmountProposed,'') PreviousCBAAmountProposed,isnull(Amount,'') FinalCBAAmount,  
+  isnull(MC.CDescription,'') SpecialCaseReason,isnull(PCBA.InputRemarks,'') InputRemarks,   
+  CASE when Status=3 then 'Rejected' else 'Deleted' end Status,  
+  PCBA.Createdby TalentManagerID,  
+  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+  +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS TalentManagerName,  
+  PCBA.CreatedDate UploadedDate,(CASE WHEN PCBA.Status IN (8,3) THEN 'Rejected by PFSS admin'
+	 ELSE CONVERT(VARCHAR,PCBA.ModifiedBy) END) AS RejectedBy,PCBA.ModifiedDate 'Rejected\Deleteddate'  
+  FROM PR.CognizantBusinessAllowance PCBA WITH (NOLOCK)  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+  ON AD.Associate_ID=PCBA.AssociateID   
+  LEFT OUTER JOIN mastercodes MC WITH(NOLOCK) on MC.CParentref=2 and MC.CUserdefined1=6   
+  and MC.Rowstatus=1 and MC.CCodeid=PCBA.SpecialCaseReason  
+  LEFT Outer Join MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
+  and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+  ON UD.Associate_ID=PCBA.CreatedBy   
+  WHERE PCBA.CreatedBy=@LoginID and (PCBA.Status =3 or PCBA.RowStatus=0)   
+  AND (month(PCBA.createddate) between @Startmonth and @EndMonth) AND year(PCBA.CreatedDate)=@year    
+  
+  END  

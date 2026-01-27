@@ -1,539 +1,3 @@
-       --ADM 6DA,OCA,NSA  
-  IF(@Componentid in (170,171,172))  
-     BEGIN  
-  --Project MAnager  
-   IF(@Componentid=172 and @RoleID in (6,5))  
-   BEGIN  
-     CREATE TABLE #ADMCOMPONENTSP (ComponentID INT,ProjectID VARCHAR(50))  
-             
-   --Inserting Admcomponents data  
-   INSERT INTO #ADMCOMPONENTSP (ComponentID ,ProjectID)     
-   EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID,@ComponentGrpID,@CountryID    
-            
-   --Selcting the Associate data  
-  SELECT STP.PK_ADMShiftAllowanceID AS UniqueID,STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,STP.CreatedBy   
-  AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate  else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid' WHEN STP.Status=5 THEN 'Processed'   
-  WHEN STP.Status=4 THEN 'ReSubmitted' END) AS Status,  
-  STP.NSADate AS ShiftStartDate  
-  , RNSA.RecalledComments, RNSA.ModifiedStartDateTime, RNSA.ModifiedEndDateTime  
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)   
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  INNER JOIN #ADMCOMPONENTSP CMTS WITH(NOLOCK) ON  CMTS.ComponentID=STP.Fk_ComponentID   
-  AND CMTS.ProjectID=STP.ProjectID  
-  LEFT JOIN PR.Trutime_Recalled_NSA RNSA ON RNSA.AssociateID = STP.AssociateID AND RNSA.Date = STP.NSADate  
-        AND RNSA.Fk_ComponentID = STP.Fk_ComponentID AND RNSA.ProjectID = STP.ProjectID AND RNSA.RowStatus = 1  
-  WHERE STP.Status IN (1,5,4) AND STP.RowStatus=1 AND DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year  
-  and CM.Pk_ComponentID=@Componentid  
-            
-    --Drops the temp table  
-  DROP TABLE  #ADMCOMPONENTSP   
-   END  
-  ELSE IF(@Componentid not in (172) and @RoleID=6)  
-   BEGIN  
-  
-   CREATE TABLE #ADMCOMPONENTS (ComponentID INT,ProjectID VARCHAR(50))  
-             
-   --Inserting Admcomponents data  
-   INSERT INTO #ADMCOMPONENTS (ComponentID ,ProjectID)     
-   EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID,@ComponentGrpID,@CountryID    
-            
-   --Selcting the Associate data  
-  SELECT STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,STP.CreatedBy   
-  AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate  else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid' WHEN STP.Status=5 THEN 'Processed'  
-  WHEN STP.Status=4 THEN 'ReSubmitted' END) AS Status,  
-  STP.NSADate AS ShiftStartDate   
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)   
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  INNER JOIN #ADMCOMPONENTS CMTS WITH(NOLOCK) ON  CMTS.ComponentID=STP.Fk_ComponentID   
-  AND CMTS.ProjectID=STP.ProjectID  
-  WHERE STP.Status IN (1,5,4) AND STP.RowStatus=1 AND DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year  
-  and CM.Pk_ComponentID=@Componentid  
-            
-    --Drops the temp table  
-  DROP TABLE  #ADMCOMPONENTS   
-  
- END   
-  
-  ELSE  
-   BEGIN  
-    --ADM On Call Allowance  
-   IF(@Componentid=171 and @RoleID in (3,2))  
-   BEGIN  
-  
-  SELECT STP.PK_ADMShiftAllowanceID AS UniqueID, STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,ISNULL(SDA_OCA_Amount,0) AS SDA_OCA_Amount1,  
-  ISNULL(SDA_OCA_Amount2,0) AS SDA_OCA_Amount2,  
-  STP.Amount AS TotalAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,  
-  STP.CreatedBy AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid' WHEN STP.Status=5 THEN 'Processed'   
-  WHEN STP.Status=20 THEN 'Resubmitted after Project Manager Rejection'  
-  WHEN STP.Status=10 THEN 'Resubmitted after PFSS Rejection'    
-  WHEN STP.Status=4 THEN 'ReSubmitted'   
-  WHEN STP.Status=21 THEN 'Approved by Home Manager'   
-  WHEN STP.Status=15 THEN 'Approved by Project Manager'   
-  WHEN STP.Status=34 THEN 'Pending for D+ Approval'  
-  WHEN STP.Status=35 THEN 'Approved by D+' END) AS Status,  
-  STP.NSADate As ShiftStartDate  
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)   
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  WHERE STP.Status IN (4,5,15,21,34,35) AND STP.RowStatus=1 AND ((DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year) OR  
-  (DATEPART(MM,STP.ModifiedDate)=@Month  AND DATEPART(YY,STP.ModifiedDate)=@Year))  
-  and CM.PK_Componentid=@componentid  
-   END  
-   ELSE IF(@Componentid =171 and @RoleID!=3)  
-   BEGIN  
-  SELECT STP.PK_ADMShiftAllowanceID AS UniqueID, STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,  
-  STP.CreatedBy AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,AD.Supervisor_ID as HMID, 
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,
-  	  ISNULL(LTRIM(RTRIM(HM.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(HM.Associate_LastName)),'') AS HMName,
-  (CASE WHEN STP.Status=1 THEN 'Valid' WHEN STP.Status=5 THEN 'Processed'   
-  WHEN STP.Status=20 THEN 'Resubmitted after Project Manager Rejection'  
-  WHEN STP.Status=10 THEN 'Resubmitted after PFSS Rejection'    
-  WHEN STP.Status=4 THEN 'ReSubmitted'   
-  WHEN STP.Status=21 THEN 'Approved by Home Manager'   
-  WHEN STP.Status=15 THEN 'Approved by Project Manager'   
-  WHEN STP.Status=34 THEN 'Pending for D+ Approval'  
-  WHEN STP.Status=35 THEN 'Approved by D+' END) AS Status,  
-  STP.NSADate As ShiftStartDate  
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)   
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER 
-  INNER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details HM WITH(NOLOCK)   
-     ON AD.Supervisor_ID=HM.Associate_ID
-  WHERE STP.Status IN (1,4,5,15,21,34,35) AND STP.RowStatus=1 AND ((DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year) OR  
-  (DATEPART(MM,STP.ModifiedDate)=@Month  AND DATEPART(YY,STP.ModifiedDate)=@Year))  
-  and CM.PK_Componentid=@componentid  and STP.Createdby=@Loginid
-   END  
-    --ADM Night Shift Allowance  
-   ELSE IF(@Componentid=172)  
-   BEGIN  
-    IF(@RoleID=1)  
-    BEGIN  
-    SELECT STP.PK_ADMShiftAllowanceID AS UniqueID, STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,  
-  ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,   
-  STP.CreatedBy AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid'   
-  WHEN STP.Status=5 THEN 'Processed'    
-  WHEN STP.Status=20 THEN 'Resubmitted after Project Manager Rejection'  
-  WHEN STP.Status=10 THEN 'Resubmitted after PFSS Rejection'   
-  WHEN STP.Status=4 THEN 'ReSubmitted'   
-  WHEN STP.Status=21 THEN 'Approved by Home Manager'  
-  WHEN STP.Status=15 THEN 'Approved by Project Manager'   
-  WHEN STP.Status=34 THEN 'Pending for D+ Approval'  
-  WHEN STP.Status=35 THEN 'Approved by D+' END) AS Status,  
-  STP.NSADate As ShiftStartDate  
-  , RNSA.RecalledComments, RNSA.ModifiedStartDateTime, RNSA.ModifiedEndDateTime  
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)  
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  LEFT JOIN PR.Trutime_Recalled_NSA RNSA ON RNSA.AssociateID = STP.AssociateID AND RNSA.Date = STP.NSADate  
-        AND RNSA.Fk_ComponentID = STP.Fk_ComponentID AND RNSA.ProjectID = STP.ProjectID AND RNSA.RowStatus = 1  
-  WHERE STP.Status IN (1,4,5,15,34,35) AND STP.RowStatus=1 AND ((DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year) OR  
-  (DATEPART(MM,STP.ModifiedDate)=@Month  AND DATEPART(YY,STP.ModifiedDate)=@Year))  
-  and CM.PK_Componentid=@componentid and STP.CreatedBy=@LOGINID    
-    END  
-    ELSE  
-    BEGIN  
-   --Selcting the Associate data  
-  SELECT STP.PK_ADMShiftAllowanceID AS UniqueID, STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,  
-  ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,   
-  STP.CreatedBy AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid'   
-  WHEN STP.Status=5 THEN 'Processed'    
-  WHEN STP.Status=20 THEN 'Resubmitted after Project Manager Rejection'  
-  WHEN STP.Status=10 THEN 'Resubmitted after PFSS Rejection'   
-  WHEN STP.Status=4 THEN 'ReSubmitted'   
-  WHEN STP.Status=21 THEN 'Approved by Home Manager'  
-  WHEN STP.Status=15 THEN 'Approved by Project Manager'   
-  WHEN STP.Status=34 THEN 'Pending for D+ Approval'  
-  WHEN STP.Status=35 THEN 'Approved by D+' END) AS Status,  
-  STP.NSADate As ShiftStartDate  
-  , RNSA.RecalledComments, RNSA.ModifiedStartDateTime, RNSA.ModifiedEndDateTime  
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)  
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  LEFT JOIN PR.Trutime_Recalled_NSA RNSA ON RNSA.AssociateID = STP.AssociateID AND RNSA.Date = STP.NSADate  
-        AND RNSA.Fk_ComponentID = STP.Fk_ComponentID AND RNSA.ProjectID = STP.ProjectID AND RNSA.RowStatus = 1  
-  WHERE STP.Status IN (1,4,5,15,34,35) AND STP.RowStatus=1 AND ((DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year) OR  
-  (DATEPART(MM,STP.ModifiedDate)=@Month  AND DATEPART(YY,STP.ModifiedDate)=@Year))  
-  and CM.PK_Componentid=@componentid  
-   END  
-     
-   END  
-   ELSE  
-   BEGIN  
-  IF(@RoleID=1)  
-   BEGIN  
-   SELECT STP.PK_ADMShiftAllowanceID AS UniqueID, STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,  
-  ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,   
-  STP.CreatedBy AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid'   
-  WHEN STP.Status=5 THEN 'Processed'    
-  WHEN STP.Status=20 THEN 'Resubmitted after Project Manager Rejection'  
-  WHEN STP.Status=10 THEN 'Resubmitted after PFSS Rejection'   
-  WHEN STP.Status=4 THEN 'ReSubmitted'   
-  WHEN STP.Status=21 THEN 'Approved by Home Manager'  
-  WHEN STP.Status=15 THEN 'Approved by Project Manager'   
-  WHEN STP.Status=34 THEN 'Pending for D+ Approval'  
-  WHEN STP.Status=35 THEN 'Approved by D+' END) AS Status,  
-  STP.NSADate As ShiftStartDate  
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)  
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  WHERE STP.Status IN (1,4,5,15,34,35) AND STP.RowStatus=1 AND ((DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year) OR  
-  (DATEPART(MM,STP.ModifiedDate)=@Month  AND DATEPART(YY,STP.ModifiedDate)=@Year))  
-  and CM.PK_Componentid=@componentid and STP.CreatedBy=@LOGINID  
-  
-   END  
-  ELSE IF(@Componentid=170 and @RoleID in (3,2))  
-  BEGIN  
-   SELECT STP.PK_ADMShiftAllowanceID AS UniqueID, STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,  
-  ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,ISNULL(SDA_OCA_Amount,0) AS SDA_OCA_Amount1,  
-  ISNULL(SDA_OCA_Amount2,0) AS SDA_OCA_Amount2,  
-  STP.Amount AS TotalAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,   
-  STP.CreatedBy AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid'   
-  WHEN STP.Status=5 THEN 'Processed'    
-  WHEN STP.Status=20 THEN 'Resubmitted after Project Manager Rejection'  
-  WHEN STP.Status=10 THEN 'Resubmitted after PFSS Rejection'   
-  WHEN STP.Status=4 THEN 'ReSubmitted'   
-  WHEN STP.Status=21 THEN 'Approved by Home Manager'  
-  WHEN STP.Status=15 THEN 'Approved by Project Manager'   
-  WHEN STP.Status=34 THEN 'Pending for D+ Approval'  
-  WHEN STP.Status=35 THEN 'Approved by D+' END) AS Status,  
-  STP.NSADate As ShiftStartDate  
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)  
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  WHERE STP.Status IN (1,4,5,15,34,35) AND STP.RowStatus=1 AND ((DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year) OR  
-  (DATEPART(MM,STP.ModifiedDate)=@Month  AND DATEPART(YY,STP.ModifiedDate)=@Year))  
-  and CM.PK_Componentid=@componentid  
-  END  
-  ELSE  
-   BEGIN  
-   --ADM 6th Day Allowance  
-  SELECT STP.PK_ADMShiftAllowanceID AS UniqueID, STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,  
-  ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.ADM_Amount ,STP.TransportEligibility as TransportEligibility ,   
-  STP.CreatedBy AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid'   
-  WHEN STP.Status=5 THEN 'Processed'    
-  WHEN STP.Status=20 THEN 'Resubmitted after Project Manager Rejection'  
-  WHEN STP.Status=10 THEN 'Resubmitted after PFSS Rejection'   
-  WHEN STP.Status=4 THEN 'ReSubmitted'   
-  WHEN STP.Status=21 THEN 'Approved by Home Manager'  
-  WHEN STP.Status=15 THEN 'Approved by Project Manager'   
-  WHEN STP.Status=34 THEN 'Pending for D+ Approval'  
-  WHEN STP.Status=35 THEN 'Approved by D+' END) AS Status,  
-  STP.NSADate As ShiftStartDate  
-  FROM PR.ADMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)  
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  WHERE STP.Status IN (1,4,5,15,34,35) AND STP.RowStatus=1 AND ((DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year) OR  
-  (DATEPART(MM,STP.ModifiedDate)=@Month  AND DATEPART(YY,STP.ModifiedDate)=@Year))  
-  and CM.PK_Componentid=@componentid  
-   END  
-  END  
-  END  
-    
-  END  
-  
-  --VNM NSA--  
-  IF(@Componentid in (175))  
-  BEGIN  
- --Project Manager  
- IF(@Componentid=175 and @RoleID in (6))  
- BEGIN  
-  CREATE TABLE #VNMCOMPONENTSP (ComponentID INT,ProjectID VARCHAR(50))  
-  --Inserting VNMComponents data  
-  INSERT INTO #VNMCOMPONENTSP (ComponentID ,ProjectID)     
-  EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID,@ComponentGrpID,@CountryID    
-           
-  --Selcting the Associate data  
-  SELECT STP.PK_VNMShiftAllowanceID AS UniqueID,STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.VNM_Amount ,STP.TransportEligibility as TransportEligibility ,STP.CreatedBy   
-  AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate  else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid' WHEN STP.Status=5 THEN 'Processed'   
-  WHEN STP.Status=4 THEN 'ReSubmitted' END) AS Status,  
-  STP.NSADate AS ShiftStartDate  
-  , RNSA.RecalledComments, RNSA.ModifiedStartDateTime, RNSA.ModifiedEndDateTime  
-  FROM PR.VNMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)   
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  INNER JOIN #VNMCOMPONENTSP CMTS WITH(NOLOCK) ON  CMTS.ComponentID=STP.Fk_ComponentID   
-  AND CMTS.ProjectID=STP.ProjectID  
-  LEFT JOIN PR.Trutime_Recalled_NSA RNSA ON RNSA.AssociateID = STP.AssociateID AND RNSA.Date = STP.NSADate  
-        AND RNSA.Fk_ComponentID = STP.Fk_ComponentID AND RNSA.ProjectID = STP.ProjectID AND RNSA.RowStatus = 1  
-  WHERE STP.Status IN (1,5,4) AND STP.RowStatus=1 AND DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year  
-  and CM.Pk_ComponentID=@Componentid  
-            
-  --Drop the temp table  
-  DROP TABLE  #VNMCOMPONENTSP   
-   END  
- ELSE  
- BEGIN  
-  --Selcting the Associate data  
-  SELECT STP.PK_VNMShiftAllowanceID AS UniqueID, STP.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName ,  
-  STP.ProjectID,CM.ComponentShortName AS AllowanceType,STM.ShiftTypeName AS ShiftType,  
-  CONVERT(VARCHAR,STP.STARTDATE,101) AS StartDate,  
-  STP.StartTime, CONVERT(VARCHAR,STP.EndDate,101) AS Enddate,STP.EndTime,  
-  ISNULL(STP.HCMSchedule,'') AS HCMShift,  
-  CONVERT(VARCHAR(5),DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)/3600)+':'+CONVERT(VARCHAR(5),  
-  DATEDIFF(S, STP.StartDateTime, STP.EndDateTime)%3600/60) AS TotalHours,  
-  STP.Amount AS EligibleAmount,STP.VNM_Amount ,STP.TransportEligibility as TransportEligibility ,   
-  STP.CreatedBy AS UploaderID,  
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(STP.Modifieddate,'')<>'' then STP.Modifieddate else STP.Createddate  end UploadedDate,  
-  CPM.PROJECT_MANAGER AS PMID,  
-  ISNULL(LTRIM(RTRIM(PD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(PD.Associate_LastName)),'') AS PMName,   
-  (CASE WHEN STP.Status=1 THEN 'Valid'   
-  WHEN STP.Status=5 THEN 'Processed'    
-  WHEN STP.Status=20 THEN 'Resubmitted after Project Manager Rejection'  
-  WHEN STP.Status=10 THEN 'Resubmitted after PFSS Rejection'   
-  WHEN STP.Status=4 THEN 'ReSubmitted'   
-  WHEN STP.Status=21 THEN 'Approved by Home Manager'  
-  WHEN STP.Status=15 THEN 'Approved by Project Manager'   
-  WHEN STP.Status=34 THEN 'Pending for D+ Approval'  
-  WHEN STP.Status=35 THEN 'Approved by D+' END) AS Status,  
-  STP.NSADate As ShiftStartDate  
-  , RNSA.RecalledComments, RNSA.ModifiedStartDateTime, RNSA.ModifiedEndDateTime  
-  FROM PR.VNMShiftAllowance STP WITH(NOLOCK)   
-  INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STM.PK_ShiftTypeID=STP.FK_ShiftTypeID  
-  INNER JOIN ComponentMaster CM WITH(NOLOCK) ON CM.PK_ComponentId=STP.Fk_ComponentID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=STP.AssociateID   
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=STP.CreatedBy   
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Current_ProjectManager CPM WITH(NOLOCK)   
-  ON CPM.PROJECT_ID=STP.ProjectID  
-  INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details PD WITH(NOLOCK)  
-  ON PD.Associate_ID=CPM.PROJECT_MANAGER  
-  LEFT JOIN PR.Trutime_Recalled_NSA RNSA ON RNSA.AssociateID = STP.AssociateID AND RNSA.Date = STP.NSADate  
-        AND RNSA.Fk_ComponentID = STP.Fk_ComponentID AND RNSA.ProjectID = STP.ProjectID AND RNSA.RowStatus = 1  
-  WHERE STP.Status IN (1,4,5,15,34,35) AND STP.RowStatus=1 AND ((DATEPART(MM,STP.CreatedDate)=@Month   
-  AND DATEPART(YY,STP.CreatedDate)=@Year) OR  
-  (DATEPART(MM,STP.ModifiedDate)=@Month  AND DATEPART(YY,STP.ModifiedDate)=@Year))  
-  and CM.PK_Componentid=@componentid  
-    
-   END  
-    
-  END   
-  
-   --TRT Special Inputs  
   IF(@ComponentGrpID=5)   
  BEGIN   
  INSERT INTO #RoleTable(Fk_RoleID )  
@@ -583,7 +47,7 @@ select @RolePriority =1 from #RoleTable where Fk_RoleID in (8,3,2) and Fk_RoleID
   isnull(TRT.InputRemarks,'') InputRemarks, isnull(MC_A.Cdescription,'') AS Status   
   FROM PR.TRTSPECIALINPUTS TRT WITH(NOLOCK)  
   INNER JOIN dbo.ComponentMaster CM WITH(NOLOCK) ON TRT.FK_ComponentID = CM.Pk_ComponentID and CM.Rowstatus = 1  
-  Left JOIN #ComponentTable CT WITH(NOLOCK) ON CT.Fk_ComponentID=TRT.Fk_ComponentID  
+  Inner JOIN #ComponentTable CT WITH(NOLOCK) ON CT.Fk_ComponentID=TRT.Fk_ComponentID  
   INNER JOIN CurrencyMaster Cum WITH (NOLOCK) ON TRT.FK_CurrencyID=Cum.PK_CurrencyID and CUM.Rowstatus=1  
   INNER JOIN PR.CurrencyUpdatedata PCUD WITH (NOLOCK) on TRT.Fk_CurrencyID=PCUD.Fk_CurrencyID and PCUD.Rowstatus=1  
   INNER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
@@ -599,8 +63,91 @@ select @RolePriority =1 from #RoleTable where Fk_RoleID in (8,3,2) and Fk_RoleID
   WHERE TRT.Status IN (1,5,10,11) AND TRT.RowStatus=1 AND  ((DATEPART(MM,TRT.CreatedDate)=@month AND  
   DATEPART(YY,TRT.CreatedDate)=@year) OR   
   (DATEPART(MM,TRT.ModifiedDate)=@Month  AND DATEPART(YY,TRT.ModifiedDate)=@Year))  
-  and TRT.Fk_ComponentID=@COMPONENTID    
+  --and TRT.Fk_ComponentID=@COMPONENTID    
   and PCUD.FK_ComponentCountryID=@CountryId option (recompile)  
  END  
  ELSE  
- BEGIN
+ BEGIN  
+ IF(@RoleID=9)  
+ BEGIN  
+   SELECT CM.ComponentName,TRT.AssociateID,  
+  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
+  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+  ProjectID,CUM.CurrencyCode,PCUD.CurrencyValue,  
+  TRT.Amount,convert(BIGINT,currencyvalue*AMOUNT) ConvertedAmount,  
+  LTRIM(RTRIM(REPLACE(TRT.InvoiceNumber,CHAR(10),' ')))  
+  InvoiceNumber,  
+  TRT.RewardName, COALESCE( ApproverID , '' )  ApproverID,ISNULL(LTRIM(RTRIM(CD.Associate_FirstName)),'')+' '+ISNULL(  
+  LTRIM(RTRIM(CD.Associate_LastName)),'') AS ApproverName,  
+  CASE WHEN ISNULL(TRT.OtherMailUploadID,'0') <> '0' THEN 'Yes'   
+  ELSE 'No' END ApprovalMail,  
+  isnull(TRT.Vertical,'') Vertical,Case When TRT.Funded='1' then 'Project' when TRT.Funded='2' then 'Client'   
+  else '' end Funded,TRT.UploaderID,   
+  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+  Case when isnull(TRT.Modifieddate,'')<>'' then TRT.Modifieddate else TRT.Createddate end UploadedDate,  
+  isnull(MC.Cdescription,'') SpecialCaseReason,  
+  isnull(TRT.InputRemarks,'') InputRemarks, isnull(MC_A.Cdescription,'') AS Status   
+  FROM PR.TRTSPECIALINPUTS TRT WITH(NOLOCK)  
+  INNER JOIN dbo.ComponentMaster CM WITH(NOLOCK) ON TRT.FK_ComponentID =  CM.Pk_ComponentID and CM.Rowstatus = 1  
+  LEFT JOIN #ComponentTable CT WITH(NOLOCK) ON CT.Fk_ComponentID=TRT.Fk_ComponentID  
+  INNER JOIN CurrencyMaster Cum WITH (NOLOCK) ON TRT.FK_CurrencyID=Cum.PK_CurrencyID and CUM.Rowstatus=1  
+  INNER JOIN PR.CurrencyUpdatedata PCUD WITH (NOLOCK) on TRT.Fk_CurrencyID=PCUD.Fk_CurrencyID and PCUD.Rowstatus=1  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+  ON CONVERT(VARCHAR,AD.Associate_ID)=CONVERT(VARCHAR,TRT.AssociateID)   
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)   
+  ON CONVERT(VARCHAR,CD.Associate_ID)=isnull(TRT.ApproverID,'')  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+  ON CONVERT(VARCHAR,UD.Associate_ID)=TRT.UploaderID    
+  LEFT OUTER JOIN mastercodes MC on MC.CParentref=2 and MC.CUserdefined1='5' and MC.Rowstatus=1 and   
+  MC.CCodeid=TRT.SpecialCaseReason  
+  LEFT Outer Join MasterCodes MC_A on MC_A.CParentRef=3 and TRT.Status=MC_A.CCodeId and MC_A.RowStatus=1 and   
+  MC_A.Cuserdefined1='PR'  
+  WHERE TRT.Status IN (1,5,10,11) AND TRT.RowStatus=1 AND ((DATEPART(MM,TRT.CreatedDate)=@month AND   
+  DATEPART(YY,TRT.CreatedDate)=@year) OR   
+  (DATEPART(MM,TRT.ModifiedDate)=@Month  AND DATEPART(YY,TRT.ModifiedDate)=@Year))  
+  and TRT.CreatedBy=@LOGINID and PCUD.FK_ComponentCountryID=@CountryId option (recompile)  
+ END  
+ ELSE  
+ BEGIN  
+  
+  --Selecting Component data  
+  SELECT CM.ComponentName,TRT.AssociateID,  
+  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
+  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+  ProjectID,CUM.CurrencyCode,PCUD.CurrencyValue,  
+  TRT.Amount,convert(BIGINT,currencyvalue*AMOUNT) ConvertedAmount,  
+  LTRIM(RTRIM(REPLACE(TRT.InvoiceNumber,CHAR(10),' ')))  
+  InvoiceNumber,  
+  TRT.RewardName, COALESCE( ApproverID , '' )  ApproverID,ISNULL(LTRIM(RTRIM(CD.Associate_FirstName)),'')+' '+ISNULL(  
+  LTRIM(RTRIM(CD.Associate_LastName)),'') AS ApproverName,  
+  CASE WHEN  ISNULL(TRT.OtherMailUploadID,'0') <> '0' THEN 'Yes'   
+  ELSE 'No' END ApprovalMail,  
+  isnull(TRT.Vertical,'') Vertical,Case When TRT.Funded='1' then 'Project' when TRT.Funded='2' then 'Client'   
+  else '' end Funded,TRT.UploaderID,   
+  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+  Case when isnull(TRT.Modifieddate,'')<>'' then TRT.Modifieddate else TRT.Createddate end UploadedDate,  
+  isnull(MC.Cdescription,'') SpecialCaseReason,  
+  isnull(TRT.InputRemarks,'') InputRemarks, isnull(MC_A.Cdescription,'') AS Status   
+  FROM PR.TRTSPECIALINPUTS TRT WITH(NOLOCK)  
+  INNER JOIN dbo.ComponentMaster CM WITH(NOLOCK) ON TRT.FK_ComponentID =  CM.Pk_ComponentID and CM.Rowstatus = 1  
+  LEFT JOIN #ComponentTable CT WITH(NOLOCK) ON CT.Fk_ComponentID=TRT.Fk_ComponentID  
+  INNER JOIN CurrencyMaster Cum WITH (NOLOCK) ON TRT.FK_CurrencyID=Cum.PK_CurrencyID and CUM.Rowstatus=1  
+  INNER JOIN PR.CurrencyUpdatedata PCUD WITH (NOLOCK) on TRT.Fk_CurrencyID=PCUD.Fk_CurrencyID and PCUD.Rowstatus=1  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+  ON CONVERT(VARCHAR,AD.Associate_ID)=CONVERT(VARCHAR,TRT.AssociateID)   
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)   
+  ON CONVERT(VARCHAR,CD.Associate_ID)=isnull(TRT.ApproverID,'')  
+  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+  ON CONVERT(VARCHAR,UD.Associate_ID)=TRT.UploaderID    
+  LEFT OUTER JOIN mastercodes MC on MC.CParentref=2 and MC.CUserdefined1='5' and MC.Rowstatus=1 and   
+  MC.CCodeid=TRT.SpecialCaseReason  
+  LEFT Outer Join MasterCodes MC_A on MC_A.CParentRef=3 and TRT.Status=MC_A.CCodeId and MC_A.RowStatus=1 and   
+  MC_A.Cuserdefined1='PR'  
+  WHERE TRT.Status IN (1,5,10,11) AND TRT.RowStatus=1 AND ((DATEPART(MM,TRT.CreatedDate)=@month AND   
+  DATEPART(YY,TRT.CreatedDate)=@year) OR   
+  (DATEPART(MM,TRT.ModifiedDate)=@Month  AND DATEPART(YY,TRT.ModifiedDate)=@Year))  
+  and PCUD.FK_ComponentCountryID=@CountryId AND trt.CreatedBy = @LOGINID option (recompile)  
+ END  
+ END  
+ DROP TABLE #ComponentTable  
+  END  

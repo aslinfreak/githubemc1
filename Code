@@ -1,54 +1,5 @@
-When Iam using the first select, It will correctly give the records,but when I use the second select statement 
-It shows Coulmn-245,I think the issue in the joins only please check and give me the correct answer 
-without modifying the existing logic
-
-
-  SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
-    ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-    convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
-    Convert(varchar(5),StartTime) StartTime,Convert(Varchar(5),EndTime) EndTime,ProjectID,  
-    Amount,Grade,SetID,isnull(PCBA.CreatedBy, '' )  CreatedBy,  
-    PCBA.CreatedDate as UploadedDate,(CASE WHEN PCBA.Status IN (8,3) THEN 'Rejected by PFSS admin'
-	ELSE CONVERT(VARCHAR,PCBA.ModifiedBy) END) AS RejectedBy,   
-    isnull(PCBA.RejectionReason,'') as RejectionReason,  
-    PCBA.ModifiedDate as 'Rejected\Deleteddate',  
-    CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status ,  
-    PCBA.MonthAmount,PCBA.MonthlyWorkedDays  
-    FROM PR.BPSNSA PCBA WITH (NOLOCK)  
-    INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
-    ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)  
-    INNER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
-    and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
-    WHERE ((PCBA.Status IN (3,8,17,18) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))   
-    AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
-    (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))    
-   END  
-
-
-
-
-
- SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-  convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
-  PCBA.ProjectID,Amount,Grade,SetID,  
-  isnull(PCBA.CreatedBy, '' )  CreatedBy,  
-  Case when isnull(PCBA.Modifieddate,'')<>'' then convert(varchar,PCBA.Modifieddate,107)  
-  else Convert(varchar,PCBA.Createddate,107) end UploadedDate,
-  (CASE WHEN PCBA.Status IN (8) THEN 'Rejected by PFSS admin'
-	 ELSE CONVERT(VARCHAR,PCBA.ModifiedBy) END) AS RejectedBy,
-  CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status ,  
-  PCBA.MonthAmount,PCBA.MonthlyWorkedDays  
-  FROM PR.BPSNSA PCBA WITH (NOLOCK)  
-  INNER JOIN @Project C ON PCBA.ProjectID=C.ProjectID  
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)  
-  LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
-  and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
-  WHERE ((PCBA.Status IN (3,8,17,18) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))   
-  AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
-  (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))  
-  
-  END  
+CASE 
+  WHEN PCBA.Modifieddate IS NOT NULL 
+       THEN CONVERT(varchar, PCBA.Modifieddate, 107)
+  ELSE CONVERT(varchar, PCBA.Createddate, 107)
+END AS UploadedDate

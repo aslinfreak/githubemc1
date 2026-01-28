@@ -1,153 +1,54 @@
-  IF(@ComponentGrpID=5)   
- BEGIN   
- INSERT INTO #RoleTable(Fk_RoleID )  
-    SELECT CRM.FK_RoleID from Userrolemapping URM with (nolock)  
-    INNER join ComponentRoleMapping CRM with (nolock) ON URM.FK_ComponentRoleID=CRM.PK_ComponentRoleID and   
- URM.RowStatus=1  
-    INNER JOIN COMPONENTCOUNTRYMAPPING CCM WITH(NOLOCK) ON   
- CCM.PK_COMPONENTCOUNTRYMAPPINGID=CRM.FK_COMPONENTCOUNTRYMAPPINGID  
-    INNER JOIN COMPONENTMASTER CM WITH(NOLOCK) ON CM.PK_COMPONENTID=CCM.FK_COMPONENTID  
-    INNER JOIN ComponentGroupMaster  DCM WITH(NOLOCK) ON CM.PK_COMPONENTID=CCM.FK_COMPONENTID and   
- DCM.PK_ComponentGroupID = @ComponentGrpID  
-    WHERE associateid=@LOGINID and CRM.RowStatus=1  and CM.RowStatus=1   
-    AND CCM.Rowstatus=1 and CCM.FK_ComponentCountryID=1  
-  
-select @RolePriority=0 from #RoleTable where Fk_RoleID not in (8,3,2) and Fk_Roleid in (7,9) and Fk_RoleID = @RoleID
-select @RolePriority =1 from #RoleTable where Fk_RoleID in (8,3,2) and Fk_RoleID = @RoleID   
-  
- ---To get all component data at a time for TRT  
- IF OBJECT_ID('tempdb..#ComponentTable') IS NOT NULL  
-        BEGIN  
-            DROP TABLE #ComponentTable  
-        END  
- Create table #ComponentTable(Fk_ComponentID int)  
- Insert into #ComponentTable(Fk_ComponentID)  
- SELECT value    
- FROM STRING_SPLIT(@Componentgrp, ',')    
- WHERE RTRIM(value) <> '';  
-  --Drops the table  
- DROP TABLE #RoleTable  
- if(@RolePriority=1)  
- BEGIN  
-  SELECT TRT.PK_TRTSpecialInputsID AS UniqueID,CM.ComponentName,TRT.AssociateID,ISNULL(LTRIM(RTRIM(  
-  AD.Associate_FirstName)),'')  
-  +' '+ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,ProjectID,CUM.CurrencyCode,PCUD.CurrencyValue,  
-  TRT.Amount,convert(BIGINT,currencyvalue*AMOUNT)ConvertedAmount,  
-  LTRIM(RTRIM(REPLACE(TRT.InvoiceNumber, CHAR(10),' ')))   
-  InvoiceNumber,TRT.RewardName, COALESCE( ApproverID , '' )  ApproverID,ISNULL(LTRIM(RTRIM(  
-  CD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(CD.Associate_LastName)),'') AS ApproverName,  
-  CASE WHEN ISNULL(TRT.OtherMailUploadID,'0') <> '0' THEN 'Yes' ELSE 'No'   
-  END ApprovalMail,  
-  isnull(TRT.Vertical,'') Vertical,Case When TRT.Funded='1' then 'Project' when TRT.Funded='2'   
-  then 'Client' else '' end Funded,  TRT.UploaderID,   
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(TRT.Modifieddate,'')<>'' then TRT.Modifieddate else TRT.Createddate end UploadedDate,  
-  isnull(MC.Cdescription,'') SpecialCaseReason,  
-  isnull(TRT.InputRemarks,'') InputRemarks, isnull(MC_A.Cdescription,'') AS Status   
-  FROM PR.TRTSPECIALINPUTS TRT WITH(NOLOCK)  
-  INNER JOIN dbo.ComponentMaster CM WITH(NOLOCK) ON TRT.FK_ComponentID = CM.Pk_ComponentID and CM.Rowstatus = 1  
-  Inner JOIN #ComponentTable CT WITH(NOLOCK) ON CT.Fk_ComponentID=TRT.Fk_ComponentID  
-  INNER JOIN CurrencyMaster Cum WITH (NOLOCK) ON TRT.FK_CurrencyID=Cum.PK_CurrencyID and CUM.Rowstatus=1  
-  INNER JOIN PR.CurrencyUpdatedata PCUD WITH (NOLOCK) on TRT.Fk_CurrencyID=PCUD.Fk_CurrencyID and PCUD.Rowstatus=1  
-  INNER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON AD.Associate_ID=CONVERT(VARCHAR,TRT.AssociateID)  
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)   
-  ON CD.Associate_ID=isnull(TRT.ApproverID,'')  
-  LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON UD.Associate_ID=TRT.UploaderID    
-  LEFT OUTER JOIN mastercodes MC on MC.CParentref=2 and MC.CUserdefined1='5' and MC.Rowstatus=1 and  
-  MC.CCodeid=TRT.SpecialCaseReason  
-  LEFT Outer Join MasterCodes MC_A on MC_A.CParentRef=3 and TRT.Status=MC_A.CCodeId and MC_A.RowStatus=1 and   
-  MC_A.Cuserdefined1='PR'  
-  WHERE TRT.Status IN (1,5,10,11) AND TRT.RowStatus=1 AND  ((DATEPART(MM,TRT.CreatedDate)=@month AND  
-  DATEPART(YY,TRT.CreatedDate)=@year) OR   
-  (DATEPART(MM,TRT.ModifiedDate)=@Month  AND DATEPART(YY,TRT.ModifiedDate)=@Year))  
-  --and TRT.Fk_ComponentID=@COMPONENTID    
-  and PCUD.FK_ComponentCountryID=@CountryId option (recompile)  
- END  
- ELSE  
- BEGIN  
- IF(@RoleID=9)  
- BEGIN  
-   SELECT CM.ComponentName,TRT.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-  ProjectID,CUM.CurrencyCode,PCUD.CurrencyValue,  
-  TRT.Amount,convert(BIGINT,currencyvalue*AMOUNT) ConvertedAmount,  
-  LTRIM(RTRIM(REPLACE(TRT.InvoiceNumber,CHAR(10),' ')))  
-  InvoiceNumber,  
-  TRT.RewardName, COALESCE( ApproverID , '' )  ApproverID,ISNULL(LTRIM(RTRIM(CD.Associate_FirstName)),'')+' '+ISNULL(  
-  LTRIM(RTRIM(CD.Associate_LastName)),'') AS ApproverName,  
-  CASE WHEN ISNULL(TRT.OtherMailUploadID,'0') <> '0' THEN 'Yes'   
-  ELSE 'No' END ApprovalMail,  
-  isnull(TRT.Vertical,'') Vertical,Case When TRT.Funded='1' then 'Project' when TRT.Funded='2' then 'Client'   
-  else '' end Funded,TRT.UploaderID,   
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(TRT.Modifieddate,'')<>'' then TRT.Modifieddate else TRT.Createddate end UploadedDate,  
-  isnull(MC.Cdescription,'') SpecialCaseReason,  
-  isnull(TRT.InputRemarks,'') InputRemarks, isnull(MC_A.Cdescription,'') AS Status   
-  FROM PR.TRTSPECIALINPUTS TRT WITH(NOLOCK)  
-  INNER JOIN dbo.ComponentMaster CM WITH(NOLOCK) ON TRT.FK_ComponentID =  CM.Pk_ComponentID and CM.Rowstatus = 1  
-  LEFT JOIN #ComponentTable CT WITH(NOLOCK) ON CT.Fk_ComponentID=TRT.Fk_ComponentID  
-  INNER JOIN CurrencyMaster Cum WITH (NOLOCK) ON TRT.FK_CurrencyID=Cum.PK_CurrencyID and CUM.Rowstatus=1  
-  INNER JOIN PR.CurrencyUpdatedata PCUD WITH (NOLOCK) on TRT.Fk_CurrencyID=PCUD.Fk_CurrencyID and PCUD.Rowstatus=1  
+When Iam using the first select, It will correctly give the records,but when I use the second select statement 
+It shows Coulmn-245,I think the issue in the joins only please check and give me the correct answer 
+without modifying the existing logic
+
+
+  SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
+    ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
+    Convert(varchar(5),StartTime) StartTime,Convert(Varchar(5),EndTime) EndTime,ProjectID,  
+    Amount,Grade,SetID,isnull(PCBA.CreatedBy, '' )  CreatedBy,  
+    PCBA.CreatedDate as UploadedDate,(CASE WHEN PCBA.Status IN (8,3) THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PCBA.ModifiedBy) END) AS RejectedBy,   
+    isnull(PCBA.RejectionReason,'') as RejectionReason,  
+    PCBA.ModifiedDate as 'Rejected\Deleteddate',  
+    CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status ,  
+    PCBA.MonthAmount,PCBA.MonthlyWorkedDays  
+    FROM PR.BPSNSA PCBA WITH (NOLOCK)  
+    INNER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)  
+    ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)  
+    INNER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
+    and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
+    WHERE ((PCBA.Status IN (3,8,17,18) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))   
+    AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
+    (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))    
+   END  
+
+
+
+
+
+ SELECT DISTINCT PCBA.ShiftType,PCBA.AssociateID,  
+  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+  +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+  convert(varchar,StartDate,101) StartDate,Convert(varchar,EndDate,101) EndDate,  
+  PCBA.ProjectID,Amount,Grade,SetID,  
+  isnull(PCBA.CreatedBy, '' )  CreatedBy,  
+  Case when isnull(PCBA.Modifieddate,'')<>'' then convert(varchar,PCBA.Modifieddate,107)  
+  else Convert(varchar,PCBA.Createddate,107) end UploadedDate,
+  (CASE WHEN PCBA.Status IN (8) THEN 'Rejected by PFSS admin'
+	 ELSE CONVERT(VARCHAR,PCBA.ModifiedBy) END) AS RejectedBy,
+  CASE WHEN  PCBA.Rowstatus=0 THEN 'Deleted' ELSE isnull(MC_A.Cdescription,'') END Status ,  
+  PCBA.MonthAmount,PCBA.MonthlyWorkedDays  
+  FROM PR.BPSNSA PCBA WITH (NOLOCK)  
+  INNER JOIN @Project C ON PCBA.ProjectID=C.ProjectID  
   LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON CONVERT(VARCHAR,AD.Associate_ID)=CONVERT(VARCHAR,TRT.AssociateID)   
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)   
-  ON CONVERT(VARCHAR,CD.Associate_ID)=isnull(TRT.ApproverID,'')  
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON CONVERT(VARCHAR,UD.Associate_ID)=TRT.UploaderID    
-  LEFT OUTER JOIN mastercodes MC on MC.CParentref=2 and MC.CUserdefined1='5' and MC.Rowstatus=1 and   
-  MC.CCodeid=TRT.SpecialCaseReason  
-  LEFT Outer Join MasterCodes MC_A on MC_A.CParentRef=3 and TRT.Status=MC_A.CCodeId and MC_A.RowStatus=1 and   
-  MC_A.Cuserdefined1='PR'  
-  WHERE TRT.Status IN (1,5,10,11) AND TRT.RowStatus=1 AND ((DATEPART(MM,TRT.CreatedDate)=@month AND   
-  DATEPART(YY,TRT.CreatedDate)=@year) OR   
-  (DATEPART(MM,TRT.ModifiedDate)=@Month  AND DATEPART(YY,TRT.ModifiedDate)=@Year))  
-  and TRT.CreatedBy=@LOGINID and PCUD.FK_ComponentCountryID=@CountryId option (recompile)  
- END  
- ELSE  
- BEGIN  
+  ON AD.Associate_ID=CONVERT(CHAR,PCBA.AssociateID)  
+  LEFT OUTER JOIN MasterCodes MC_A WITH(NOLOCK) on MC_A.CParentRef=3 and PCBA.Status=MC_A.CCodeId   
+  and MC_A.RowStatus=1 and MC_A.Cuserdefined1='PR'  
+  WHERE ((PCBA.Status IN (3,8,17,18) AND PCBA.RowStatus=1) OR (PCBA.Rowstatus=0))   
+  AND ((month(PCBA.CreatedDate)=@month AND year(PCBA.CreatedDate)=@year) OR  
+  (month(PCBA.ModifiedDate)=@month AND year(PCBA.ModifiedDate)=@year))  
   
-  --Selecting Component data  
-  SELECT CM.ComponentName,TRT.AssociateID,  
-  ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-  ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
-  ProjectID,CUM.CurrencyCode,PCUD.CurrencyValue,  
-  TRT.Amount,convert(BIGINT,currencyvalue*AMOUNT) ConvertedAmount,  
-  LTRIM(RTRIM(REPLACE(TRT.InvoiceNumber,CHAR(10),' ')))  
-  InvoiceNumber,  
-  TRT.RewardName, COALESCE( ApproverID , '' )  ApproverID,ISNULL(LTRIM(RTRIM(CD.Associate_FirstName)),'')+' '+ISNULL(  
-  LTRIM(RTRIM(CD.Associate_LastName)),'') AS ApproverName,  
-  CASE WHEN  ISNULL(TRT.OtherMailUploadID,'0') <> '0' THEN 'Yes'   
-  ELSE 'No' END ApprovalMail,  
-  isnull(TRT.Vertical,'') Vertical,Case When TRT.Funded='1' then 'Project' when TRT.Funded='2' then 'Client'   
-  else '' end Funded,TRT.UploaderID,   
-  ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '+ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
-  Case when isnull(TRT.Modifieddate,'')<>'' then TRT.Modifieddate else TRT.Createddate end UploadedDate,  
-  isnull(MC.Cdescription,'') SpecialCaseReason,  
-  isnull(TRT.InputRemarks,'') InputRemarks, isnull(MC_A.Cdescription,'') AS Status   
-  FROM PR.TRTSPECIALINPUTS TRT WITH(NOLOCK)  
-  INNER JOIN dbo.ComponentMaster CM WITH(NOLOCK) ON TRT.FK_ComponentID =  CM.Pk_ComponentID and CM.Rowstatus = 1  
-  LEFT JOIN #ComponentTable CT WITH(NOLOCK) ON CT.Fk_ComponentID=TRT.Fk_ComponentID  
-  INNER JOIN CurrencyMaster Cum WITH (NOLOCK) ON TRT.FK_CurrencyID=Cum.PK_CurrencyID and CUM.Rowstatus=1  
-  INNER JOIN PR.CurrencyUpdatedata PCUD WITH (NOLOCK) on TRT.Fk_CurrencyID=PCUD.Fk_CurrencyID and PCUD.Rowstatus=1  
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
-  ON CONVERT(VARCHAR,AD.Associate_ID)=CONVERT(VARCHAR,TRT.AssociateID)   
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details CD WITH(NOLOCK)   
-  ON CONVERT(VARCHAR,CD.Associate_ID)=isnull(TRT.ApproverID,'')  
-  LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
-  ON CONVERT(VARCHAR,UD.Associate_ID)=TRT.UploaderID    
-  LEFT OUTER JOIN mastercodes MC on MC.CParentref=2 and MC.CUserdefined1='5' and MC.Rowstatus=1 and   
-  MC.CCodeid=TRT.SpecialCaseReason  
-  LEFT Outer Join MasterCodes MC_A on MC_A.CParentRef=3 and TRT.Status=MC_A.CCodeId and MC_A.RowStatus=1 and   
-  MC_A.Cuserdefined1='PR'  
-  WHERE TRT.Status IN (1,5,10,11) AND TRT.RowStatus=1 AND ((DATEPART(MM,TRT.CreatedDate)=@month AND   
-  DATEPART(YY,TRT.CreatedDate)=@year) OR   
-  (DATEPART(MM,TRT.ModifiedDate)=@Month  AND DATEPART(YY,TRT.ModifiedDate)=@Year))  
-  and PCUD.FK_ComponentCountryID=@CountryId AND trt.CreatedBy = @LOGINID option (recompile)  
- END  
- END  
- DROP TABLE #ComponentTable  
   END  

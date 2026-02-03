@@ -1,442 +1,209 @@
-USE [OneC_SPay]
-GO
-/****** Object:  StoredProcedure [dbo].[usp_GetUploaderValidRecord_TRT]    Script Date: 03-02-2026 10:37:08 ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
--- ==========================================================================================================
--- AUTHOR     : CHITRA A(316271)      
--- CREATE DATE: JUNE 10, 2015      
--- DESCRIPTION: TO GET THE VALID DATA TO POpULATE IN THE GRID  FOr TRT SPECIAL INPUTS
-
--- Modified By : Rajalingam (397660)      
--- CREATE DATE: Jan 28, 2016      
--- DESCRIPTION: To include the Uploader ID and Approval attached for TRT Special Inputs
-
--- Modified By : Chitra A(316271)      
--- CREATE DATE: Feb 2, 2016      
--- DESCRIPTION: To change the Uploader ID as Uploader Name for Search filter
--- ==========================================================================================================
-ALTER PROCEDURE [dbo].[usp_GetUploaderValidRecord_TRT]      
-(        
- @COMPONENTGROUPID INT,        
- @searchData VARCHAR(100)=NULL,      
- @searchData2 VARCHAR(100)=NULL,   
- @searchData3 VARCHAR(100)=NULL,   
- @searchData4 VARCHAR(100)=NULL,     
- @ddlData VARCHAR(100)=NULL,  
- @pageNum int=0,  
- @iDisplayLength int=0,  
- @orderBy varchar(30)=NULL,  
- @sortOrder int=0,  
- @getPages int=0,  
- @RoleID int=0,  
- @LoginID int=NULL  
-)   
-/******************************************************************  
-This User-defined Stored Procedure  
-used in SPAY  to allow   
-faster execution and reduce network traffic.  
-****************************************************************/  
-AS        
-BEGIN        
-SET NOCOUNT ON          
-BEGIN TRY  
- BEGIN TRANSACTION        
-DECLARE @Description VARCHAR(100)        
-DECLARE @COMMONTH VARCHAR(10)  
-DECLARE @STATUS VARCHAR(100)  
-Declare @RolePriority int  
+IF(@componentid in (50,51,52))  
+ BEGIN  
+      IF(@Componentid=52 and @RoleID in (6,5)) --IT NSA  
+   BEGIN  
+    CREATE TABLE #ITCOMPONENTSP (ComponentID INT,ProjectID VARCHAR(50))  
+             
+    INSERT INTO #ITCOMPONENTSP (ComponentID ,ProjectID )     
+    EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID,@ComponentGrpID    
   
--------------- Status-----------  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,  
+    CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    PSTP.TransportEligibility AS TransportEligibility,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    --(CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0   
+    -- THEN 'Deleted' END)   
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+'  
+    WHEN PSTP.RowStatus=0 THEN 'Deleted' END)   
+    AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+          ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+          +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+                PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,PSTP.ModifiedDate 'Rejected\Deleteddate',  
+          PSTP.NSADate AS ShiftStartDate  
+    FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
+    ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK)   
+    ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)   
+    INNER JOIN #ITCOMPONENTSP CMTS WITH(NOLOCK) ON  CMTS.ComponentID=PSTP.Fk_ComponentID   
+    AND CMTS.ProjectID=PSTP.ProjectID AND CMTS.ComponentID = @componentid  
+    --WHERE (PSTP.STATUS=3 OR PSTP.RowStatus=0)   
+    WHERE (PSTP.STATUS in (3,23,36,17) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR   
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))  
+    AND CM.PK_componentid=@componentid  
+      
+    --Drops the temp table  
+    DROP TABLE  #ITCOMPONENTSP   
+  END   
+   ELSE IF(@Componentid not in (52) and @RoleID=6)  
+    BEGIN  
+    CREATE TABLE #ITCOMPONENTS (ComponentID INT,ProjectID VARCHAR(50))  
+            --Insert into temp table  
+    INSERT INTO #ITCOMPONENTS (ComponentID ,ProjectID )     
+    EXEC [dbo].[usp_GetComponentsForRole] @RoleID,@LoginID,@ComponentGrpID    
   
-SET @STATUS=(CASE WHEN  @RoleID=8 or @RoleID=2 THEN '1,8,10,11,14,13'   
-when @RoleID=3  then '1,10,11,13,14' ELSE '1,8,9,10,11,13,14' END)  
-  
-SELECT distinct CRM.FK_RoleID INTO #RoleTable from UserRoleMapping URM WITH (NOLOCK)  
-INNER JOIN ComponentRoleMapping CRM WITH (NOLOCK)   
-ON CRM.PK_ComponentRoleID=URM.FK_ComponentRoleID  
- INNER JOIN COMPONENTCOUNTRYMAPPING CCM WITH(NOLOCK)   
- ON CCM.PK_COMPONENTCOUNTRYMAPPINGID=CRM.FK_COMPONENTCOUNTRYMAPPINGID  
- INNER JOIN COMPONENTMASTER CM WITH(NOLOCK) ON CM.PK_COMPONENTID=CCM.FK_COMPONENTID  
-WHERE CM.FK_ComponentGroupID=5 AND urm.AssociateID=@LoginID AND URM.RowStatus=1 AND CRM.RowStatus=1  
-  
-IF EXISTS(SELECT Fk_roleid from #RoleTable where FK_RoleID in (3,5,8) and @RoleID in (3,5,8))  
-BEGIN  
-Select @RolePriority=1  
-END  
-Else   
-BEGIN  
-Select @RolePriority=0  
-END  
-  
------------- Check component groupid-------  
-IF(@COMPONENTGROUPID=5)  
- BEGIN       
-  
-      DECLARE @iDisplayStart int,@iDisplayEnd INT  
-   DECLARE @totrec INT  
-   SET @iDisplayEnd=@pageNum*@iDisplayLength  
-   SET @iDisplayStart=@iDisplayEnd-(@iDisplayLength-1)  
-   SET @orderBy=(CASE WHEN @orderBy='' THEN '(select 0)' ELSE @orderBy END )  
-  
-  CREATE TABLE #TRTSPECIALINPUTS(PK_TRTSpecialInputsID INT,ComponentID INT,  
-  Component VARCHAR(100),AssociateID VARCHAR(11),AssociateName VARCHAR(500),  
-  ProjectID VARCHAR(50),Vertical VARCHAR(500),Funded VARCHAR(50),CurrencyCode VARCHAR(15),  
-  Amount MONEY,RewardName varchar(500),  
-  ApproverID VARCHAR(20),ApproverName VARCHAR(500),UploaderID VARCHAR(11),UploaderName VARCHAR(500),  
-  InvoiceNumber VARCHAR(500),RejectReason VARCHAR(500),  
-  Status varchar(50),SpecialCaseReason varchar(500),SpecialCaseMail varchar(50),InputRemarks varchar(500),  
-  Month varchar(5),Year varchar(5),UploaderRemarks varchar(500))  
-  
- IF((ISNULL(@searchData, '') = '') AND (ISNULL(@searchData2, '') = '') AND (ISNULL(@searchData3, '') = ''))                            
-     BEGIN    
-  IF(@getPages=0)  
-  BEGIN  
-  if(@RolePriority=1)  
-  BEGIN   
-            
-               INSERT INTO #TRTSPECIALINPUTS(PK_TRTSpecialInputsID,ComponentID,Component,AssociateID,  
-      Vertical,ProjectID,Funded,CurrencyCode,Amount,RewardName,  
-         ApproverID,UploaderID,InvoiceNumber,SpecialCaseReason,SpecialCaseMail,Status,  
-      RejectReason,InputRemarks,Month,Year,UploaderRemarks)  
-     SELECT PTST.PK_TRTSpecialInputsID,CM.PK_ComponentId ComponentID,CM.ComponentName  
-        ,PTST.AssociateID, isnull( PTST.Vertical, '' ), isnull( PTST.ProjectID, '' ),  
-        Case when PTST.Funded=1 then 'Project' else 'Client' end Funded,isnull(CUM.CurrencyCode,''),  
-        isnull(PTST.Amount,''),isnull(PTST.RewardName,''),  
-        isnull(PTST.ApproverID,''),isnull(PTST.UploaderID,''),isnull(PTST.InvoiceNumber,''),  
-        isnull(MC.Cdescription,''),       
-        --CASE WHEN (convert(varchar,isnull(PTST.FileUploadID,'0'))+',  
-         --'+convert(varchar,isnull(PTST.OthermailuploadID,'0'))) <> '0,0' THEN  
-        --(convert(varchar,isnull(PTST.FileUploadID,''))+','+  
-        --convert(varchar,isnull(PTST.OthermailuploadID,''))) ELSE '0,0' END,  
-        isnull(PTST.OthermailuploadID,''),   
-        case when PTST.Status=1 then 'Valid'    
-        when PTST.Status=8 then 'Rejected By PFSS Admin'    
-        when PTST.Status=9 then 'Rejected By TRT Approver'   
-        when PTST.Status=10 then 'Resubmitted after PFSS Rejection'   
-        when PTST.Status=11 then 'Resubmitted after TRT Approver Rejection'   
-        when PTST.Status=13 then 'Approved by TRT Approver'   
-        when PTST.Status=14 then 'Approved by PFSS Admin' else '' end as Status,  
-        isnull(PTST.RejectionReason,''),isnull(PTST.InputRemarks,''),  
-        isnull(PTST.Month,''),isnull(PTST.Year,''),isnull(PTST.UploaderRemarks,'')  
-      FROM PR.TRTSpecialInputs PTST WITH (NOLOCK)   
-        INNER JOIN ComponentMaster CM WITH (NOLOCK) ON PTST.Fk_ComponentID=CM.PK_ComponentId   
-        AND CM.FK_ComponentGroupID=5     
-        INNER JOIN CurrencyMaster CUM WITH (NOLOCK) ON CUM.PK_CurrencyID=PTST.FK_CurrencyID   
-        AND CUM.Rowstatus=1  
-        LEFT OUTER join MASTERCODES MC with (NOLOck) on MC.CparentRef=2 and MC.CuserDefined1=5   
-        and MC.CCodeID=PTST.SpecialCaseReason and MC.Rowstatus=1
-		 WHERE  PTST.Rowstatus=1 AND PTST.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))  
-           ORDER BY PTST.CreatedDate DESC,PTST.ModifiedDate DESC;    
-        END  
-  ELSE  
-  BEGIN  
-               INSERT INTO #TRTSPECIALINPUTS(PK_TRTSpecialInputsID,ComponentID,Component,AssociateID,Vertical,  
-      ProjectID,Funded,CurrencyCode,Amount,RewardName,  
-         ApproverID,UploaderID,InvoiceNumber,SpecialCaseReason,SpecialCaseMail,Status,RejectReason,InputRemarks  
-      ,Month,Year,UploaderRemarks)  
-      SELECT PTST.PK_TRTSpecialInputsID,CM.PK_ComponentId ComponentID,CM.ComponentName,PTST.AssociateID,  
-      isnull(PTST.Vertical,''),isnull(PTST.ProjectID,''),  
-      Case when PTST.Funded=1 then 'Project' else 'Client' end Funded,isnull(CUM.CurrencyCode,''),  
-      isnull(PTST.Amount,''),isnull(PTST.RewardName,''),  
-      isnull(PTST.ApproverID,''),isnull(PTST.UploaderID,''),isnull(PTST.InvoiceNumber,''),  
-      isnull(MC.Cdescription,''),       
-      --CASE WHEN (convert(varchar,isnull(PTST.FileUploadID,'0'))+','+  
-      --convert(varchar,isnull(PTST.OthermailuploadID,'0'))) <> '0,0' THEN  
-      --(convert(varchar,isnull(PTST.FileUploadID,''))+','+  
-      --convert(varchar,isnull(PTST.OthermailuploadID,''))) ELSE '0,0' END,  
-      isnull(PTST.OthermailuploadID,''),  
-      case when PTST.Status=1 then 'Valid'  when PTST.Status=8 then 'Rejected By PFSS Admin'   
-      when PTST.Status=9 then 'Rejected By TRT Approver' when PTST.Status=10  
-      then 'Resubmitted after PFSS Rejection'   
-      when PTST.Status=11 then 'Resubmitted after TRT Approver Rejection'   
-      when PTST.Status=13 then 'Approved by TRT Approver'   
-      when PTST.Status=14 then 'Approved by PFSS Admin' else '' end as Status,  
-      isnull(PTST.RejectionReason,''),  
-      isnull(PTST.InputRemarks,''),  
-      isnull(PTST.Month,''),isnull(PTST.Year,''),isnull(PTST.UploaderRemarks,'')  
-      FROM PR.TRTSpecialInputs PTST WITH (NOLOCK)   
-      INNER JOIN ComponentMaster CM WITH (NOLOCK) ON PTST.Fk_ComponentID=CM.PK_ComponentId   
-      AND CM.FK_ComponentGroupID=5     
-      INNER JOIN CurrencyMaster CUM WITH (NOLOCK) ON CUM.PK_CurrencyID=PTST.FK_CurrencyID  
-      AND CUM.Rowstatus=1  
-      LEFT OUTER join MASTERCODES MC with (NOLOck) on MC.CparentRef=2   
-      and MC.CuserDefined1=5 and MC.CCodeID=PTST.SpecialCaseReason and MC.Rowstatus=1    
-      WHERE  PTST.Rowstatus=1 AND PTST.Status   
-      IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))   
-      and PTST.CreatedBy=@LoginID  
-      ORDER BY PTST.CreatedDate DESC,PTST.ModifiedDate DESC  
-        END  
-  
-      UPDATE TSP SET AssociateName=ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-      ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'')  
-      FROM #TRTSPECIALINPUTS TSP WITH (NOLOCK) LEFT OUTER JOIN    
-      CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK)   
-      ON TSP.ASSOCIATEID=AD.Associate_ID  
-  
-      UPDATE TSP SET ApproverName=ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-      ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'')  
-      FROM #TRTSPECIALINPUTS TSP WITH (NOLOCK) LEFT OUTER JOIN   
-      CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK)   
-      ON TSP.ApproverID=AD.Associate_ID  
-  
-      UPDATE TSP SET UploaderName=ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-      ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'')  
-      FROM #TRTSPECIALINPUTS TSP WITH (NOLOCK) LEFT OUTER JOIN    
-      CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK)   
-      ON TSP.UploaderID=AD.Associate_ID  
-  
-      UPDATE #TRTSPECIALINPUTS SET ApproverID='' WHERE ApproverID='0'  
-       
-       IF @sortOrder = 1  
-        BEGIN  
-         EXEC('SELECT Rowno,PK_TRTSpecialInputsID,ComponentID,Component,AssociateID,  
-         AssociateName,Vertical,ProjectID,Funded,CurrencyCode,  
-         Amount,RewardName,ApproverID,ApproverName,UploaderID,UploaderName,InvoiceNumber,  
-         SpecialCaseReason,SpecialCaseMail,Status,  
-         RejectReason,InputRemarks,Month,Year,UploaderRemarks FROM   
-               (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' ASC) AS [RowNo],*   
-         FROM #TRTSPECIALINPUTS) t  
-            WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)  
-        END  
-       ELSE  
-        BEGIN  
-         EXEC('SELECT Rowno,PK_TRTSpecialInputsID,ComponentID,Component,AssociateID,  
-         AssociateName,Vertical,ProjectID,Funded,CurrencyCode,  
-         Amount,RewardName,ApproverID,ApproverName,UploaderID,UploaderName,InvoiceNumber,  
-         SpecialCaseReason,SpecialCaseMail,Status,  
-         RejectReason,InputRemarks ,Month,Year,UploaderRemarks  FROM   
-            (SELECT ROW_NUMBER() OVER (ORDER BY '+ @orderBy+' DESC) AS [RowNo],*   
-         FROM #TRTSPECIALINPUTS) t  
-         WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)  
-        END  
-  
-      SELECT @totrec=count(1) FROM #TRTSPECIALINPUTS   
-  
-      IF (@totrec%@iDisplayLength)=0  
-       SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total  
-      ELSE  
-       SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total  
-      END  
-    ELSE  
-     BEGIN  
-     if(@RolePriority=1)  
-     BEGIN  
-      SELECT @totrec=count(1) FROM PR.TRTSpecialInputs PTST WITH (NOLOCK)   
-      INNER JOIN ComponentMaster CM WITH (NOLOCK) ON PTST.Fk_ComponentID=CM.PK_ComponentId   
-      AND CM.FK_ComponentGroupID=5     
-      INNER JOIN CurrencyMaster CUM WITH (NOLOCK) ON CUM.PK_CurrencyID=PTST.FK_CurrencyID   
-      AND CUM.Rowstatus=1  
-      LEFT OUTER join MASTERCODES MC with (NOLOck) on MC.CparentRef=2 and MC.CuserDefined1=5   
-      and MC.CCodeID=PTST.SpecialCaseReason and MC.Rowstatus=1    
-      WHERE  PTST.Rowstatus=1 AND PTST.Status IN   
-      (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))   
-  
-      IF (@totrec%@iDisplayLength)=0  
-       SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total  
-      ELSE  
-       SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total  
-     END  
-     ELSE  
-     BEGIN  
-      SELECT @totrec=count(1) FROM PR.TRTSpecialInputs PTST WITH (NOLOCK)   
-               INNER JOIN ComponentMaster CM WITH (NOLOCK) ON PTST.Fk_ComponentID=CM.PK_ComponentId   
-      AND CM.FK_ComponentGroupID=5     
-               INNER JOIN CurrencyMaster CUM WITH (NOLOCK) ON CUM.PK_CurrencyID=PTST.FK_CurrencyID   
-      AND CUM.Rowstatus=1  
-               LEFT OUTER join MASTERCODES MC with (NOLOck) on MC.CparentRef=2 and MC.CuserDefined1=5   
-      and MC.CCodeID=PTST.SpecialCaseReason and MC.Rowstatus=1    
-               WHERE  PTST.Rowstatus=1 AND PTST.Status  
-      IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))   
-      and PTST.CreatedBy=@LoginID  
-  
-      IF (@totrec%@iDisplayLength)=0  
-       SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total  
-      ELSE  
-       SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total  
-     END  
-     END       
-  END  
-        
- ELSE  
-  BEGIN  
-  SELECT @Description = CDescription FROM MasterCodes WITH (NOLOCK)   
-  WHERE CParentRef = 8 AND CCodeId = @COMPONENTGROUPID and CUserDefined2 in ('7,3')  
-  AND CUserDefined1 = @ddlData AND RowStatus = 1  
-  
-  
-  if(@RolePriority=1)  
-  BEGIN  
-  BEGIN  
-   
-      INSERT INTO #TRTSPECIALINPUTS(PK_TRTSpecialInputsID,ComponentID,Component,AssociateID,Vertical,  
-      ProjectID,Funded,CurrencyCode,Amount,RewardName,  
-         ApproverID,UploaderID,InvoiceNumber,SpecialCaseReason,SpecialCaseMail,Status,  
-      RejectReason,InputRemarks,Month,Year,UploaderRemarks)  
-         SELECT PTST.PK_TRTSpecialInputsID,CM.PK_ComponentId ComponentID,CM.ComponentName,PTST.AssociateID,  
-      isnull(PTST.Vertical,''),isnull(PTST.ProjectID,''),  
-      Case when PTST.Funded=1 then 'Project' else 'Client' end Funded,isnull(CUM.CurrencyCode,''),  
-      isnull(PTST.Amount,''),isnull(PTST.RewardName,''),  
-      isnull(PTST.ApproverID,''),isnull(PTST.UploaderID,''),isnull(PTST.InvoiceNumber,''),  
-      isnull(MC.Cdescription,''),  
-      --CASE WHEN (convert(varchar,isnull(PTST.FileUploadID,'0'))+','+  
-      --convert(varchar,isnull(PTST.OthermailuploadID,'0'))) <> '0,0' THEN  
-      --(convert(varchar,isnull(PTST.FileUploadID:''))+','+  
-      --convert(varchar,isnull(PTST.OthermailuploadID:''))) ELSE '0,0' END,  
-      isnull(PTST.OthermailuploadID,''),  
-      case when PTST.Status=1 then 'Valid'    
-      when PTST.Status=8 then 'Rejected By PFSS Admin'   
-      when PTST.Status=9 then 'Rejected By TRT Approver' when PTST.Status=10   
-      then 'Resubmitted after PFSS Rejection'   
-      when PTST.Status=11 then 'Resubmitted after TRT Approver Rejection'   
-      when PTST.Status=13 then 'Approved by TRT Approver'   
-      when PTST.Status=14 then 'Approved by PFSS Admin' else '' end as Status,  
-      isnull(PTST.RejectionReason,''),isnull(PTST.InputRemarks,''),  
-      isnull(PTST.Month,''),isnull(PTST.Year,''),isnull(PTST.UploaderRemarks,'')  
-      FROM PR.TRTSpecialInputs PTST WITH (NOLOCK)   
-      INNER JOIN ComponentMaster CM WITH (NOLOCK) ON PTST.Fk_ComponentID=CM.PK_ComponentId  
-      AND CM.FK_ComponentGroupID=5       
-      INNER JOIN CurrencyMaster CUM WITH (NOLOCK) ON CUM.PK_CurrencyID=PTST.FK_CurrencyID  
-      AND CUM.Rowstatus=1   
-      LEFT OUTER join MASTERCODES MC with (NOLOck) on MC.CparentRef=2 and MC.CuserDefined1=5   
-      and MC.CCodeID=PTST.SpecialCaseReason and MC.Rowstatus=1    
-      WHERE  PTST.Rowstatus=1 
-      AND  PTST.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%'))   
-      AND  CM.ComponentName LIKE LTRIM(RTRIM('%' + @searchData2 + '%')) AND
-
-      ((PTST.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS, ',')) AND PTST.Status != 13)                     
-	    OR(PTST.Status = 13 AND (MONTH(PTST.ModifiedDate) = MONTH(GETDATE()) AND YEAR(PTST.ModifiedDate) =YEAR(GETDATE())) AND @RoleID = 8))
-      ORDER BY PTST.CreatedDate DESC,PTST.ModifiedDate DESC  
-       END      
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,  
+    CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+    PSTP.TransportEligibility AS TransportEligibility,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    --(CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0   
+    -- THEN 'Deleted' END)   
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+'  
+    WHEN PSTP.RowStatus=0 THEN 'Deleted' END)   
+    AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+          ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+          +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+                PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,PSTP.ModifiedDate 'Rejected\Deleteddate',  
+          PSTP.NSADate AS ShiftStartDate  
+    FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
+    ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK)   
+    ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)   
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)   
+    INNER JOIN #ITCOMPONENTS CMTS WITH(NOLOCK) ON  CMTS.ComponentID=PSTP.Fk_ComponentID   
+    AND CMTS.ProjectID=PSTP.ProjectID AND CMTS.ComponentID = @componentid  
+    --WHERE (PSTP.STATUS=3 OR PSTP.RowStatus=0)   
+    WHERE (PSTP.STATUS in (3,23,36,17) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR   
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))  
+    AND CM.PK_componentid=@componentid  
+      
+    --Drops the temp table  
+    DROP TABLE  #ITCOMPONENTS   
+  END   
+   ELSE   
+    BEGIN  
+    IF(@RoleID=12)  
+    BEGIN  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+       PSTP.TransportEligibility AS TransportEligibility,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0 THEN 'Deleted'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+    ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+    PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,  
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
+    ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK)  
+    ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)  
+    WHERE (PSTP.STATUS in(3,17,23,36) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR   
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid and PSTP.CreatedBy=@LoginID  
+    END  
+    ELSE IF(@componentid in (50,51) AND @RoleID in (2,3))  
+    BEGIN  
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+       PSTP.TransportEligibility AS TransportEligibility,  
+    isnull(SDA_OCA_Amount,0) as SDA_OCA_Amount1,  
+    isnull(SDA_OCA_Amount2,0) as SDA_OCA_Amount2,  
+    PSTP.Amount as TotalAmount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0 THEN 'Deleted'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+    ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+    PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,  
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
+    ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK)  
+    ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy)  
+    WHERE (PSTP.STATUS in(3,17,23,36) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR   
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid  
     END  
     ELSE  
     BEGIN  
-  BEGIN  
-   
-      INSERT INTO #TRTSPECIALINPUTS(PK_TRTSpecialInputsID,ComponentID,Component,  
-      AssociateID,Vertical,  
-      ProjectID,Funded,CurrencyCode,Amount,RewardName,  
-         ApproverID,UploaderID,InvoiceNumber,SpecialCaseReason,SpecialCaseMail,Status,  
-      RejectReason,InputRemarks,Month,Year,UploaderRemarks)  
-         SELECT PTST.PK_TRTSpecialInputsID,CM.PK_ComponentId ComponentID,  
-       CM.ComponentName,PTST.AssociateID,  
-      isnull(PTST.Vertical,''),isnull(PTST.ProjectID,''),  
-      Case when PTST.Funded=1 then 'Project' else 'Client' end Funded,isnull(CUM.CurrencyCode,''),  
-      isnull(PTST.Amount,''),isnull(PTST.RewardName,''),  
-      isnull(PTST.ApproverID,''),isnull(PTST.UploaderID,''),isnull(PTST.InvoiceNumber,''),  
-      isnull(MC.Cdescription,''),  
-      --CASE WHEN (convert(varchar,isnull(PTST.FileUploadID,'0'))+','+  
-      --convert(varchar,isnull(PTST.OthermailuploadID,'0'))) <> '0,0' THEN  
-      --(convert(varchar,isnull(PTST.FileUploadID:''))+','+  
-      --convert(varchar,isnull(PTST.OthermailuploadID:''))) ELSE '0,0' END,  
-      isnull(PTST.OthermailuploadID,''),  
-      case when PTST.Status=1 then 'Valid'    
-      when PTST.Status=8 then 'Rejected By PFSS Admin'    
-      when PTST.Status=9 then 'Rejected By TRT Approver' when PTST.Status=10   
-      then 'Resubmitted after PFSS Rejection'   
-      when PTST.Status=11 then 'Resubmitted after TRT Approver Rejection'   
-      when PTST.Status=13 then 'Approved by TRT Approver'   
-      when PTST.Status=14 then 'Approved by PFSS Admin' else '' end as Status,  
-      isnull(PTST.RejectionReason,''),isnull(PTST.InputRemarks,''),  
-      isnull(PTST.Month,''),isnull(PTST.Year,''),isnull(PTST.UploaderRemarks,'')  
-      FROM PR.TRTSpecialInputs PTST WITH (NOLOCK)   
-      INNER JOIN ComponentMaster CM WITH (NOLOCK) ON PTST.Fk_ComponentID=CM.PK_ComponentId   
-      AND CM.FK_ComponentGroupID=5       
-      INNER JOIN CurrencyMaster CUM WITH (NOLOCK) ON CUM.PK_CurrencyID=PTST.FK_CurrencyID   
-      AND CUM.Rowstatus=1         
-      LEFT OUTER join MASTERCODES MC with (NOLOck) on MC.CparentRef=2 and MC.CuserDefined1=5   
-      and MC.CCodeID=PTST.SpecialCaseReason and MC.Rowstatus=1    
-      WHERE  PTST.Rowstatus=1 AND  
-	  PTST.AssociateID LIKE LTRIM(RTRIM('%' + @searchData + '%')) AND    
-      --CM.ComponentName LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))  AND
-	   
-	  (@searchData2 IS NULL OR CM.ComponentName LIKE LTRIM(RTRIM('%' + @searchData2 + '%'))) AND 
-	  PTST.ProjectID LIKE LTRIM(RTRIM('%' + @searchData3 + '%')) AND
-    
-         
-      PTST.Status IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@STATUS,','))   
-      and PTST.Createdby=@loginid  
-      ORDER BY PTST.CreatedDate DESC,PTST.ModifiedDate DESC  
-       END     
+    SELECT DISTINCT PSTP.AssociateID,ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'') AS AssociateName,  
+    PSTP.ProjectID,CM.ComponentName AS AllowanceType,STM.SHIFTTYPENAME AS ShiftType,  
+    CONVERT(VARCHAR,PSTP.StartDate,101) AS StartDate,CONVERT(VARCHAR(5),PSTP.StartTime,108) AS StartTime,  
+    CONVERT(VARCHAR(5),PSTP.EndTime,108) AS EndTime,CONVERT(VARCHAR,PSTP.EndDate,101) AS EndDate,  
+    ISNULL(PSTP.HCMSchedule,'') AS HCMShift,  
+       PSTP.TransportEligibility AS TransportEligibility,PSTP.Amount,  
+    ISNULL(PSTP.REJECTIONREASON,'') AS RejectReason,  
+    (CASE WHEN PSTP.Status=3 AND PSTP.RowStatus=1 THEN 'Rejected' WHEN PSTP.RowStatus=0 THEN 'Deleted'   
+    when Status=23 and PSTP.RowStatus=1 then 'Rejected by Home Manager'   
+    when Status=17 and PSTP.RowStatus=1 then 'Rejected by Project Manager'   
+    when Status=36 and PSTP.RowStatus=1 then 'Rejected by D+' END) AS Status,   
+    ISNULL(PSTP.InputRemarks,'') AS Remarks,PSTP.Createdby UploadedBy,  
+    ISNULL(LTRIM(RTRIM(UD.Associate_FirstName)),'')+' '  
+    +ISNULL(LTRIM(RTRIM(UD.Associate_LastName)),'') AS UploaderName,  
+    PSTP.CreatedDate UploadedDate,(CASE WHEN PSTP.FK_RejectedRoleID = 3 THEN 'Rejected by PFSS admin'
+	ELSE CONVERT(VARCHAR,PSTP.ModifiedBy) END) AS RejectedBy,   
+    PSTP.ModifiedDate 'Rejected\Deleteddate',PSTP.NSADate AS ShiftStartDate  
+    FROM PR.ITSHIFTALLOWANCE PSTP WITH(NOLOCK)  
+    LEFT OUTER JOIN COMPONENTMASTER CM WITH(NOLOCK)   
+    ON CM.PK_COMPONENTID=PSTP.FK_COMPONENTID AND CM.ROWSTATUS=1  
+    LEFT OUTER JOIN SHIFTTYPEMASTER STM WITH(NOLOCK)  
+    ON STM.PK_SHIFTTYPEID=PSTP.FK_SHIFTTYPEID AND STM.RowStatus=1  
+    LEFT OUTER JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details AD WITH(NOLOCK)   
+    ON AD.Associate_ID=CONVERT(CHAR,PSTP.AssociateID)  
+    LEFT OUTER  JOIN CENTRALREPOSITORY.DBO.vw_CentralRepository_Associate_Details UD WITH(NOLOCK)  
+    ON UD.Associate_ID=CONVERT(CHAR,PSTP.CreatedBy )  
+    WHERE (PSTP.STATUS in(3,17,23,36) OR PSTP.RowStatus=0)   
+    AND ((DATEPART(MM,PSTP.CreatedDate)=@Month AND DATEPART(YY,PSTP.CreatedDate)=@Year) OR   
+    (DATEPART(MM,PSTP.ModifiedDate)=@Month AND DATEPART(YY,PSTP.ModifiedDate)=@Year))   
+    AND CM.PK_componentid=@componentid  
     END  
-      UPDATE TSP SET AssociateName=ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-      ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'')  
-      FROM #TRTSPECIALINPUTS TSP WITH (NOLOCK) LEFT OUTER JOIN   
-      CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK)   
-      ON TSP.ASSOCIATEID=AD.Associate_ID  
-  
-      UPDATE TSP SET ApproverName=ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '  
-      +ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'')  
-      FROM #TRTSPECIALINPUTS TSP WITH (NOLOCK) LEFT OUTER JOIN   
-      CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK)   
-      ON TSP.ApproverID=AD.Associate_ID  
-  
-      UPDATE TSP SET UploaderName=ISNULL(LTRIM(RTRIM(AD.Associate_FirstName)),'')+' '+  
-      ISNULL(LTRIM(RTRIM(AD.Associate_LastName)),'')  
-      FROM #TRTSPECIALINPUTS TSP WITH (NOLOCK) LEFT OUTER JOIN    
-      CENTRALREPOSITORY.DBO.VW_CENTRALREPOSITORY_ASSOCIATE_DETAILS AD WITH (NOLOCK)   
-      ON TSP.UploaderID=AD.Associate_ID  
-  
-      UPDATE #TRTSPECIALINPUTS SET ApproverID='' WHERE ApproverID='0'  
-   IF(@getPages=0)  
-  BEGIN  
-  IF @sortOrder = 1  
-   BEGIN  
-    EXEC('SELECT Rowno,PK_TRTSpecialInputsID,ComponentID,Component,AssociateID,AssociateName,  
-    Vertical,ProjectID,Funded,CurrencyCode,  
-    Amount,RewardName,ApproverID,ApproverName,UploaderID,UploaderName,  
-    InvoiceNumber,SpecialCaseReason,SpecialCaseMail,Status,  
-    RejectReason,InputRemarks,Month,Year,UploaderRemarks FROM  (SELECT ROW_NUMBER()   
-    OVER (ORDER BY '+ @orderBy+' ASC) AS [RowNo],* FROM #TRTSPECIALINPUTS) t  
-       WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)  
-   END  
-  ELSE  
-   BEGIN  
-    EXEC('SELECT Rowno,PK_TRTSpecialInputsID,ComponentID,Component,AssociateID,AssociateName,  
-    Vertical,ProjectID,Funded,CurrencyCode,  
-    Amount,RewardName,ApproverID,ApproverName,UploaderID,UploaderName,  
-    InvoiceNumber,SpecialCaseReason,SpecialCaseMail,Status,  
-    RejectReason,InputRemarks ,Month,Year,UploaderRemarks FROM  (SELECT ROW_NUMBER()   
-    OVER (ORDER BY '+ @orderBy+' DESC) AS [RowNo],* FROM #TRTSPECIALINPUTS) t  
-       WHERE RowNo BETWEEN '+ @iDisplayStart+' AND '+@iDisplayEnd)  
-   END  
-  
-   SELECT @totrec=count(1) FROM #TRTSPECIALINPUTS  
-  IF (@totrec%@iDisplayLength)=0  
-   SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total  
-  ELSE  
-   SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total  
+    END  
  END  
- ELSE  
- BEGIN  
-  SELECT @totrec=count(1) FROM #TRTSPECIALINPUTS  
-  IF (@totrec%@iDisplayLength)=0  
-   SELECT (@totrec/@iDisplayLength) AS Pages,@totrec AS Total  
-  ELSE  
-   SELECT (@totrec/@iDisplayLength)+1 AS Pages,@totrec AS Total  
- END  
-  
-END  
-END  
-DROP TABLE #TRTSPECIALINPUTS  
-COMMIT TRANSACTION  
- END TRY  
- BEGIN CATCH  
-  IF @@TRANCOUNT > 0  
-  BEGIN    
-   ROLLBACK TRANSACTION  
-  END  
- END CATCH   
-END  
-/******************************************************************  
-This User-defined Stored Procedure  
-used in SPAY  to allow   
-faster execution and reduce network traffic.  
-****************************************************************/
-/******************************************************************
-This User-defined Stored Procedure
-used in SPAY  to allow 
-faster execution and reduce network traffic.
-****************************************************************/

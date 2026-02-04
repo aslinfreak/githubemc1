@@ -1,1074 +1,1240 @@
+	 CONT3082687D67784712907A4621D6C654FF
+@componentGroupId = 12
 USE [OneC_SPay]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_RejectData]    Script Date: 03-02-2026 17:15:03 ******/
 SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
--- =====================================================================================================       
--- AUTHOR     : TEAM
--- CREATE DATE: JULY 20, 2020    
--- DESCRIPTION: Added the documentation for the stored procedure
--- ===================================================================================================== 
-ALTER PROCEDURE [dbo].[usp_RejectData]
-( 
- @componentGroupId INT,
- @selectedData varchar(8000),
- @rejectionReason varchar(3000),
- @LoginId INT,
- @RoleID INT=0,
- @CountryId int
-)
-AS
-SET NOCOUNT ON
-BEGIN
-BEGIN TRY
-    --Declare the data
-	DECLARE @ComponentCutoffdate varchar(100),@Currentdate date
-	set @Currentdate = Convert( date,getdate())
-	select @ComponentCutoffdate =  (Datefromparts (CONVERT(VARCHAR,DATEPART(YY,GETDATE())), 
-		CONVERT(VARCHAR,DATEPART(MM,GETDATE())), CCD.ToDate)) 
-	       FROM COMPONENTCUTOFFDATE  CCD 
-	       INNER JOIN COMPONENTROLEMAPPING CRM WITH(NOLOCK) 
-		ON CRM.PK_COMPONENTROLEID=CCD.FK_COMPONENTROLEID  AND CCD.Rowstatus=1
-	       INNER JOIN RoleMaster RM WITH (NOLOCK) 
-		ON CRM.FK_RoleID=RM.PK_RoleId and crm.RowStatus=1 and rm.RowStatus=1
-	       INNER JOIN ComponentCountryMapping CCM WITH (NOLOCK) 
-		ON CCM.Pk_ComponentCountryMappingID=CRM.Fk_ComponentCountryMappingID 
-	       and CCM.Rowstatus=1
-	       where CRM.Fk_ComponentCountryMappingID		
-		in (
-	    select CCM.PK_ComponentCountryMappingID from COMPONENTCOUNTRYMAPPING CCM 
-	    INNER JOIN COMPONENTMASTER CM ON CM.PK_COMPONENTID=CCM.FK_COMPONENTID
-	    INNER JOIN ComponentGroupMaster CGM WITH (NOLOCK) ON CGM.PK_ComponentGroupID=CM.FK_ComponentGroupID 
-	    where CGM.PK_ComponentGroupID=@componentGroupId and CCM.FK_componentcountryid=1) and PK_RoleId =@RoleID	
-		AND CCD.ToDate IS NOT NULL
-        AND CCD.ToDate BETWEEN 1 AND DAY(EOMONTH(GETDATE()))
+
+ALTER PROCEDURE [dbo].[usp_StagingToMain_BulkRejection] 
+(@componentGroupId INT,@FileUploadID VARCHAR(50))
+AS  
+BEGIN TRANSACTION
+SET NOCOUNT ON  
+BEGIN TRY 
+	-------------DECLARING VARIABLES --------------
+	DECLARE @ComponentCountrymappingID INT, @CutoffDate VARCHAR(20), @Currentdate DATEtime 
+	SET @Currentdate =  GETDATE()
+	DECLARE @CreatedRole INT = 3 
+	-------------- Fetching ComponentCountryMapping id --------------
+    SELECT @ComponentCountrymappingID = Pk_ComponentCountryMappingID 
+	FROM ComponentCountryMapping CCM WITH (NOLOCK) INNER JOIN ComponentMaster CM 
+	WITH(NOLOCK) ON CM.PK_ComponentID = CCM.FK_ComponentID
+    INNER JOIN ComponentGroupMaster STP WITH (NOLOCK) ON  CM.RowStatus=1 
+	AND CM.FK_ComponentGroupID = @componentGroupId
+    WHERE CCM.Fk_ComponentCountryID=1 AND CCM.Rowstatus=1 
 	
-
-------- Check Component group id----------
-	IF(@componentGroupId=1)
-	BEGIN
-	insert into pr.NoticePay_Log(Fk_NoticePayID,AssociateID,Amount,SpecialCaseReason,RejectionReason,
-	ProjectId,InputRemarks,Status,AdvisedBy,CompanyId,SetId,ApprovedBy,ApprovedDate,CreatedBy,CreatedDate,
-	ModifiedBy,ModifiedDate,RowStatus,Remarks,Logcreateddate)
-	select PK_NoticePayID,AssociateID,Amount,SpecialCaseReason,RejectionReason,ProjectId,InputRemarks,Status,
-	AdvisedBy,CompanyId,SetId,ApprovedBy,ApprovedDate,CreatedBy,CreatedDate,ModifiedBy,
-	ModifiedDate,RowStatus,remarks,getdate()
-	from PR.NoticePay with (nolock) where PK_NoticePayID IN
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-	--update the data
-    UPDATE PR.NoticePay SET Status=3,RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE()
-    WHERE PK_NoticePayID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=2 and @CountryId = 1)
-	BEGIN
-
-	insert into pr.ReferralBonus_Log(FK_ReferralBonusID,RefereeAssociateID,RefereeDOJ,RefereeBGstatus,
-	RefereeDepartment,RefereeGrade,ReferrorAssociateID,ReferrorBGstatus,ReferrorDepartment,ReferrorGrade,Amount,
-	Status,ProjectId,InputRemarks,SpecialCaseReason,RejectionReason,ApprovedBy,ApprovedDate,CreatedBy,CreatedDate,
-	ModifiedBy,ModifiedDate,RowStatus,remarks,LogCreatedDate)
-	select PK_ReferralBonusID,RefereeAssociateID,RefereeDOJ,RefereeBGstatus,RefereeDepartment,RefereeGrade,
-	ReferrorAssociateID,ReferrorBGstatus,ReferrorDepartment,ReferrorGrade,Amount,Status,ProjectId,InputRemarks,
-	SpecialCaseReason,RejectionReason,ApprovedBy,ApprovedDate,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,
-	RowStatus,remarks,getdate()
-	from pr.ReferralBonus with (nolock) where PK_ReferralBonusID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-	--update the data
-	UPDATE PR.ReferralBonus SET Status=3,RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_ReferralBonusID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=3 and @CountryId = 1)
-	BEGIN
-
-	insert into pr.JoiningBonus_log(FK_JoiningBonusID,AssociateID,DOJ,BGstatus,Grade,Amount,Status,
-	ProjectId,RecruitmentType,InputRemarks,SpecialCaseReason,RejectionReason,CompanyID,SetID,ApprovedBY,
-	ApprovedDate,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Remarks,RowStatus,LogCreatedDate,NoInstallments,RetentionPeriod)
-	select PK_JoiningBonusID,AssociateID,DOJ,BGstatus,Grade,Amount,Status,ProjectId,RecruitmentType,
-	InputRemarks,SpecialCaseReason,RejectionReason,CompanyID,SetID,ApprovedBY,ApprovedDate,CreatedBy,
-	CreatedDate,ModifiedBy,ModifiedDate,Remarks,RowStatus,Getdate(),NoInstallments,RetentionPeriod
-	from pr.JoiningBonus with (nolock) where Pk_JoiningBonusID in
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-    --update the data
-	UPDATE PR.JoiningBonus SET Status=3,RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_JoiningBonusID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=4 and @RoleID = 20)
-	BEGIN
-	
-	insert into pr.ShiftTimePayout_log(fk_ShifttimepayoutID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,
-	ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,SpecialCaseReason,
-	inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,
-	Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,LogCreateddate)
-	select PK_ShiftTimePayoutID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,SpecialCaseReason,inputremarks,RejectionReason,
-	Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,
-	Modifieddate,Rowstatus,@LoginId,getdate()
-	from pr.ShiftTimePayout with (nolock) where PK_ShiftTimePayoutID in 
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	IF(DAY(@ComponentCutoffdate)< DAY(@Currentdate))  
-	Begin
-		select 'Transactions cannot be updated post the Cut off Date' as Exception
-	END
-	ELSE
-	BEGIN
-	--update the data
-		UPDATE PR.ShiftTimePayout SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=23,
-		RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-		WHERE PK_ShiftTimePayoutID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	END
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=12 and @RoleID = 20)
-	BEGIN
-
-	insert into pr.ITShiftAllowance_log(FK_ITShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,
-	ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,
-	SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,
-	Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,LogCreateddate)
-	select PK_ITShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,SpecialCaseReason,inputremarks,
-	RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,
-	Modifiedby,
-	Modifieddate,Rowstatus,@LoginId,getdate()
-	from pr.ITShiftAllowance with (nolock) where PK_ITShiftAllowanceID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	IF(DAY(@ComponentCutoffdate)< DAY(@Currentdate))  
-	Begin
-		select 'Transactions cannot be updated post the Cut off Date' as Exception
-	END
-	ELSE
-	BEGIN
-	--update the data
-		UPDATE PR.ITShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,
-		Status=23,RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-		WHERE PK_ITShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-		
-
-		
-	 END
-
-	END
-------- Check Component group id----------
-	
-	ELSE IF(@componentGroupId=98 and @RoleID = 20)
-	BEGIN
-	
-	insert into pr.ADMShiftAllowance_log(Fk_ADMShiftAllowanceID,AssociateID,Fk_ComponentID,
-	Fk_ShifttypeID,ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,
-	Grade,TransportEligibility,SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,
-	RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,
-	Rowstatus,LogCreatedby,LogCreateddate,ADM_Amount)
-	select PK_ADMShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,
-	Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,
-	SpecialCaseReason,inputremarks,RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,
-	SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,
-	@LoginId,getdate(),ADM_Amount
-	from pr.ADMShiftAllowance with (nolock) where PK_ADMShiftAllowanceID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	IF(DAY(@ComponentCutoffdate)< DAY(@Currentdate))  
-	Begin
-		select 'Transactions cannot be updated post the Cut off Date' as Exception
-	END
-	ELSE
-	BEGIN
-	--update the data
-		UPDATE PR.ADMShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=23,
-		RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-		WHERE PK_ADMShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-		
-	END
-
-	---VNM NSA
-	------- Check Component group id----------
-	ELSE IF(@componentGroupId=100 and @RoleID = 20)
-	BEGIN
-	
-	insert into PR.VNMShiftAllowance_log(Fk_VNMShiftAllowanceID,AssociateID,Fk_ComponentID,
-	Fk_ShifttypeID,ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,
-	Grade,TransportEligibility,SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,
-	Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,
-	LogCreatedby,LogCreateddate,VNM_Amount)
-	select PK_VNMShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,
-	Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,SpecialCaseReason,
-	inputremarks,RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,
-	Createddate,Modifiedby,Modifieddate,Rowstatus,@LoginId,getdate(),VNM_Amount
-	from PR.VNMShiftAllowance with (nolock) where PK_VNMShiftAllowanceID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-    --update the data
-	UPDATE PR.VNMShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=23,
-	RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_VNMShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=4 and @RoleID = 6)
-	BEGIN
-	
-	insert into pr.ShiftTimePayout_log(fk_ShifttimepayoutID,AssociateID,Fk_ComponentID,
-	Fk_ShifttypeID,ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,
-	Amount,Grade,SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,
-	SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,
-	LogCreateddate)
-	select PK_ShiftTimePayoutID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,SpecialCaseReason,inputremarks,RejectionReason,
-	Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,
-	Modifieddate,Rowstatus,@LoginId,getdate()
-	from pr.ShiftTimePayout with (nolock) where PK_ShiftTimePayoutID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	IF(DAY(@ComponentCutoffdate)< DAY(@Currentdate))  
-		Begin
-		select 'Transactions cannot be updated post the Cut off Date' as Exception
-	END
-	ELSE
-	BEGIN
-	--update the data
-		UPDATE PR.ShiftTimePayout SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=17,
-		RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-		WHERE PK_ShiftTimePayoutID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=12 and @RoleID = 6)
-	BEGIN
-
-	insert into pr.ITShiftAllowance_log(FK_ITShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,
-	ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,
-	SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,
-	ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,LogCreateddate)
-	select PK_ITShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,SpecialCaseReason,inputremarks,
-	RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,
-	Modifiedby,Modifieddate,Rowstatus,@LoginId,getdate()
-	from pr.ITShiftAllowance with (nolock) where PK_ITShiftAllowanceID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	 IF(DAY(@ComponentCutoffdate)< DAY(@Currentdate))  
-		Begin
-		select 'Transactions cannot be updated post the Cut off Date' as Exception
-	END
-	ELSE
-	BEGIN
-	--update the data
-		UPDATE PR.ITShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=17,
-		RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-		WHERE PK_ITShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=98 AND @RoleID = 6)
-	BEGIN
-	
-	insert into pr.ADMShiftAllowance_log(Fk_ADMShiftAllowanceID,AssociateID,Fk_ComponentID,
-	Fk_ShifttypeID,ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,
-	Grade,TransportEligibility,SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,
-	Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,
-	LogCreateddate,ADM_Amount)
-	select PK_ADMShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,SpecialCaseReason,inputremarks,
-	RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,
-	Modifiedby,Modifieddate,Rowstatus,@LoginId,getdate(),ADM_Amount
-	from pr.ADMShiftAllowance with (nolock) where PK_ADMShiftAllowanceID in
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	IF(DAY(@ComponentCutoffdate)< DAY(@Currentdate))  
-		Begin
-			select 'Transactions cannot be updated post the Cut off Date' as Exception
-		END
-		ELSE
-		BEGIN
-		--update the data
-			UPDATE PR.ADMShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=17,
-			RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-			WHERE PK_ADMShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-			
-		END
-		
-	END
-------- Check Component group id----------
-	---VNM NSA
-	ELSE IF(@componentGroupId=100 AND @RoleID = 6)
-	BEGIN
-	
-	insert into PR.VNMShiftAllowance_log(Fk_VNMShiftAllowanceID,AssociateID,Fk_ComponentID,
-	Fk_ShifttypeID,ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,
-	TransportEligibility,SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,
-	SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,
-	LogCreateddate,VNM_Amount)
-	select PK_VNMShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,SpecialCaseReason,inputremarks
-	,RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,
-	Modifiedby,Modifieddate,Rowstatus,@LoginId,getdate(),VNM_Amount
-	from PR.VNMShiftAllowance with (nolock) where PK_VNMShiftAllowanceID in 
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	--update the data
-	UPDATE PR.VNMShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=17,
-	RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_VNMShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=4 and @RoleID not in (20,6))
-	BEGIN
-	
-	insert into pr.ShiftTimePayout_log(fk_ShifttimepayoutID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,
-	ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,SpecialCaseReason,
-	inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,
-	Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,LogCreateddate)
-	select PK_ShiftTimePayoutID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,SpecialCaseReason,inputremarks,RejectionReason,
-	Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,
-	Modifieddate,Rowstatus,@LoginId,getdate()
-	from pr.ShiftTimePayout with (nolock) where PK_ShiftTimePayoutID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	--update the data
-	UPDATE PR.ShiftTimePayout SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=3,
-	RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_ShiftTimePayoutID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	INSERT INTO PR.CIS_NSA_Log(PK_CISNSAID ,AssociateID,Fk_ComponentID,FK_ShiftTypeID,ProjectID,HCMSchedule,
-	Date,SwipeInTime,SwipeOutTime,TotalEligibleHours,Status ,LogCreatedby ,LogCreatedDate,CreatedBy,CreatedDate,
-	ModifiedBy,ModifiedDate,Remarks,RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,
-	TopUpInTime_2,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,
-	TopUpOutTime_4,TopUpReason_4,TopUpInTime_5,
-	TopUpOutTime_5,TopUpReason_5,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6)
-	SELECT PK_CISNSAID,TT.AssociateID,TT.Fk_ComponentID,TT.FK_ShiftTypeID,TT.ProjectID,TT.HCMSchedule,Date,
-	SwipeInTime,SwipeOutTime,TotalEligibleHours
-    ,TT.Status,@LoginId,Getdate(),TT.CreatedBy,TT.CreatedDate,TT.ModifiedBy,TT.ModifiedDate,TT.Remarks,
-	TT.RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,TopUpInTime_2
-    ,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,TopUpOutTime_4,
-	TopUpReason_4,TopUpInTime_5,TopUpOutTime_5,TopUpReason_5
-    ,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6
-	FROM PR.CIS_NSA TT INNER JOIN PR.ShiftTimePayout ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID = ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime 
-	and TT.Fk_ComponentID = ITSA.FK_ComponentID  and TT.Fk_ShiftTypeID = ITSA.Fk_ShiftTypeID 
-	and PK_ShiftTimePayoutID in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	--update the data
-	UPDATE TT SET Status =3 ,ModifiedBy=@LoginId,ModifiedDate=GETDATE() FROM PR.CIS_NSA TT 
-	INNER JOIN PR.ShiftTimePayout ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID = ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime 
-	and TT.Fk_ComponentID = ITSA.FK_ComponentID  and TT.Fk_ShiftTypeID = ITSA.Fk_ShiftTypeID 
-	and PK_ShiftTimePayoutID in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	INSERT INTO PR.CIS_NSA_Log(PK_CISNSAID ,AssociateID,Fk_ComponentID,FK_ShiftTypeID,ProjectID,HCMSchedule,
-	Date,SwipeInTime,SwipeOutTime,TotalEligibleHours,Status ,LogCreatedby ,LogCreatedDate,CreatedBy,
-	CreatedDate,ModifiedBy,ModifiedDate,Remarks,RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,
-	TopUpInTime_2,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,
-	TopUpOutTime_4,TopUpReason_4,TopUpInTime_5,
-	TopUpOutTime_5,TopUpReason_5,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6)
-	SELECT PK_CISNSAID,TT.AssociateID,TT.Fk_ComponentID,TT.FK_ShiftTypeID,TT.ProjectID,TT.HCMSchedule,
-	Date,SwipeInTime,SwipeOutTime,TotalEligibleHours,TT.Status,@LoginId,Getdate(),TT.CreatedBy,TT.CreatedDate,
-	TT.ModifiedBy,TT.ModifiedDate,TT.Remarks,TT.RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,TopUpInTime_2
-    ,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,TopUpOutTime_4,
-	TopUpReason_4,TopUpInTime_5,TopUpOutTime_5,TopUpReason_5
-    ,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6
-	FROM PR.CIS_NSA TT INNER JOIN PR.ShiftTimePayout ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID <> ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime
-	and TT.Fk_ComponentID = ITSA.FK_ComponentID  and TT.Fk_ShiftTypeID = ITSA.Fk_ShiftTypeID
-	and PK_ShiftTimePayoutID in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	--update the data
-	UPDATE TT SET Status = 0, ModifiedBy=@LoginId,ModifiedDate=GETDATE() FROM PR.CIS_NSA TT 
-	INNER JOIN PR.ShiftTimePayout ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID <> ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime
-	and TT.Fk_ComponentID = ITSA.FK_ComponentID  and TT.Fk_ShiftTypeID = ITSA.Fk_ShiftTypeID
-	and PK_ShiftTimePayoutID in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=12 and @RoleID not in (20,6))
-	BEGIN
-	
-	insert into pr.ITShiftAllowance_log(FK_ITShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,
-	ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,
-	SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,
-	Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,LogCreateddate)
-	select PK_ITShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,SpecialCaseReason,inputremarks,
-	RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,
-	Modifiedby,
-	Modifieddate,Rowstatus,@LoginId,getdate()
-	from pr.ITShiftAllowance with (nolock) where PK_ITShiftAllowanceID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	UPDATE PR.ITShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=3,
-	RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_ITShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	INSERT INTO PR.IT_NSA_Log(PK_ITNSAID ,AssociateID,Fk_ComponentID,FK_ShiftTypeID,ProjectID,HCMSchedule,
-	Date,SwipeInTime,SwipeOutTime,TotalEligibleHours,Status,Amount ,LogCreatedby ,LogCreatedDate,CreatedBy,
-	CreatedDate,ModifiedBy,ModifiedDate,Remarks,RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,
-	TopUpInTime_2,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,
-	TopUpOutTime_4,TopUpReason_4,TopUpInTime_5,
-	TopUpOutTime_5,TopUpReason_5,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6)
-	SELECT PK_ITNSAID,TT.AssociateID,TT.Fk_ComponentID,TT.FK_ShiftTypeID,TT.ProjectID,TT.HCMSchedule,Date,
-	SwipeInTime,SwipeOutTime,TotalEligibleHours
-    ,TT.Status,TT.Amount,@LoginId,Getdate(),TT.CreatedBy,TT.CreatedDate,TT.ModifiedBy,TT.ModifiedDate,TT.Remarks,
-	TT.RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,TopUpInTime_2
-    ,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,TopUpOutTime_4,
-	TopUpReason_4,TopUpInTime_5,TopUpOutTime_5,TopUpReason_5
-    ,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6
-	FROM PR.IT_NSA TT INNER JOIN PR.ITShiftAllowance ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID = ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime 
-	and TT.Fk_ComponentID = ITSA.FK_ComponentID  and TT.Fk_ShiftTypeID = ITSA.Fk_ShiftTypeID 
-	and PK_ITShiftAllowanceID in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	UPDATE TT SET Status =3 ,ModifiedBy=@LoginId,ModifiedDate=GETDATE() FROM PR.IT_NSA TT 
-	INNER JOIN PR.ITShiftAllowance ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID = ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime 
-	and TT.Fk_ComponentID = ITSA.FK_ComponentID  and TT.Fk_ShiftTypeID = ITSA.Fk_ShiftTypeID 
-	and PK_ITShiftAllowanceID in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	INSERT INTO PR.IT_NSA_Log(PK_ITNSAID ,AssociateID,Fk_ComponentID,FK_ShiftTypeID,ProjectID,HCMSchedule,
-	Date,SwipeInTime,SwipeOutTime,TotalEligibleHours,
-	Status,Amount ,LogCreatedby ,LogCreatedDate,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Remarks,RowStatus,
-	TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,
-	TopUpInTime_2,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,
-	TopUpOutTime_4,TopUpReason_4,TopUpInTime_5,
-	TopUpOutTime_5,TopUpReason_5,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6)
-	SELECT PK_ITNSAID,TT.AssociateID,TT.Fk_ComponentID,TT.FK_ShiftTypeID,TT.ProjectID,TT.HCMSchedule,Date,
-	SwipeInTime,SwipeOutTime,TotalEligibleHours
-    ,TT.Status,TT.Amount,@LoginId,Getdate(),TT.CreatedBy,TT.CreatedDate,TT.ModifiedBy,TT.ModifiedDate,
-	TT.Remarks,TT.RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,TopUpInTime_2
-    ,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,TopUpOutTime_4,
-	TopUpReason_4,TopUpInTime_5,TopUpOutTime_5,TopUpReason_5
-    ,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6
-	FROM PR.IT_NSA TT INNER JOIN PR.ITShiftAllowance ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID <> ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime
-	and TT.Fk_ComponentID = ITSA.FK_ComponentID  and TT.Fk_ShiftTypeID = ITSA.Fk_ShiftTypeID 
-	and PK_ITShiftAllowanceID in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	UPDATE TT SET Status = 0, ModifiedBy=@LoginId,ModifiedDate=GETDATE() FROM PR.IT_NSA TT 
-	INNER JOIN PR.ITShiftAllowance ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID <> ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime
-	and TT.Fk_ComponentID = ITSA.FK_ComponentID  and TT.Fk_ShiftTypeID = ITSA.Fk_ShiftTypeID 
-	and PK_ITShiftAllowanceID in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=98 and @RoleID not in (20,6))
-	BEGIN
-	
-	insert into pr.ADMShiftAllowance_log(Fk_ADMShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,
-	ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,
-	SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,
-	Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,LogCreateddate,ADM_Amount)
-	select PK_ADMShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,SpecialCaseReason,inputremarks,
-	RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,
-	Modifiedby,Modifieddate,Rowstatus,@LoginId,getdate(),ADM_Amount
-	from pr.ADMShiftAllowance with (nolock) where PK_ADMShiftAllowanceID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	UPDATE PR.ADMShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=3,
-	RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_ADMShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-	------- Check Component group id----------
-	---VNM NSA
-	ELSE IF(@componentGroupId=100 and @RoleID not in (20,6))
-	BEGIN
-	
-	insert into PR.VNMShiftAllowance_log(Fk_VNMShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,
-	ProjectID,Startdate,Starttime,Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,
-	SpecialCaseReason,inputremarks,RejectReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,
-	Createdby,Createddate,Modifiedby,Modifieddate,Rowstatus,LogCreatedby,LogCreateddate,VNM_Amount)
-	select PK_VNMShiftAllowanceID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,Starttime,
-	Startdatetime,Enddate,Endtime,Enddatetime,Amount,Grade,TransportEligibility,SpecialCaseReason,inputremarks,
-	RejectionReason,Fk_RejectedRoleID,RejectedBy,Status,SetID,ApprovedBy,ApprovedDate,Createdby,Createddate,
-	Modifiedby,Modifieddate,Rowstatus,@LoginId,getdate(),VNM_Amount
-	from PR.VNMShiftAllowance with (nolock) where PK_VNMShiftAllowanceID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	UPDATE PR.VNMShiftAllowance SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=3,
-	RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_VNMShiftAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=5)
-	BEGIN
-
-	insert into pr.trtspecialinputs_log(PK_TRTSpecialInputsID,Fk_ComponentTypeID,FK_ComponentID,AssociateID,
-	ProjectID,Fk_CurrencyID,Amount,InvoiceNumber,RewardName,ApproverID,Department,vertical,Funded,uploaderID,
-	SpecialCaseReason,IsApprovalAttached,InputRemarks,FileUploadID,FK_RejectedRoleID,RejectedBy,RejectionReason,
-	OtherMailUploadID,Status,ApprovedBy,ApporvedDate,ApproverRoleID,LogCreatedBy,CreatedBy,LogCreateddate,
-	Createddate,ModifiedBy,ModifiedDate,Remarks,Rowstatus)
-	select PK_TRTSpecialInputsID,Fk_ComponentTypeID,FK_ComponentID,AssociateID,ProjectID,Fk_CurrencyID,Amount,
-	InvoiceNumber,RewardName,ApproverID,Department,vertical,Funded,uploaderID,SpecialCaseReason,IsApprovalAttached,
-	InputRemarks,FileUploadID,FK_RejectedRoleID,RejectedBy,RejectionReason,OtherMailUploadID,Status,ApprovedBy,
-	ApprovedDate,ApproverRoleID,@LoginId,CreatedBy,getdate(),Createddate,ModifiedBy,ModifiedDate,Remarks,Rowstatus
-	from pr.trtspecialinputs with (nolock) where PK_TRTSpecialInputsID in 
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) and Rowstatus=1 
- 
-	UPDATE PR.TRTSpecialInputs SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=8,
-	RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_TRTSpecialInputsID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) and @RoleID=3
-
-	UPDATE PR.TRTSpecialInputs SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=9,
-	RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_TRTSpecialInputsID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) and @RoleID=8
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=6)
-	BEGIN
-
-	insert into pr.CognizantBusinessAllowance_log(Fk_CognizantbusinessAllowanceID,AssociateID,
-	Amount,Level,BUProposedCBAAmount,PreviousCBAAmountProposed,SpecialCaseReason,SpecialCaseMailUploadID,
-	InputRemarks,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,Status,AttachMail1,
-	AttachMail2,Logcreatedby,LogCreateddate)
-	select PK_CognizantBusinessAllowanceID,AssociateID,Amount,Level,BUProposedCBAAmount,PreviousCBAAmountProposed,
-	SpecialCaseReason,SpecialCaseMailUploadID,InputRemarks,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,
-	Rowstatus,Status,AttachMail1,AttachMail2,@LoginId,Getdate()
-	from pr.CognizantBusinessAllowance with (nolock) where PK_CognizantBusinessAllowanceID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-	UPDATE PR.CognizantBusinessAllowance SET RejectedBy=@LoginID,Status=3,RejectionReason=@rejectionReason,
-	ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_CognizantBusinessAllowanceID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-		
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=43)
-	BEGIN
-	insert into pr.GymRecovery_Log(Fk_GRID,AssociateID,Location,Facility,ProjectID,Amount,
-	DeductionMonth,RegisteredDate,Status,Fk_RejectedRoleID,RejectedBy,RejectionReason
-	,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,ModifiedDate,Rowstatus,Logcreateddate)
-	select PK_GRID,AssociateID,Location,Facility,ProjectID,Amount,DeductionMonth,RegisteredDate,Status,
-	Fk_RejectedRoleID,RejectedBy,RejectionReason,Approvedby,ApprovedDate
-	,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,RowStatus,getdate()
-	from PR.GymRecovery NP with (nolock)
-	where PK_GRID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@selectedData,','))   
-
-    UPDATE PR.GymRecovery SET Status=3,RejectionReason=@rejectionReason,ModifiedBy=@LoginId,
-	RejectedBy=@LoginId,ModifiedDate=GETDATE()
-    WHERE PK_GRID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@selectedData,','))
-		
-	END
-	------- Check Component group id----------
-	ELSE IF(@componentGroupId=44)
-	BEGIN
-	insert into pr.OutreachRecovery_Log(Fk_ORID,AssociateID,Location,ProjectID,Amount,DeductionMonth,
-	Status,Fk_RejectedRoleID,RejectedBy,RejectionReason
-	,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,ModifiedDate,Rowstatus,LogCreatedby,Logcreateddate)
-	select PK_ORID,AssociateID,Location,ProjectID,Amount,DeductionMonth,Status,Fk_RejectedRoleID,RejectedBy,
-	RejectionReason,Approvedby,ApprovedDate
-	,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,RowStatus,@LoginId,getdate()
-	from PR.OutreachRecovery NP with (nolock)
-	where PK_ORID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@selectedData,','))   
-
-    UPDATE PR.OutreachRecovery SET Status=3,RejectionReason=@rejectionReason,ModifiedBy=@LoginId,
-	RejectedBy=@LoginId,ModifiedDate=GETDATE()
-    WHERE PK_ORID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@selectedData,','))
-		
-	END
-	------- Check Component group id----------
-	ELSE IF(@componentGroupId=7)
-	BEGIN
-
-	INSERT INTO pr.BPSSDA_log(Pk_BPSSDAID,ShiftType,AssociateID,StartDate,StartTime,StartDateTime,
-	EndDate,EndTime,EndDateTime,ProjectID,Amount,TransportEligibility,BillingDetails,Grade,SetID,
-	Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,Status,Logcreatedby,LogCreateddate,
-	ApprovedBy,ApprovedDate,Fk_ApprovedRoleID,RejectedBy,RejectedDate,RejectionReason,Fk_RejectedRoleID)
-	SELECT Pk_BPSSDAID,ShiftType,AssociateID,StartDate,StartTime,StartDateTime,EndDate,EndTime,EndDateTime,
-	ProjectID,Amount,TransportEligibility,BillingDetails,Grade,SetID,Createdby,Createddate,Modifiedby,
-	Modifieddate,Remarks,Rowstatus,Status,@LoginId,Getdate(),ApprovedBy,ApprovedDate,Fk_ApprovedRoleID,
-	RejectedBy,RejectedDate,RejectionReason,Fk_RejectedRoleID
-	FROM pr.BPSSDA  SDA WITH (NOLOCK)  where Pk_BPSSDAID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
- 	UPDATE PR.BPSSDA SET RejectedBy=@LoginID,Status=(Case when @RoleID=6 then 17 
-	when @RoleID=10 THEN 18 when @RoleID=3 THEN 8 end),RejectionReason=@rejectionReason,ModifiedBy=@LoginId,
-	ModifiedDate=GETDATE() 
-	WHERE Pk_BPSSDAID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-		
-	END
-	------- Check Component group id----------
-	ELSE IF(@componentGroupId=10)
+	---------------CALCULATION CUT OFF DATE ------------------
+    SELECT @CutoffDate = (DATEFROMPARTS(CONVERT(VARCHAR, DATEPART(YY, GETDATE())), 
+	   CONVERT(VARCHAR, DATEPART(MM, GETDATE())), CCD.ToDate)) 
+    FROM COMPONENTCUTOFFDATE  CCD 
+	  INNER JOIN COMPONENTROLEMAPPING CRM WITH(NOLOCK) 
+      ON CRM.PK_COMPONENTROLEID = CCD.FK_COMPONENTROLEID AND CCD.Rowstatus = 1
+      INNER JOIN RoleMaster RM WITH (NOLOCK) 
+	  ON CRM.FK_RoleID = RM.PK_RoleId AND crm.RowStatus = 1 AND rm.RowStatus = 1 
+	  INNER JOIN ComponentCountryMapping CCM WITH (NOLOCK) 
+      ON CCM.Pk_ComponentCountryMappingID = CRM.Fk_ComponentCountryMappingID AND CCM.Rowstatus = 1 
+	WHERE CRM.Fk_ComponentCountryMappingID IN ( SELECT CCM.PK_ComponentCountryMappingID 
+	  FROM COMPONENTCOUNTRYMAPPING CCM 
+	    INNER JOIN COMPONENTMASTER CM 
+		ON CM.PK_COMPONENTID = CCM.FK_COMPONENTID 
+		INNER JOIN ComponentGroupMaster CGM WITH (NOLOCK) 
+		ON CGM.PK_ComponentGroupID = CM.FK_ComponentGroupID 
+      WHERE CGM.PK_ComponentGroupID = @componentGroupId AND CCM.FK_componentcountryid = 1) 
+	AND PK_RoleId = 6
+	IF (@componentGroupId=5)
     BEGIN
-
-    Create Table #Count(Pkid int,AssociateID int,StartMonth int,StartYear int,Createdmonth int,
-	Createdyear int,Monthlyworkeddays int,MonthAmount money,RoughAmount money,Count int,
-	TotalAmount money, status int)
-	insert into #Count(Pkid,AssociateID,StartMonth,StartYear,Createdmonth,Createdyear,Monthlyworkeddays,
-	MonthAmount,RoughAmount,Count,TotalAmount,status)
-	Select PK_BPSNSAId,AssociateID,month(NSADate),Year(NSADate),Month(Createddate),Year(Createddate),
-	MonthlyWorkedDays,MonthAmount,RoughAmount,NULL,Null,status from PR.BPSNSA with (nolock)
-	Where Rowstatus=1 and Pk_BPSNSAID in (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	
-	INSERT INTO pr.BPSNSA_Log(PK_BPSNSAId,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,
-	StartDateTime,EndDateTime,Amount,Grade,SetID,ProjectId,RejectionReason,Fk_RejectedRoleID,RejectedBy,
-	RejectedDate,Approvedby,Fk_ApprovedRoleID,ApprovedDate,Status,Logcreatedby
-	,LogCreateddate,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,MonthAmount,
-	MonthlyWorkedDays,RoughAmount)
-	SELECT PK_BPSNSAId,AssociateID,ShiftType,StartDate,EndDate,StartTime,EndTime,StartDateTime,
-	EndDateTime,Amount,Grade,SetID,ProjectId,RejectionReason,Fk_RejectedRoleID,RejectedBy,
-	RejectedDate,Approvedby,Fk_ApprovedRoleID,
-	ApprovedDate,Status,@loginID,Getdate(),Createdby,Createddate,Modifiedby,Modifieddate,
-	Remarks,Rowstatus,MonthAmount,MonthlyWorkedDays,RoughAmount
-	FROM pr.BPSNSA  SDA WITH (NOLOCK)
-	WHERE PK_BPSNSAId IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	UPDATE BPS set BPS.RowStatus=0,BPS.ModifiedBy=@LoginId,BPS.ModifiedDate=GETDATE(),
-	BPS.TopUpReason_6=CAST(ESTP.PK_BPSNSAId as VARCHAR(20)) + '-' + @rejectionReason
-	from PR.BPS_NSA BPS 
-	INNER JOIN PR.BPSNSA ESTP WITH (NOLOCK) 
-	ON BPS.AssociateID=ESTP.AssociateID AND BPS.Date=ESTP.NSADate 
-	WHERE PK_BPSNSAId IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-	AND @rejectionReason='Rejected due to mismatch in Trutime and NSA request'
-
-	UPDATE ESTP SET ESTP.RowStatus=0,ESTP.ModifiedBy=@LoginID,ESTP.ModifiedDate=GETDATE()
-	FROM PR.BPSNSA ESTP WITH (NOLOCK)
-	Where ESTP.RowStatus=1 AND @rejectionReason='Rejected due to mismatch in Trutime and NSA request'
-	AND PK_BPSNSAId IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-
-	INSERT INTO EXP.BPSNSA(ShiftType, AssociateID, StartDate, EndDate, StartTime, EndTime,
-	StartDateTime,EndDateTime,
-	ProjectID, Exceptionremarks,CreatedBy,CreatedDate,Modifiedby,Modifieddate,Remarks,RowStatus,MonthAmount,
-	MonthlyWorkedDays,RoughAmount)
-	SELECT NSA.ShiftType, NSA.AssociateID,NSA.StartDate, NSA.EndDate, NSA.StartTime, NSA.EndTime, 
-	NSA.StartDateTime,NSA.EndDateTime,NSA.ProjectID,@rejectionReason,NSA.CreatedBy,NSA.CreatedDate,
-	NSA.ModifiedBy,
-	NSA.ModifiedDate,@rejectionReason,
-	1,NSA.MonthAmount,NSA.MonthlyWorkedDays,NSA.RoughAmount
-	FROM PR.BPSNSA NSA  WITH (NOLOCK)
-	Where PK_BPSNSAId IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	AND NSA.Status in (1,3,4,8,14,18,17,15,16,12,21,35)
-	AND @rejectionReason='Rejected due to mismatch in Trutime and NSA request'
- 
-	UPDATE PR.BPSNSA SET RejectedBy=@LoginID,Status=(Case when @RoleID=6 then 17 
-	when @RoleID=10 THEN 18 when @RoleID=3 THEN 8 end),RejectionReason=@rejectionReason,
-	ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_BPSNSAId IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-		
-	  INSERT INTO PR.BPS_NSA_Log(PK_BPS_NSAID,AssociateID,Fk_ComponentID,FK_ShiftTypeID,ProjectID,CustomerID,
-	  HCMSchedule,Amount,Date,SwipeInTime,SwipeOutTime,TotalEligibleHours
-      ,Status,LogCreatedby,LogCreatedDate,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Remarks,RowStatus,
-	  TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,TopUpInTime_2
-      ,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,TopUpOutTime_4,
-	  TopUpReason_4,TopUpInTime_5,TopUpOutTime_5,TopUpReason_5
-      ,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6) 
-	  SELECT PK_BPS_NSAID,TT.AssociateID,TT.Fk_ComponentID,TT.FK_ShiftTypeID,TT.ProjectID,CustomerID,
-	  TT.HCMSchedule,TT.Amount,Date,SwipeInTime,SwipeOutTime,TotalEligibleHours
-      ,TT.Status,@loginID,Getdate(),TT.CreatedBy,TT.CreatedDate,TT.ModifiedBy,TT.ModifiedDate,TT.Remarks,
-	  TT.RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,TopUpInTime_2
-      ,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,TopUpOutTime_4,
-	  TopUpReason_4,TopUpInTime_5,TopUpOutTime_5,TopUpReason_5
-      ,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6
-	  FROM PR.BPS_NSA TT INNER JOIN PR.BPSNSA ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID = ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime and PK_BPSNSAId 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	UPDATE TT SET Status =3 ,ModifiedBy=@LoginId,ModifiedDate=GETDATE() FROM PR.BPS_NSA TT
-	INNER JOIN PR.BPSNSA ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID = ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime and PK_BPSNSAId 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	INSERT INTO PR.BPS_NSA_Log(PK_BPS_NSAID,AssociateID,Fk_ComponentID,FK_ShiftTypeID,ProjectID,CustomerID,
-	HCMSchedule,Amount,Date,SwipeInTime,SwipeOutTime,TotalEligibleHours
-      ,Status,LogCreatedby,LogCreatedDate,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Remarks,RowStatus,
-	  TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,TopUpInTime_2
-      ,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,TopUpOutTime_4,
-	  TopUpReason_4,TopUpInTime_5,TopUpOutTime_5,TopUpReason_5
-      ,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6) 
-	  SELECT PK_BPS_NSAID,TT.AssociateID,TT.Fk_ComponentID,TT.FK_ShiftTypeID,TT.ProjectID,CustomerID,
-	  TT.HCMSchedule,TT.Amount,TT.Date,SwipeInTime,SwipeOutTime,TotalEligibleHours
-      ,TT.Status,@loginID,Getdate(),TT.CreatedBy,TT.CreatedDate,TT.ModifiedBy,TT.ModifiedDate,TT.Remarks,
-	  TT.RowStatus,TopUpInTime_1,TopUpOutTime_1,TopUpReason_1,TopUpInTime_2
-      ,TopUpOutTime_2,TopUpReason_2,TopUpInTime_3,TopUpOutTime_3,TopUpReason_3,TopUpInTime_4,TopUpOutTime_4,
-	  TopUpReason_4,TopUpInTime_5,TopUpOutTime_5,TopUpReason_5
-      ,TopUpInTime_6,TopUpOutTime_6,TopUpReason_6
-	  FROM PR.BPS_NSA TT INNER JOIN PR.BPSNSA ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID <> ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime 
-	and PK_BPSNSAId in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	UPDATE TT SET Status = 0 ,ModifiedBy=@LoginId,ModifiedDate=GETDATE() FROM PR.BPS_NSA TT 
-	INNER JOIN PR.BPSNSA ITSA on TT.AssociateID = ITSA.AssociateID 
-	WHERE TT.ProjectID <> ITSA.ProjectID and TT.SwipeInTime = ITSA.StartDatetime
-	and PK_BPSNSAId in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-		
-;with counts 
-AS 
-( 
-    SELECT AssociateID, COUNT(StartMonth) Count,Sum(RoughAmount) TotalAmount,StartMonth,StartYear,Createdmonth,
-	Createdyear
-    FROM #Count 
-	group by AssociateId,StartMonth,StartYear,Createdmonth,Createdyear
-
-)
-
-Update #Count set Count=A.Count,TotalAmount=A.TotalAmount from counts A
-INNER JOIN #Count B WITH (NOLOCK) ON A.AssociateID=B.AssociateID and A.StartMonth=B.StartMonth
-and A.StartYear=B.StartYear and A.Createdmonth=B.Createdmonth and A.Createdyear=B.CreatedYear
-
-Update A SET Monthlyworkeddays=case when  B.Status in (8,17,18) then A.MonthlyWorkedDays
-else A.Monthlyworkeddays-Count  end  , 
-MonthAmount =  case when  B.Status in (8,17,18) then A.MonthAmount else ROUND((A.MonthAmount-TotalAmount),0) end
-from PR.BPSNSA A WITH (NOLOCK) INNER JOIN #Count B WITH (NOLOCK) 
-ON  A.AssociateID=B.AssociateID and month(A.NSADate)=B.StartMonth
-and Year(A.NSADate)=B.StartYear and Month(A.Createddate)=B.Createdmonth and Year(A.Createddate)=B.CreatedYear
-WHERE A.Rowstatus=1
- 
- DROP TABLE #Count
-
-END
-	------- Check Component group id----------
-	ELSE IF(@componentGroupId=11)
+	  SELECT @CreatedRole = CreatedRole FROM SANDataMaster WITH(NOLOCK) WHERE FileUploadId  = @FileUploadID and RowStatus = 1
+    END
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId = 1)
 	BEGIN
-	
-	INSERT INTO pr.BPSTransportAllowance_log(FK_BPStransportID,AssociateID,OfficeType,TravelType,
-	StartDate,EndDate,StartTime,EndTime,StartDateTime,EndDateTime,ProjectID,Amount,Grade,SetID,Approvedby,
-	Fk_ApprovedRoleID,ApprovedDate,RejectedBy,RejectedDate,RejectionReason,Fk_RejectedRoleID,
-	Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,Status,Logcreatedby,LogCreateddate,City)
-	SELECT PK_BPStransportID,AssociateID,OfficeType,TravelType,StartDate,EndDate,StartTime,EndTime,
-	StartDateTime,EndDateTime,ProjectID,Amount,Grade,SetID,Approvedby,Fk_ApprovedRoleID,ApprovedDate,
-	RejectedBy,RejectedDate,RejectionReason,Fk_RejectedRoleID,Createdby,Createddate,Modifiedby,Modifieddate,
-	Remarks,Rowstatus,Status,@loginID,Getdate(),City
-	FROM pr.BPSTransportAllowance TA WITH (NOLOCK)  where PK_BPStransportID 
-	in (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
- ------------- Update------------
- 	UPDATE pr.BPSTransportAllowance SET RejectedBy=@LoginID,Status=(Case when @RoleID=6 
-	then 17 when @RoleID=10 THEN 18 when @RoleID=3 THEN 8 end),RejectionReason=@rejectionReason,
-	ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_BPStransportID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-		
+	  --------- inserting data------------------
+	  INSERT INTO PR.NoticePay_Log (Fk_NoticePayID, AssociateID, Amount, SpecialCaseReason,
+        RejectionReason, ProjectId, InputRemarks, [Status], AdvisedBy, CompanyId, SetId, 
+        ApprovedBy, ApprovedDate,CreatedBy, CreatedDate, ModifiedBy, ModifiedDate, 
+        RowStatus, Remarks, Logcreateddate)
+      SELECT PK_NoticePayID, NP.AssociateID, NP.Amount, NP.SpecialCaseReason, NP.RejectionReason,
+	    NP.ProjectId, NP.InputRemarks, NP.[Status], NP.AdvisedBy, NP.CompanyId, NP.SetId,
+		NP.ApprovedBy, NP.ApprovedDate, NP.CreatedBy, NP.CreatedDate, NP.ModifiedBy, 
+		NP.ModifiedDate, NP.RowStatus, NP.Remarks, @Currentdate
+      FROM PR.NoticePay NP WITH (NOLOCK) 
+	    INNER JOIN [STG].[ExceptiontovalidAllowance] STP 
+        ON NP.PK_NoticePayID = STP.[UniqueID] AND NP.RowStatus = 1 AND STP.RowStatus=1 
+        AND NP.[Status] IN (1,3,4,8,14,12)
+	  ------------- Update-----------
+      --UPDATE PNP SET PNP.Rowstatus = 0, PNP.ModifiedBy = SNP.CreatedBy, 
+	  --PNP.ModifiedDate = GETDATE(), PNP.Remarks = SNP.Remarks , RejectionReason = SNP.RejectionReason 
+      --FROM PR.NoticePay PNP WITH (NOLOCK) 
+	  --INNER JOIN [STG].[ExceptiontovalidAllowance] SNP WITH (NOLOCK)
+	  --ON PNP.RowStatus = 1 AND SNP.RowStatus = 1 
+	  --AND PNP.PK_NoticePayID = SNP.[UniqueID] AND PNP.[Status] IN (1,3,4,8,14,12)
 
+		UPDATE PNP SET PNP.Status = 3, PNP.Remarks = 'Bulk Reject', PNP.ModifiedDate = @Currentdate,
+		PNP.ModifiedBy = SNP.CreatedBy, RejectionReason = SNP.RejectionReason 
+        FROM PR.NoticePay PNP WITH (NOLOCK) 
+	    INNER JOIN [STG].[ExceptiontovalidAllowance] SNP WITH (NOLOCK)
+	    ON  PNP.RowStatus = 1 AND SNP.RowStatus = 1 
+	    AND PNP.PK_NoticePayID = SNP.[UniqueID] AND PNP.[Status] IN (1,3,4,8,14,12)
+     
 	END
-	------- Check Component group id----------
-	ELSE IF(@componentGroupId=3 and @CountryId = 2)
-	BEGIN	
-INSERT INTO PR.SGPJoiningBonus_log([FK_JoiningBonusID],[AssociateID],[DOJ],[BGstatus],[Grade],
-[Amount],[Status],[ProjectId],[RecruitmentType],[SpecialCaseReason],RejectedBy,RejectedRoleID
-	,[RejectionReason],[CompanyID],[SetID],[SplCaseMailUploadId],[ApprovedBy],[ApprovedDate],
-	[CreatedBy],[CreatedDate],[ModifiedBy],[ModifiedDate],[Remarks]
-	,[RowStatus],[LogCreatedBy],[LogCreatedDate],[FK_ComponentcountryMappingid])
-
-	SELECT [PK_JoiningBonusID],[AssociateID],[DOJ],[BGstatus],[Grade],[Amount],[Status],[ProjectId],
-	[RecruitmentType],[SpecialCaseReason],RejectedBy,RejectedRoleID
-	,[RejectionReason],[CompanyID],[SetID],[SplCaseMailUploadId],[ApprovedBy],[ApprovedDate],[CreatedBy],
-	[CreatedDate],[ModifiedBy],[ModifiedDate],[Remarks]
-	,[RowStatus],@LoginID,GETDATE(),[FK_ComponentcountryMappingid]
-	FROM PR.SGPJoiningBonus WHERE [PK_JoiningBonusID]
-	IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-    UPDATE PR.SGPJoiningBonus SET RejectedBy=@LoginID,Status=8,RejectionReason=@rejectionReason
-   ,ModifiedBy=@LoginId,ModifiedDate=GETDATE() ,RejectedRoleId=@Roleid
-	WHERE PK_JoiningBonusID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	
-	
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=2 and @CountryId in (2,18,19))
+  -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId=2)
 	BEGIN
-	INSERT INTO PR.SGPReferralBonuslog([FK_ReferralBonusID],[RefereeAssociateID],[RefereeDOJ],
-	[RefereeBGstatus],[RefereeDepartment],[RefereeGrade],[ReferrorAssociateID]
-	,[ReferrorBGstatus],[ReferrorDepartment],[ReferrorGrade],[Amount],[Status],[ProjectId],[RefereeSetID],
-	[ReferrerSetID],[SpecialCaseReason],[RejectionReason],RejectedBy,RejectedRoleID 
-	,[SplCaseMailUploadId],[ApprovedBy],[ApprovedDate],[CreatedBy],[CreatedDate],[ModifiedBy],
-	[ModifiedDate],[Remarks],[RowStatus],[LogCreatedBy],[LogCreatedDate],[FK_ComponentcountryMappingid])
+	  --------- inserting data------------------
+	  INSERT INTO pr.ReferralBonus_Log (FK_ReferralBonusID, RefereeAssociateID, 
+        RefereeDOJ, RefereeBGstatus, RefereeDepartment, RefereeGrade, ReferrorAssociateID, 
+        ReferrorBGstatus, ReferrorDepartment, ReferrorGrade, Amount, [Status], ProjectId, 
+        InputRemarks, SpecialCaseReason, RejectionReason, ApprovedBy, ApprovedDate, 
+        CreatedBy, CreatedDate, ModifiedBy, ModifiedDate, RowStatus, remarks, LogCreatedDate)
+      SELECT RB.PK_ReferralBonusID, RB.RefereeAssociateID, RB.RefereeDOJ, RB.RefereeBGstatus,
+	    RB.RefereeDepartment, RB.RefereeGrade, RB.ReferrorAssociateID, RB.ReferrorBGstatus,
+		RB.ReferrorDepartment, RB.ReferrorGrade, RB.Amount, RB.[Status], RB.ProjectId, RB.InputRemarks,
+		RB.SpecialCaseReason,RB.RejectionReason, RB.ApprovedBy, RB.ApprovedDate, RB.CreatedBy,
+		RB.CreatedDate, RB.CreatedBy, RB.ModifiedDate, RB.RowStatus, RB.Remarks, @Currentdate
+      FROM pr.ReferralBonus RB WITH (NOLOCK) 
+	    INNER JOIN [STG].[ExceptiontovalidAllowance] SNP 
+	    ON SNP.[Uniqueid]=RB.PK_ReferralBonusID 
+	  WHERE RB.RowStatus=1 AND SNP.RowStatus = 1 AND RB.[Status] IN (1, 3, 4, 8,14,12) 
+      -----------------Update----------------
+	  --UPDATE ERB SET ERB.RowStatus = 0, ERB.ModifiedBy = SRB.CreatedBy, ERB.ModifiedDate = GETDATE(),
+	  --ERB.Remarks = SRB.Remarks, RejectionReason = SRB.RejectionReason 
+	  --FROM PR.ReferralBonus ERB WITH(NOLOCK) 
+	  --INNER JOIN [STG].[ExceptiontovalidAllowance] SRB WITH(NOLOCK) 
+	  --ON SRB.[Uniqueid] = ERB.PK_ReferralBonusID 
+      --WHERE ERB.RowStatus = 1 AND SRB.RowStatus = 1 AND ERB.[Status] IN (1, 3, 4, 8,14,12)
 
-	SELECT [PK_ReferralBonusID],[RefereeAssociateID],[RefereeDOJ],[RefereeBGstatus],[RefereeDepartment],
-	[RefereeGrade],[ReferrorAssociateID]
-	,[ReferrorBGstatus],[ReferrorDepartment],[ReferrorGrade],[Amount],[Status],[ProjectId],[RefereeSetID],
-	[ReferrerSetID],[SpecialCaseReason],[RejectionReason],RejectedBy,RejectedRoleID 
-	,[SplCaseMailUploadId],[ApprovedBy],[ApprovedDate],[CreatedBy],[CreatedDate],[ModifiedBy],[ModifiedDate],
-	[Remarks],[RowStatus],@LoginID,GETDATE(),[FK_ComponentcountryMappingid]
-	FROM PR.SGPReferralBonus WHERE [PK_ReferralBonusID] IN 
-	(SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))    
-
-	UPDATE PR.SGPReferralBonus SET RejectedBy=@LoginID,Status=8,RejectionReason=@rejectionReason,
-    ModifiedBy=@LoginId,ModifiedDate=GETDATE() ,RejectedRoleId=@RoleId
-	WHERE PK_ReferralBonusID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	
+	  UPDATE ERB SET ERB.Status = 3, ERB.Remarks = 'Bulk Reject', ERB.ModifiedDate = @Currentdate,
+	  ERB.ModifiedBy = SRB.CreatedBy, ERB.RejectionReason = SRB.RejectionReason
+	  FROM PR.ReferralBonus ERB WITH(NOLOCK) 
+	  INNER JOIN [STG].[ExceptiontovalidAllowance] SRB WITH(NOLOCK) 
+	  ON SRB.[Uniqueid] = ERB.PK_ReferralBonusID 
+      WHERE ERB.RowStatus = 1 AND SRB.RowStatus = 1 AND ERB.[Status] IN (1, 3, 4, 8,14,12)
+     
 	END
-	------- Check Component group id----------
-     ELSE IF(@componentGroupId=15)
-	BEGIN	 
-	
-	 INSERT INTO PR.SGPShiftTimePayout_log([Fk_SGPShiftTimepayoutID],[Associateid],[Fk_ShifttypeID],
-	 [ProjectID],[Startdate],[Enddate],[Starttime],[Endtime],[Startdatetime],[Enddatetime],[Amount],[Grade],
-	 [inputremarks],[RejectReason],[Fk_RejectedRoleID],[RejectedBy],RejectedRoleID
-	,[Status],[SetID],[ApprovedBy],[ApprovedDate],[Createdby],[Createddate],[Modifiedby],[Modifieddate],
-	[Remarks],[Rowstatus],[LogCreatedby],[LogCreateddate],[FK_ComponentcountryMappingid])
-
-	SELECT [PK_SGPShiftTimePayoutID],[AssociateID],[FK_ShiftTypeID],[ProjectID],[StartDate],[EndDate]
-	,[StartTime],[EndTime],[StartDateTime],[EndDateTime],[Amount],[Grade],[InputRemarks],[RejectionReason],
-	[FK_RejectedRoleID],[RejectedBy],RejectedRoleID
-	,[Status],[SetID],[ApprovedBy],[ApprovedDate],STP.[CreatedBy],STP.[CreatedDate],STP.[ModifiedBy],
-	STP.[ModifiedDate],STP.[Remarks],STP.[RowStatus],@LoginID,GETDATE(),[FK_ComponentcountryMappingid]
-	FROM PR.SGPShiftTimePayout STP 
-	INNER JOIN ShiftTypeMaster STM WITH(NOLOCK) ON STP.FK_ShiftTypeID=STM.PK_ShiftTypeID 
-	WHERE [PK_SGPShiftTimePayoutID] IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	
-   UPDATE PR.SGPShiftTimePayout SET  RejectedBy=@LoginID,Status=(Case when @RoleID=3 THEN 8
-   when @RoleID=6 THEN 17 end),RejectionReason=@rejectionReason,
-    ModifiedBy=@LoginId,ModifiedDate=GETDATE() ,RejectedRoleID=@RoleId,Rejecteddate=getdate()
-	WHERE PK_SGPShiftTimePayoutID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	
-END
-------- Check Component group id----------
-  ELSE IF(@componentGroupId in (16,41))
-BEGIN	 
-	
-	 INSERT INTO PR.SGPShiftTimePayout_log([Fk_SGPShiftTimepayoutID],[Associateid],[Fk_ShifttypeID],
-	 [ProjectID],[Startdate],[Enddate],[Starttime],[Endtime],[Startdatetime],[Enddatetime],[Amount],[Grade],
-	 [inputremarks],[RejectReason],[Fk_RejectedRoleID],[RejectedBy],RejectedRoleID
-	,[Status],[SetID],[ApprovedBy],[ApprovedDate],[Createdby],[Createddate],[Modifiedby],[Modifieddate],
-	[Remarks],[Rowstatus],[LogCreatedby],[LogCreateddate],[FK_ComponentcountryMappingid])
-
-	SELECT [PK_SGPShiftTimePayoutID],[AssociateID],[FK_ShiftTypeID],[ProjectID],[StartDate],[EndDate]
-	,[StartTime],[EndTime],[StartDateTime],[EndDateTime],[Amount],[Grade],[InputRemarks],[RejectionReason],
-	[FK_RejectedRoleID],[RejectedBy],RejectedRoleID
-	,[Status],[SetID],[ApprovedBy],[ApprovedDate],STP.[CreatedBy],STP.[CreatedDate],STP.[ModifiedBy],
-	STP.[ModifiedDate],STP.[Remarks],STP.[RowStatus],@LoginID,GETDATE(),[FK_ComponentcountryMappingid]
-	FROM PR.SGPShiftTimePayout STP  WHERE [PK_SGPShiftTimePayoutID] IN
-	(SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-	
-   UPDATE PR.SGPShiftTimePayout SET  RejectedBy=@LoginID,Status=(Case when @RoleID=3 THEN 8 when @RoleID=6
-   THEN 17 end),RejectionReason=@rejectionReason,
-    ModifiedBy=@LoginId,ModifiedDate=GETDATE(),RejectedRoleID=@RoleId ,Rejecteddate=getdate()
-	WHERE PK_SGPShiftTimePayoutID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-END
-------- Check Component group id----------	
-	ELSE IF(@componentGroupId=17)
-	BEGIN	
-
-   INSERT INTO PR.SGPServiceApartmentRecovery_log(FK_SGPServiceApartmentRecoveryID,FK_ComponentGroupId,
-   AssociateID,OccupancyType,startDate,EndDate,TotalDays,ProjectID,Amount,CurrencyCode,OtherMailUploadID,
-   AttachMail,InputRemarks,RejectionReason,FK_RejectedRoleID,
-   RejectedBy,Status,ApprovedBy,ApprovedDate,FK_ApprovedRoleID,CreatedBy,CreatedDate,ModifiedBy,
-   ModifiedDate,Remarks,RowStatus,ConvertedAmount,[FK_ComponentcountryMappingid])
-
-	SELECT PK_SGPServiceApartmentRecoveryID,FK_ComponentGroupId,AssociateID,OccupancyType,startDate,EndDate,
-    TotalDays,ProjectID,Amount,CurrencyCode,OtherMailUploadID,AttachMail,InputRemarks,
-	RejectionReason,FK_RejectedRoleID,RejectedBy,Status,ApprovedBy,ApprovedDate,FK_ApprovedRoleID,
-	CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Remarks,RowStatus,ConvertedAmount,
-	[FK_ComponentcountryMappingid]
-	FROM PR.SGPServiceApartmentRecovery WHERE [PK_SGPServiceApartmentRecoveryID] 
-	IN (SELECT data FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-    UPDATE PR.SGPServiceApartmentRecovery SET  RejectedBy=@LoginID,Status=3,RejectionReason=@rejectionReason,
-	ModifiedBy=@LoginId,ModifiedDate=GETDATE() ,
-	FK_RejectedRoleID=@Roleid
-	WHERE PK_SGPServiceApartmentRecoveryID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	END	
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=18 and @CountryID = 2)
-	BEGIN	
-    INSERT INTO PR.SGPSchoolFees_log([FK_SGPSchoolFeesID],[AssociateID],[Amount1],[Amount2],
-	[TotalAmount],[PayrollMonth],[InputRemarks],[FileUploadID],[RejectedBy],[RejectonReason],
-	RejectedRoleID,[Status],[ApprovedBy],[ApprovedDate],[ApproverRoleID],[CreatedBy],[CreatedDate],[ModifiedBy]
-	,[ModifiedDate],[Remarks],[RowStatus],[FK_ComponentcountryMappingid])
-
-	SELECT [PK_SGPSchoolFeesID],[AssociateID],[Amount1],[Amount2],[TotalAmount],[PayrollMonth]
-	,[InputRemarks],[FileUploadID],[RejectedBy],RejectedRoleID,[RejectonReason],[Status],[ApprovedBy],
-	[ApprovedDate],[ApproverRoleID],[CreatedBy],[CreatedDate],[ModifiedBy]
-	,[ModifiedDate],[Remarks],[RowStatus],[FK_ComponentcountryMappingid]
-	FROM PR.SGPSchoolFees where [PK_SGPSchoolFeesID] 
-	IN(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-    UPDATE PR.SGPSchoolFees SET RejectedBy=@LoginID,Status=3,RejectonReason=@rejectionReason,
-    ModifiedBy=@LoginId,ModifiedDate=GETDATE(),RejectedRoleID=@Roleid 
-	WHERE [PK_SGPSchoolFeesID] IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))    
-	END
-------- Check Component group id----------
-	ELSE IF( @componentGroupId in (23,24) or (@componentGroupId=18  and @CountryID not in (14,15,16,2,17)))
-	BEGIN	
-    INSERT INTO PR.SGPSchoolFees_log([FK_SGPSchoolFeesID],[AssociateID],[Amount1],[Amount2],
-	[TotalAmount],[PayrollMonth],Year,MailValidityEndDate
-	,[InputRemarks],[FileUploadID],startdate,enddate,[RejectedBy],[RejectonReason],RejectedRoleID,
-	[Status],[ApprovedBy],[ApprovedDate],[ApproverRoleID],[CreatedBy],[CreatedDate],[ModifiedBy]
-	,[ModifiedDate],[Remarks],[RowStatus],[FK_ComponentcountryMappingid])
-
-	SELECT [PK_SGPSchoolFeesID],[AssociateID],[Amount1],[Amount2],[TotalAmount],[PayrollMonth],
-	Year,MailValidityEndDate
-	,[InputRemarks],[FileUploadID],startdate,enddate,[RejectedBy],[RejectonReason],RejectedRoleID,
-	[Status],[ApprovedBy],[ApprovedDate],[ApproverRoleID],[CreatedBy],[CreatedDate],[ModifiedBy]
-	,[ModifiedDate],[Remarks],[RowStatus],[FK_ComponentcountryMappingid]
-	FROM PR.SGPSchoolFees where [PK_SGPSchoolFeesID] IN
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-    UPDATE PR.SGPSchoolFees SET RejectedBy=@LoginID,Status=3,RejectonReason=@rejectionReason,
-    ModifiedBy=@LoginId,ModifiedDate=GETDATE(),RejectedRoleID=@Roleid 
-	WHERE [PK_SGPSchoolFeesID] IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))    
-	END
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=18 and @CountryId in (14,15,16,17))
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId = 3)
 	BEGIN
-	INSERT INTO PR.CESchoolFees_log(FK_SchoolFeeslogID,[AssociateID],startDate,EndDate,ChildType,
-	FrequencyType,FrequencySelection,Year,Amount,NumberOfInstallment,InvoiceAttachment,[RejectionReason],
-	[RejectedBy],RejectedDate,RejectedRoleID,[Status],[ApprovedBy],[ApprovedDate],[ApproverRoleID],
-	Grade,Setid,[CreatedBy],[CreatedDate],[ModifiedBy],[ModifiedDate],[Remarks],[RowStatus],PayoutType,
-	[FK_ComponentcountryMappingid])
+	  --------- inserting data------------------
+	  INSERT INTO pr.JoiningBonus_log (FK_JoiningBonusID, AssociateID, DOJ,BGstatus, Grade,
+        Amount, [Status], ProjectId, RecruitmentType, InputRemarks, SpecialCaseReason,
+        RejectionReason, CompanyID, SetID, ApprovedBY, ApprovedDate, CreatedBy, CreatedDate,
+        ModifiedBy, ModifiedDate, Remarks, RowStatus, LogCreatedDate,NoInstallments,RetentionPeriod)
+      SELECT JB.PK_JoiningBonusID, JB.AssociateID, JB.DOJ, JB.BGstatus, JB.Grade, JB.Amount,
+	    JB.[Status], JB.ProjectId, JB.RecruitmentType, JB.InputRemarks, JB.SpecialCaseReason,
+        SJB.RejectionReason, JB.CompanyID, JB.SetID, JB.ApprovedBy, JB.ApprovedDate, JB.CreatedBy, 
+        JB.CreatedDate,JB.ModifiedBy,JB.ModifiedDate,JB.Remarks,JB.RowStatus, @Currentdate,JB.NoInstallments,JB.RetentionPeriod
+	  FROM pr.JoiningBonus JB WITH (NOLOCK) 
+	    INNER JOIN [STG].[ExceptiontovalidAllowance] SJB WITH(NOLOCK)
+		ON JB.PK_JoiningBonusID = SJB.UniqueID 
+	  WHERE JB.RowStatus = 1 AND SJB.RowStatus = 1 AND JB.[Status] IN (1, 3, 4, 8,14,12)
+      -----------------Update----------------
+	  --UPDATE EJB SET EJB.RowStatus = 0, EJB.ModifiedBy = SJB.CreatedBy, EJB.ModifiedDate = GETDATE(),
+      --EJB.Remarks = SJB.Remarks, RejectionReason = sjb.RejectionReason
+      --FROM PR.JoiningBonus EJB WITH(NOLOCK)
+	  --INNER JOIN [STG].[ExceptiontovalidAllowance] SJB WITH(NOLOCK) 
+      --ON EJB.PK_JoiningBonusID = SJB.UniqueID 
+      --WHERE EJB.RowStatus = 1 AND SJB.RowStatus = 1 AND EJB.[Status] IN (1, 3, 4, 8,14,12)
 
-	SELECT PK_CESchoolFeesID,[AssociateID],startDate,EndDate,ChildType,FrequencyType,FrequencySelection,Year
-	,Amount,NumberOfInstallment,InvoiceAttachment,[RejectionReason],[RejectedBy],RejectedDate,RejectedRoleID,
-	[Status],[ApprovedBy],[ApprovedDate],[ApproverRoleID],
-	Grade,Setid,[CreatedBy],[CreatedDate],[ModifiedBy],[ModifiedDate],[Remarks],[RowStatus],PayoutType,
-	[FK_ComponentcountryMappingid]
-	FROM PR.CESchoolFees 
-	WHERE PK_CESchoolFeesID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))  
------- Update -------------
-	UPDATE PR.CESchoolFees SET RejectedBy=@LoginID,Status=3,RejectionReason=@rejectionReason,
-    RejectedRoleID=@Roleid ,Rejecteddate=getdate(), ModifiedBy=@LoginId,ModifiedDate=GETDATE()
-	WHERE PK_CESchoolFeesID  IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))       
-	
-	Select 'Success' as status	
+	  UPDATE EJB SET EJB.Status = 3, EJB.Remarks = 'Bulk Reject', EJB.ModifiedDate = @Currentdate,
+	  EJB.ModifiedBy = SJB.CreatedBy, EJB.RejectionReason = SJB.RejectionReason
+      FROM PR.JoiningBonus EJB WITH(NOLOCK)
+	  INNER JOIN [STG].[ExceptiontovalidAllowance] SJB WITH(NOLOCK) 
+      ON EJB.PK_JoiningBonusID = SJB.UniqueID 
+      WHERE EJB.RowStatus = 1 AND SJB.RowStatus = 1 AND EJB.[Status] IN (1, 3, 4, 8,14,12)
+     
 	END
-
-------- Check Component group id----------
-	ELSE IF(@componentGroupId=19)
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId = 4)
 	BEGIN
+		SELECT ESTP.PK_ShiftTimePayoutID,ESTP.AssociateID,ESTP.Fk_ComponentID,ESTP.Fk_ShifttypeID,ESTP.ProjectID,
+			ESTP.Startdate, ESTP.Starttime, ESTP.Startdatetime, ESTP.Enddate, ESTP.Endtime, ESTP.Enddatetime,
+			ESTP.Amount, ESTP.Grade, ESTP.SpecialCaseReason, ESTP.inputremarks, ESTP.RejectionReason,
+			ESTP.Fk_RejectedRoleID, ESTP.RejectedBy, ESTP.[Status], ESTP.SetID, ESTP.ApprovedBy,
+			ESTP.ApprovedDate, ESTP.Createdby, ESTP.Createddate, ESTP.Modifiedby, ESTP.Modifieddate, 
+			ESTP.RowStatus, ESTP.NSADate, 
+			STP.CreatedBy AS EPCreatedby, @Currentdate AS EPCreateddate, STP.UniqueID,
+			STP.RejectionReason AS EPRejectionReason, 
+			STP.Approve_Reject, STP.ModifiedBy AS EPModifiedBy, STP.ModifiedDate AS EPModifiedDate, 
+			COALESCE((CASE WHEN (ISNULL(STP.RejectionReason,'') = '' AND STP.approve_Reject = 'Reject') 
+			THEN 'Rejection reason is mandatory,' ELSE '' END),'')
+			+
+			COALESCE((CASE WHEN ISNULL(ESTP.PK_ShiftTimePayoutID,'') = '' 
+			THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks 
+		INTO #Exception_CIS  
+		FROM [STG].[ExceptiontovalidAllowance] STP   WITH (NOLOCK) 
+			INNER JOIN pr.ShiftTimePayout ESTP
+			WITH (NOLOCK) ON ESTP.PK_ShiftTimePayoutID = STP.UniqueID 
+		WHERE ESTP.RowStatus = 1 AND STP.RowStatus = 1 AND 
+			(ESTP.[Status] IN (1,3,4,8,14,12,15,35) OR (ESTP.Status = 21 AND @CutoffDate < @Currentdate)) AND 
+			STP.FK_ComponentGroupID = @componentGroupId 
 
-	INSERT INTO PR.SGPAdditionalPayout_log([FK_SGPAdditionalPayoutID],[AssociateID],[PayoutType],
-	[ProjectID],[CurrencyCode],[CurrencyValue],[Amount]
-	,[SpecialCaseReason],[SpecialCaseMail],[InputRemarks],[FileUploadID],[RejectedBy],[RejectonReason],
-	[Status],[ApprovedBy],[ApprovedDate],[ApproverRoleID],[CreatedBy]
-	,[CreatedDate],[ModifiedBy],[ModifiedDate],[Remarks],[RowStatus],[FK_ComponentcountryMappingid])
+		INSERT INTO pr.ShiftTimePayout_log 
+			(fk_ShifttimepayoutID, AssociateID, Fk_ComponentID, 
+			Fk_ShifttypeID, ProjectID, Startdate, Starttime, Startdatetime, Enddate, Endtime,
+			Enddatetime, Amount, Grade, SpecialCaseReason, inputremarks, RejectReason,
+			Fk_RejectedRoleID, RejectedBy, [Status], SetID, ApprovedBy, ApprovedDate, Createdby,
+			Createddate, Modifiedby, Modifieddate, Rowstatus, LogCreatedby, LogCreateddate) 
+		SELECT PK_ShiftTimePayoutID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,
+			Startdate, Starttime, Startdatetime, Enddate, Endtime, Enddatetime,
+			Amount, Grade, SpecialCaseReason, inputremarks, RejectionReason,
+			Fk_RejectedRoleID, RejectedBy, [Status], SetID, ApprovedBy,
+			ApprovedDate, Createdby, Createddate, Modifiedby, Modifieddate,
+			RowStatus, EPCreatedby, @Currentdate   
+		FROM #Exception_CIS  
 
-	SELECT [PK_SGPAdditionalPayoutID],[AssociateID],[PayoutType],[ProjectID],[CurrencyCode],[CurrencyValue],[Amount]
-	,[SpecialCaseReason],[SpecialCaseMail],[InputRemarks],[FileUploadID],[RejectedBy],[RejectonReason],
-	[Status],[ApprovedBy],[ApprovedDate],[ApproverRoleID],[CreatedBy]
-	,[CreatedDate],[ModifiedBy],[ModifiedDate],[Remarks],[RowStatus],[FK_ComponentcountryMappingid]
-	FROM PR.SGPAdditionalPayout WHERE [PK_SGPAdditionalPayoutID] IN 
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
+		DELETE FROM #Exception_CIS WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  
+		 -----------------Update----------------
+	  UPDATE ESTP 
+		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN 12 ELSE 3 END,
+			ESTP.ModifiedBy = STP.EPCreatedby,
+			ESTP.ModifiedDate = @Currentdate,
+			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
+			ESTP.RejectionReason = STP.EPRejectionReason, 
+			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedby ELSE ESTP.ApprovedBy END, 
+			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
+			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedby ELSE ESTP.RejectedBy END, 
+			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN 3  END
+		  FROM PR.ShiftTimePayout ESTP WITH (NOLOCK) 
+		  INNER JOIN #Exception_CIS STP WITH (NOLOCK) 
+			ON ESTP.PK_ShiftTimePayoutID = STP.PK_ShiftTimePayoutID 
+		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
 
-	UPDATE PR.SGPAdditionalPayout SET RejectedBy=@LoginID,Status=3,RejectonReason=@rejectionReason,
-	ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_SGPAdditionalPayoutID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
+		  -----------------Update----------------
+		 UPDATE CIS 
+		 SET CIS.RowStatus = 0, CIS.ModifiedBy = ESTP.EPCreatedby, CIS.ModifiedDate = @Currentdate,
+			CIS.TopUpReason_6 = CAST(ESTP.PK_ShiftTimePayoutID AS VARCHAR(20)) + '-' + ESTP.EPRejectionReason 
+		  FROM PR.CIS_NSA CIS
+		  INNER JOIN #Exception_CIS ESTP WITH (NOLOCK) ON 
+				CIS.AssociateID = ESTP.AssociateID AND CIS.[Date] = ESTP.NSADate AND 
+				CIS.Fk_ComponentID = ESTP.Fk_ComponentID AND CIS.ProjectID = ESTP.ProjectID 
+		  WHERE ESTP.EPRejectionReason = 'Rejected due to mismatch in Trutime and NSA request' 
+
+		  DROP TABLE #Exception_CIS
 	
 	END
-------- Check Component group id----------
-		ELSE IF(@componentGroupId=20)
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId = 12)
 	BEGIN
-
-	
-	INSERT INTO PR.SGPAdditionalDeduction_log(FK_SGPAdditionalDeductionID,AssociateID,DeductionType,
-	Installments,ProjectID,CurrencyCode,Amount,SpecialCaseReason,SpecialCaseMail,InputRemarks,FileUploadID,
-	RejectedBy,RejectonReason,Status,ApprovedBy,ApprovedDate,ApproverRoleID,CreatedBy,CreatedDate,ModifiedBy,
-	ModifiedDate,Remarks,RowStatus,[FK_ComponentcountryMappingid])
-	SELECT PK_SGPAdditionalDeductionID,AssociateID,DeductionType,Installments,ProjectID,CurrencyCode,Amount,
-	SpecialCaseReason,SpecialCaseMail,InputRemarks,FileUploadID,RejectedBy,RejectonReason,Status,ApprovedBy,
-	ApprovedDate,ApproverRoleID,CreatedBy,CreatedDate,ModifiedBy,ModifiedDate,Remarks,
-	RowStatus,[FK_ComponentcountryMappingid]
-	from PR.SGPAdditionalDeduction with (nolock) where PK_SGPAdditionalDeductionID in 
-	(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,',')) 
-
-	UPDATE PR.SGPAdditionalDeduction SET RejectedBy=@LoginID,Status=3,
-	RejectonReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-	WHERE PK_SGPAdditionalDeductionID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-
-	END
-
-	--Discretenary Allowance and SBI
-	ELSE IF((@componentGroupId in (102,103,104))AND @RoleID in (6,23))
-	BEGIN
-		
-		IF(DAY(@ComponentCutoffdate)< DAY(@Currentdate))  
-		Begin
-			select 'Transactions cannot be updated post the Cut off Date' as Exception
-		END
-		ELSE
-		BEGIN
-			INSERT INTO PR.INDShiftComponents_log(FK_INDShiftComponentID,AssociateID,Fk_ComponentID,
-			Fk_ShifttypeID,ProjectID,Startdate,Enddate,Amount,Capacity,Department,
-			TransportEligibility,Grade,inputremarks,Fk_RejectedRoleID,RejectionReason,
-			RejectedBy,RejectedDate,Status,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,
-			Remarks,Rowstatus,MailerStatus,LogCreatedby,LogCreateddate)
-			select PK_INDShiftComponentID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,
-			Enddate,Amount,Capacity,Department,TransportEligibility,Grade,
-			inputremarks,Fk_RejectedRoleID,RejectionReason,RejectedBy,RejectedDate,Status,
-			ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,MailerStatus,
-			@LoginId,getdate()
-			FROM PR.INDShiftComponents WITH (NOLOCK)
-			WHERE PK_INDShiftComponentID in
-			(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
- 
-			UPDATE PR.INDShiftComponents SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=17,
-			RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-			WHERE PK_INDShiftComponentID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
+	  
+		SELECT ESTP.PK_ITShiftAllowanceID,ESTP.AssociateID,ESTP.Fk_ComponentID,ESTP.Fk_ShifttypeID,ESTP.ProjectID,
+			ESTP.Startdate, ESTP.Starttime, ESTP.Startdatetime, ESTP.Enddate, ESTP.Endtime, ESTP.Enddatetime,
+			ESTP.Amount, ESTP.Grade, ESTP.SpecialCaseReason, ESTP.inputremarks, ESTP.RejectionReason,
+			ESTP.Fk_RejectedRoleID, ESTP.RejectedBy, ESTP.[Status], ESTP.SetID, ESTP.ApprovedBy,
+			ESTP.TransportEligibility,ESTP.ApprovedDate, ESTP.Createdby, ESTP.Createddate, ESTP.Modifiedby,
+			ESTP.Modifieddate,	ESTP.RowStatus, ESTP.NSADate, 
+			STP.CreatedBy AS EPCreatedby, @Currentdate AS EPCreateddate, STP.UniqueID,
+			STP.RejectionReason AS EPRejectionReason, 
+			STP.Approve_Reject, STP.ModifiedBy AS EPModifiedBy, STP.ModifiedDate AS EPModifiedDate, 
+		COALESCE((CASE WHEN (ISNULL(STP.RejectionReason,'') = '' AND STP.approve_Reject = 'Reject') 
+		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
+		+
+		COALESCE((CASE WHEN ISNULL(ESTP.PK_ITShiftAllowanceID,'') = '' 
+		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 		
+		NULL AS Remarks,  0 AS MailStatus 
+		INTO #Exception_IT
+		FROM STG.ExceptiontovalidAllowance STP WITH (NOLOCK) 
+			INNER JOIN pr.ITShiftAllowance ESTP WITH (NOLOCK) ON STP.UniqueID = ESTP.PK_ITShiftAllowanceID 			
+			WHERE ESTP.RowStatus = 1 AND STP.RowStatus = 1 AND 
+			(ESTP.[Status] IN (1,3,4,8,14,12,15,35) OR (ESTP.Status = 21 AND @CutoffDate < @Currentdate)) AND 
+			STP.FK_ComponentGroupID = @componentGroupId 
 			
-		END
-		
-	END
-	ELSE IF((@componentGroupId in(102,103))AND @RoleID in (3))
-	BEGIN
-		INSERT INTO PR.INDShiftComponents_log(FK_INDShiftComponentID,AssociateID,Fk_ComponentID,
-		Fk_ShifttypeID,ProjectID,Startdate,Enddate,Amount,Capacity,Department,
-		TransportEligibility,Grade,inputremarks,Fk_RejectedRoleID,RejectionReason,
-		RejectedBy,RejectedDate,Status,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,
-		Remarks,Rowstatus,MailerStatus,LogCreatedby,LogCreateddate)
-		select PK_INDShiftComponentID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,
-		Enddate,Amount,Capacity,Department,TransportEligibility,Grade,
-		inputremarks,Fk_RejectedRoleID,RejectionReason,RejectedBy,RejectedDate,Status,
-		ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,MailerStatus,
-		@LoginId,getdate()
-		FROM PR.INDShiftComponents WITH (NOLOCK)
-		WHERE PK_INDShiftComponentID in
-		(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
 
-			UPDATE PR.INDShiftComponents SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=3,
-			RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-			WHERE PK_INDShiftComponentID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-			
-	END
-	ELSE IF((@componentGroupId in (105))AND @RoleID in (6,23))
-	BEGIN
+		--------- inserting data------------------
+	  INSERT INTO pr.Itshiftallowance_log (FK_ITShiftAllowanceID, AssociateID, Fk_ComponentID,
+	    Fk_ShifttypeID, ProjectID, Startdate, Starttime, Startdatetime, Enddate, Endtime,
+		Enddatetime, Amount, Grade, TransportEligibility, SpecialCaseReason, inputremarks, 
+		RejectReason, Fk_RejectedRoleID, RejectedBy, [Status], SetID, ApprovedBy, ApprovedDate,
+		Createdby, Createddate, Modifiedby, Modifieddate, Rowstatus, LogCreatedby, LogCreateddate)
+	  SELECT ESTP.PK_ITShiftAllowanceID, ESTP.AssociateID, ESTP.Fk_ComponentID, ESTP.FK_ShiftTypeID,
+		ESTP.ProjectID, ESTP.StartDate, ESTP.StartTime, ESTP.StartDateTime, ESTP.EndDate,
+	    ESTP.Endtime, ESTP.Enddatetime, ESTP.Amount, ESTP.Grade, ESTP.TransportEligibility,
+		ESTP.SpecialCaseReason, ESTP.inputremarks, ESTP.RejectionReason, ESTP.Fk_RejectedRoleID,
+		ESTP.RejectedBy, ESTP.[Status], ESTP.SetID, ESTP.ApprovedBy, ESTP.ApprovedDate, EPCreatedby,
+		ESTP.Createddate, EPModifiedby, ESTP.Modifieddate, ESTP.Rowstatus, EPCreatedby, @Currentdate
+	  FROM #Exception_IT ESTP
 		
-		IF(DAY(@ComponentCutoffdate)< DAY(@Currentdate))  
-		Begin
-			select 'Transactions cannot be updated post the Cut off Date' as Exception
-		END
-		ELSE
-		BEGIN
-			INSERT INTO PR.INDShiftNSAComponents_log(FK_INDShiftNSAComponentID,AssociateID,Fk_ComponentID,
-			Fk_ShifttypeID,ProjectID,Startdate,Enddate,Amount,Capacity,Department,
-			TransportEligibility,Grade,inputremarks,Fk_RejectedRoleID,RejectionReason,
-			RejectedBy,RejectedDate,Status,ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,
-			Remarks,Rowstatus,MailerStatus,LogCreatedby,LogCreateddate)
-			select PK_INDShiftNSAComponentID,AssociateID,Fk_ComponentID,Fk_ShifttypeID,ProjectID,Startdate,
-			Enddate,Amount,Capacity,Department,TransportEligibility,Grade,
-			inputremarks,Fk_RejectedRoleID,RejectionReason,RejectedBy,RejectedDate,Status,
-			ApprovedBy,ApprovedDate,Createdby,Createddate,Modifiedby,Modifieddate,Remarks,Rowstatus,MailerStatus,
-			@LoginId,getdate()
-			FROM PR.INDShiftNSAComponents WITH (NOLOCK)
-			WHERE PK_INDShiftNSAComponentID in
-			(SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
+		
+		DELETE FROM #Exception_IT WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  	 -----------------Update----------------
+	  UPDATE ESTP 
+		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN 12 ELSE 3 END,
+			ESTP.ModifiedBy = STP.EPCreatedby,
+			ESTP.ModifiedDate = @Currentdate, 
+			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
+			ESTP.RejectionReason = STP.EPRejectionReason, 
+			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedby ELSE ESTP.ApprovedBy END, 
+			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
+			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedby ELSE ESTP.RejectedBy END, 
+			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN 3  END
+		  FROM PR.ITShiftAllowance ESTP WITH (NOLOCK) 
+		  INNER JOIN #Exception_IT STP WITH (NOLOCK) 
+			ON ESTP.PK_ITShiftAllowanceID = STP.PK_ITShiftAllowanceID 
+		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
+
+	
+		-----------------Update----------------
+	  UPDATE IT SET IT.RowStatus = 0, IT.ModifiedBy = ESTP.EPCreatedBy, IT.ModifiedDate = @Currentdate,
+	    IT.TopUpReason_6 = CAST(ESTP.PK_ITShiftAllowanceID AS VARCHAR(20)) + '-' + ESTP.EPRejectionReason
+	  FROM PR.IT_NSA IT 
+	  INNER JOIN #Exception_IT ESTP 
+	  WITH (NOLOCK) ON 
+				IT.AssociateID = ESTP.AssociateID AND IT.[Date] = ESTP.NSADate AND 
+				IT.Fk_ComponentID = ESTP.Fk_ComponentID AND IT.ProjectID = ESTP.ProjectID 
+	  WHERE ESTP.EPRejectionReason = 'Rejected due to mismatch in Trutime and NSA request'
+	
+	  	DROP TABLE #Exception_IT
+
+	END
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId = 98)
+	BEGIN
+	  -------------- Fetch data-----------
+	
+		SELECT ep.UniqueID, 
+		ESTP.PK_ADMShiftAllowanceID,ESTP.AssociateID,ESTP.Fk_ComponentID,ESTP.Fk_ShifttypeID,ESTP.ProjectID,
+			ESTP.Startdate, ESTP.Starttime, ESTP.Startdatetime, ESTP.Enddate, ESTP.Endtime, ESTP.Enddatetime,
+			ESTP.Amount, ESTP.Grade, ESTP.SpecialCaseReason, ESTP.inputremarks, 
+			ESTP.Fk_RejectedRoleID, ESTP.RejectedBy, ESTP.[Status], ESTP.SetID, ESTP.ApprovedBy,
+			ESTP.ApprovedDate,    ESTP.RowStatus, ESTP.NSADate, 	ESTP.ADM_Amount,ESTP.TransportEligibility,	
+		 ep.RejectionReason AS EPRejectionReason,
+		 ep.CreatedBy AS EPCreatedby, @Currentdate AS EPCreateddate,
+		 ep.Approve_Reject, ep.ModifiedBy AS EPModifiedBy, ep.ModifiedDate AS EPModifiedDate, ESTP.RejectionReason,
+		COALESCE((CASE WHEN (ISNULL(ep.RejectionReason,'') = '' AND ep.approve_Reject = 'Reject') 
+		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
+		+
+		COALESCE((CASE WHEN ISNULL(estp.PK_ADMShiftAllowanceID,'') = '' 
+		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 
+		ep.CreatedBy AS CreatedBy, @Currentdate AS Createddate,
+		ep.ModifiedBy AS ModifiedBy, ep.ModifiedDate AS ModifiedDate,
+		NULL AS Remarks,  0 AS MailStatus 
+		INTO #Exception_ADM
+		FROM STG.ExceptiontovalidAllowance ep WITH (NOLOCK) 
+		INNER JOIN pr.ADMshiftallowance estp WITH (NOLOCK) ON ep.UniqueID = estp.PK_ADMShiftAllowanceID 
+		INNER JOIN ComponentCountryMapping ccm WITH (NOLOCK) ON ccm.Fk_ComponentID = estp.FK_ComponentID 
+		WHERE ep.RowStatus = 1 AND estp.RowStatus = 1 AND ccm.Rowstatus = 1 
+
+		  INSERT INTO pr.ADMshiftallowance_log (FK_ADMShiftAllowanceID, AssociateID, 
+	    Fk_ComponentID, Fk_ShifttypeID, ProjectID, Startdate, Starttime, Startdatetime,
+		Enddate, Endtime, Enddatetime, Amount, Grade, TransportEligibility,
+	    SpecialCaseReason, inputremarks, RejectReason, Fk_RejectedRoleID, RejectedBy,
+		[Status], SetID, ApprovedBy, ApprovedDate, Createdby, Createddate,
+		Modifiedby, Modifieddate, Rowstatus, LogCreatedby, LogCreateddate, ADM_Amount)
+	  SELECT ESTP.PK_ADMShiftAllowanceID, ESTP.AssociateID, ESTP.Fk_ComponentID, 
+	    ESTP.Fk_ShifttypeID, ESTP.ProjectID, ESTP.Startdate, ESTP.Starttime,ESTP.Startdatetime,
+		ESTP.Enddate, ESTP.Endtime, ESTP.Enddatetime, ESTP.Amount, ESTP.Grade, 
+		ESTP.TransportEligibility, ESTP.SpecialCaseReason, ESTP.InputRemarks, ESTP.RejectionReason,
+	    ESTP.Fk_RejectedRoleID, ESTP.RejectedBy, ESTP.[Status], ESTP.SetID, ESTP.ApprovedBy,
+		ESTP.ApprovedDate, ESTP.Createdby, ESTP.Createddate, ESTP.Modifiedby, ESTP.Modifieddate,
+	    ESTP.Rowstatus,	EPCreatedBy, @Currentdate, ESTP.ADM_Amount
+	  FROM #Exception_ADM ESTP
+
+		DELETE FROM #Exception_ADM WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  
+		 UPDATE ESTP 
+		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN 12 ELSE 3 END,
+			ESTP.ModifiedBy = STP.EPCreatedby,
+			ESTP.ModifiedDate = @Currentdate, 
+			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
+			ESTP.RejectionReason = STP.EPRejectionReason, 
+			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedby ELSE ESTP.ApprovedBy END, 
+			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
+			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedby ELSE ESTP.RejectedBy END, 
+			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN 3  END
+		  FROM PR.ADMShiftallowance ESTP WITH (NOLOCK) 
+		  INNER JOIN #Exception_ADM STP WITH (NOLOCK) 
+			ON ESTP.PK_ADMShiftAllowanceID = STP.PK_ADMShiftAllowanceID 
+		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
+
+	  -----------------Update----------------
+	  UPDATE ADM SET ADM.RowStatus = 0,ADM.ModifiedBy = ESTP.EPCreatedBy, ADM.ModifiedDate = @Currentdate,
+	    ADM.TopUpReason_6 = CAST(ESTP.PK_ADMShiftAllowanceID AS VARCHAR(20)) + '-' + ESTP.EPRejectionReason
+	  FROM PR.ADM_NSA ADM 
+	  INNER JOIN #Exception_ADM ESTP WITH (NOLOCK) ON 
+				ADM.AssociateID = ESTP.AssociateID AND ADM.[Date] = ESTP.NSADate AND 
+				ADM.Fk_ComponentID = ESTP.Fk_ComponentID AND ADM.ProjectID = ESTP.ProjectID 
+	  WHERE  ESTP.EPRejectionReason='Rejected due to mismatch in Trutime and NSA request'
+		
+		DROP TABLE #Exception_ADM
+
+	END
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId=7)
+	BEGIN
+	  -------------- Fetch data-----------
+	  SELECT ESTP.Pk_BPSSDAID, ESTP.ShiftType, ESTP.AssociateID, ESTP.StartDate, ESTP.StartTime,
+	    ESTP.StartDateTime, ESTP.EndDate, ESTP.EndTime, ESTP.EndDateTime, ESTP.ProjectID, ESTP.Amount, 
+		ESTP.TransportEligibility,	ESTP.BillingDetails, ESTP.Grade, ESTP.SetID, ESTP.Createdby,
+		ESTP.Createddate, ESTP.Modifiedby,ESTP.Modifieddate, ESTP.Remarks,
+		ESTP.Rowstatus, ESTP.[Status], ESTP.ApprovedBy, ESTP.ApprovedDate, 
+		Fk_ApprovedRoleID, RejectedBy, RejectedDate,  Fk_RejectedRoleID,
+		STP.CreatedBy AS EPCreatedby, @Currentdate AS EPCreateddate, 
+		STP.UniqueID ,STP.RejectionReason AS EPRejectionReason,ESTP.RejectionReason,
+		STP.Approve_Reject, STP.ModifiedBy AS EPModifiedBy, STP.ModifiedDate AS EPModifiedDate, 
+		COALESCE((CASE WHEN (ISNULL(STP.RejectionReason,'') = '' AND STP.approve_Reject = 'Reject') 
+		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
+		+
+		COALESCE((CASE WHEN ISNULL(ESTP.Pk_BPSSDAID,'') = '' 
+		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 
+	    0 AS MailStatus 
+		INTO #Exception_SDA
+		FROM STG.ExceptiontovalidAllowance STP WITH (NOLOCK)  
+		INNER JOIN pr.BPSSDA ESTP WITH (NOLOCK) ON STP.UniqueID = ESTP.Pk_BPSSDAID 
+		WHERE STP.RowStatus = 1 AND ESTP.RowStatus = 1 AND FK_ComponentGroupID = @componentGroupId
+		AND ESTP.[Status] IN (1,3,4,8,14,18,17,15,16,12,21,35) 
+
+
+	  INSERT INTO pr.BPSSDA_log (Pk_BPSSDAID, ShiftType, AssociateID, StartDate, StartTime,
+	    StartDateTime, EndDate, EndTime, EndDateTime, ProjectID, Amount, TransportEligibility,
+		BillingDetails, Grade, SetID, Createdby, Createddate, Modifiedby,Modifieddate, Remarks,
+		Rowstatus, [Status], Logcreatedby, LogCreateddate, ApprovedBy, ApprovedDate, 
+		Fk_ApprovedRoleID, RejectedBy, RejectedDate, RejectionReason, Fk_RejectedRoleID)
+	  SELECT SDA.Pk_BPSSDAID, SDA.ShiftType, SDA.AssociateID, SDA.StartDate, SDA.StartTime,
+	    SDA.StartDateTime, SDA.EndDate, SDA.EndTime, SDA.EndDateTime, SDA.ProjectID,
+		SDA.Amount, SDA.TransportEligibility, SDA.BillingDetails, SDA.Grade, SDA.SetID,
+		SDA.Createdby, SDA.Createddate, SDA.Modifiedby, SDA.Modifieddate, SDA.Remarks, 
+		SDA.Rowstatus, SDA.[Status], EPCreatedby, @Currentdate, SDA.ApprovedBy, SDA.ApprovedDate,
+		SDA.Fk_ApprovedRoleID, SDA.RejectedBy, SDA.RejectedDate, RejectionReason, SDA.Fk_RejectedRoleID
+	  FROM #Exception_SDA  SDA 
+
+		DELETE FROM #Exception_SDA WHERE ISNULL(ExceptionRemarks,'')<>''	
+	 
+
+	  	 -----------------Update----------------
+		UPDATE ESTP 
+		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN 14 ELSE 3 END,
+			ESTP.ModifiedBy = STP.EPCreatedBy,
+			ESTP.ModifiedDate = @Currentdate, 
+			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
+			ESTP.RejectionReason = STP.EPRejectionReason, 
+			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedBy ELSE ESTP.ApprovedBy END, 
+			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
+			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedBy ELSE ESTP.RejectedBy END, 
+			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN 3  END
+		  FROM PR.BPSSDA ESTP WITH (NOLOCK) 
+		  INNER JOIN #Exception_SDA STP WITH (NOLOCK) 
+			ON ESTP.Pk_BPSSDAID = STP.Pk_BPSSDAID 
+		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
+	 
+	 
+	  DROP TABLE #Exception_SDA
+
+	END
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId=10)
+	BEGIN
+
+
+	  SELECT 
+		NSA.PK_BPSNSAId, NSA.AssociateID, NSA.ShiftType, NSA.StartDate, NSA.EndDate,
+	    NSA.StartTime, NSA.EndTime, NSA.StartDateTime, NSA.EndDateTime, NSA.Amount,
+		NSA.Grade, NSA.SetID, NSA.ProjectId,  NSA.Fk_RejectedRoleID,
+		NSA.RejectedBy, NSA.RejectedDate, NSA.Approvedby, NSA.Fk_ApprovedRoleID, 
+		NSA.ApprovedDate,NSA.[Status], @Currentdate as CreatedDate, NSA.Createdby, 
+		 NSA.Modifiedby, NSA.Modifieddate, NSA.Remarks, 
+		NSA.Rowstatus, NSA.MonthAmount,NSA.MonthlyWorkedDays, NSA.RoughAmount,
+		STP.RejectionReason AS RejectionReason,STP.Approve_Reject,NSA.NSADate,
+
+		COALESCE((CASE WHEN (ISNULL(STP.RejectionReason,'') = '' AND STP.approve_Reject = 'Reject') 
+		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
+		+
+		COALESCE((CASE WHEN ISNULL(NSA.PK_BPSNSAId,'') = '' 
+		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 
+		STP.CreatedBy AS EPCreatedBy, @Currentdate AS EPCreateddate,
+		STP.ModifiedBy AS EPModifiedBy, STP.ModifiedDate AS EPModifiedDate,
+		  0 AS MailStatus 
+		INTO #Exception_NSA
+		FROM STG.ExceptiontovalidAllowance STP WITH (NOLOCK)  
+		INNER JOIN pr.BPSNSA NSA WITH (NOLOCK) ON STP.UniqueID = NSA.PK_BPSNSAId 
+		WHERE STP.RowStatus = 1 AND NSA.RowStatus = 1 AND FK_ComponentGroupID = @componentGroupId
+		AND NSA.[Status] IN (1,3,4,8,14,18,17,15,16,12,21,35)
+
+	  --------- inserting data------------------
+	  INSERT INTO pr.BPSNSA_Log (PK_BPSNSAId, AssociateID, ShiftType, StartDate, EndDate,
+	    StartTime, EndTime, StartDateTime, EndDateTime, Amount, Grade, SetID, ProjectId,
+		RejectionReason, Fk_RejectedRoleID, RejectedBy, RejectedDate, Approvedby, 
+		Fk_ApprovedRoleID, ApprovedDate, Status, Logcreatedby, LogCreateddate, Createdby,
+		Createddate, Modifiedby, Modifieddate, Remarks, Rowstatus, MonthAmount, 
+		MonthlyWorkedDays, RoughAmount)
+	  SELECT NSA.PK_BPSNSAId, NSA.AssociateID, NSA.ShiftType, NSA.StartDate, NSA.EndDate,
+	    NSA.StartTime, NSA.EndTime, NSA.StartDateTime, NSA.EndDateTime, NSA.Amount,
+		NSA.Grade, NSA.SetID, NSA.ProjectId, NSA.RejectionReason, NSA.Fk_RejectedRoleID,
+		NSA.RejectedBy, NSA.RejectedDate, NSA.Approvedby, NSA.Fk_ApprovedRoleID, 
+		NSA.ApprovedDate,NSA.[Status], EPCreatedBy,GETDATE(), NSA.Createdby, 
+		NSA.Createddate, NSA.Modifiedby, NSA.Modifieddate, NSA.Remarks, 
+		NSA.Rowstatus, NSA.MonthAmount,NSA.MonthlyWorkedDays, NSA.RoughAmount
+	  FROM #Exception_NSA NSA     
+	
+
+		DELETE FROM #Exception_NSA WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  
+			UPDATE ESTP 
+		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN 14 ELSE 3 END,
+			ESTP.ModifiedBy = STP.EPCreatedBy,
+			ESTP.ModifiedDate = @Currentdate, 
+			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
+			ESTP.RejectionReason = STP.RejectionReason, 
+			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedBy ELSE ESTP.ApprovedBy END, 
+			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
+			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedBy ELSE ESTP.RejectedBy END, 
+			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN 3  END
+		  FROM PR.BPSNSA ESTP WITH (NOLOCK) 
+		  INNER JOIN #Exception_NSA STP WITH (NOLOCK) 
+			ON ESTP.PK_BPSNSAId = STP.PK_BPSNSAId 
+		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
+	 	 
+	 -----------------Update---------------- 
+	  UPDATE BPS SET BPS.RowStatus = 0, BPS.ModifiedBy = ESTP.EPCreatedBy, BPS.ModifiedDate = @Currentdate,
+		 BPS.TopUpReason_6 = CAST(ESTP.PK_BPSNSAId AS VARCHAR(20)) + '-' + ESTP.RejectionReason
+	  FROM PR.BPS_NSA BPS  
+	  INNER JOIN #Exception_NSA ESTP WITH (NOLOCK) 
+	    ON BPS.AssociateID = ESTP.AssociateID AND BPS.[Date] = ESTP.NSADate 
+		AND BPS.Fk_ComponentID = 39 AND BPS.ProjectID = ESTP.ProjectID	    
+	  WHERE  ESTP.RejectionReason='Rejected due to mismatch in Trutime and NSA request'
+
+      -----------------Update----------------
+	  DROP TABLE #Exception_NSA
+
+	END
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId=11)
+	BEGIN
+	 SELECT 
+       TA.PK_BPStransportID, TA.AssociateID, TA.OfficeType, TA.TravelType, TA.StartDate, TA.EndDate, TA.StartTime, TA.EndTime, TA.StartDateTime, TA.EndDateTime, TA.ProjectID,
+	   TA.Amount, TA.Grade, TA.SetID, TA.Approvedby, TA.Fk_ApprovedRoleID, TA.ApprovedDate,
+		TA.RejectedBy, TA.RejectedDate, TA.RejectionReason, TA.Fk_RejectedRoleID,
+		TA.Createdby, TA.Createddate, TA.Modifiedby, TA.Modifieddate, TA.Remarks,
+		TA.Rowstatus, TA.[Status], ep.CreatedBy AS EPCreatedBy,GETDATE() AS EPCreatedDate,
+        ep.RejectionReason AS EPRejectionReason, ep.Approve_Reject, TA.City,
+		COALESCE((CASE WHEN (ISNULL(ep.RejectionReason,'') = '' AND ep.Approve_Reject = 'Reject')
+                       THEN 'Rejection reason is mandatory,' ELSE '' END), '') +
+        COALESCE((CASE WHEN ISNULL(TA.PK_BPSTransportID,'') = '' 
+                       THEN 'Please upload the valid Unique id' ELSE '' END), '') AS ExceptionRemarks,
+        0 AS MailStatus INTO #Exception_Transport
+    FROM STG.ExceptionToValidAllowance ep WITH (NOLOCK)
+    INNER JOIN PR.BPSTransportAllowance TA WITH (NOLOCK) 
+        ON ep.UniqueID = TA.PK_BPStransportID
+    WHERE ep.RowStatus = 1 AND TA.RowStatus = 1
+      AND TA.[Status] IN (1,3,4,8,14,18,17,15,16,12);
  
-			UPDATE PR.INDShiftNSAComponents SET Fk_RejectedRoleID=@RoleID,RejectedBy=@LoginID,Status=17,
-			RejectionReason=@rejectionReason,ModifiedBy=@LoginId,ModifiedDate=GETDATE() 
-			WHERE PK_INDShiftNSAComponentID IN (SELECT DATA FROM DBO.FUNCTION_STRING_TO_TABLE(@SelectedData,','))
-			
-		END
-		
+    ------------ Insert into log ----------------
+    INSERT INTO PR.BPSTransportAllowance_Log (
+        FK_BPStransportID, AssociateID, OfficeType, TravelType,
+        StartDate, EndDate, StartTime, EndTime, StartDateTime, EndDateTime,
+        ProjectID, Amount, Grade, SetID,
+        Approvedby, Fk_ApprovedRoleID, ApprovedDate,
+        RejectedBy, RejectedDate, RejectionReason, Fk_RejectedRoleID,
+        Createdby, Createddate, Modifiedby, Modifieddate,
+        Remarks, Rowstatus, [Status],
+        LogCreatedBy, LogCreatedDate, City
+    )
+    SELECT 
+        TA.PK_BPStransportID, TA.AssociateID, TA.OfficeType, TA.TravelType,
+        TA.StartDate, TA.EndDate, TA.StartTime, TA.EndTime,
+        TA.StartDateTime, TA.EndDateTime, TA.ProjectID,
+        TA.Amount, TA.Grade, TA.SetID,
+        TA.Approvedby, TA.Fk_ApprovedRoleID, TA.ApprovedDate,
+        TA.RejectedBy, TA.RejectedDate, TA.RejectionReason, TA.Fk_RejectedRoleID,
+        TA.Createdby, TA.Createddate, TA.Modifiedby, TA.Modifieddate,
+        TA.Remarks, TA.Rowstatus, TA.[Status],
+        STP.EPCreatedBy, GETDATE(), TA.City
+    FROM #Exception_Transport TA
+    INNER JOIN #Exception_Transport STP ON TA.PK_BPStransportID = STP.PK_BPStransportID;
+ 
+    ------------ Delete invalid rows ----------------
+    DELETE FROM #Exception_Transport WHERE ISNULL(ExceptionRemarks,'') <> '';
+ 
+    ------------ Update main table ----------------
+    UPDATE ESTP
+    SET ESTP.Status = 3,
+        ESTP.ModifiedBy = STP.EPCreatedBy,
+        ESTP.ModifiedDate = @CurrentDate,
+        ESTP.Remarks = 'Bulk Reject',
+        ESTP.RejectionReason = STP.EPRejectionReason,
+        ESTP.RejectedBy = STP.EPCreatedBy,
+		ESTP.RejectedDate = @CurrentDate,
+        ESTP.FK_RejectedRoleID = 3
+    FROM PR.BPSTransportAllowance ESTP WITH (NOLOCK)
+    INNER JOIN #Exception_Transport STP WITH (NOLOCK)
+        ON ESTP.PK_BPStransportID = STP.PK_BPStransportID
+    WHERE ESTP.Rowstatus = 1
+ 
+    ------------ Cleanup ----------------
+    DROP TABLE #Exception_Transport;
+	 
 	END
-	SELECT 'success' AS STATUS
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId=5)
+	BEGIN
+
+	  SELECT trt.PK_TRTSpecialInputsID, trt.Fk_ComponentTypeID, trt.FK_ComponentID,
+	    trt.AssociateID, trt.ProjectID, trt.Fk_CurrencyID, trt.Amount, trt.InvoiceNumber,
+		trt.RewardName, trt.ApproverID, trt.Department, trt.vertical, trt.Funded,
+		trt.uploaderID, trt.SpecialCaseReason, trt.IsApprovalAttached, trt.InputRemarks,
+		trt.FileUploadID, trt.FK_RejectedRoleID, trt.RejectedBy, trt.RejectionReason,
+		trt.OtherMailUploadID, trt.[Status], trt.ApprovedBy, trt.ApprovedDate,
+	    trt.ApproverRoleID, ep.CreatedBy as EPCreatedby, trt.CreatedBy,@Currentdate as EPCreatedDAte,
+		trt.Createddate,		trt.ModifiedBy, trt.ModifiedDate, trt.Remarks, trt.Rowstatus,
+		ep.RejectionReason AS EPRejectionReason,Ep.Approve_Reject,
+		COALESCE((CASE WHEN (ISNULL(ep.RejectionReason,'') = '' AND ep.approve_Reject = 'Reject') 
+		THEN 'Rejection reason is mandatory,' ELSE '' END),'')
+		+
+		COALESCE((CASE WHEN ISNULL(trt.PK_TRTSpecialInputsID,'') = '' 
+		THEN 'Please upload the valid Unique id' ELSE '' END),'') AS ExceptionRemarks, 		
+		0 AS MailStatus ,ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID
+		INTO #Exception_TRT
+		FROM STG.ExceptiontovalidAllowance ep WITH (NOLOCK) 
+		INNER JOIN pr.trtspecialinputs trt WITH (NOLOCK) ON ep.UniqueID = trt.PK_TRTSpecialInputsID 
+		INNER JOIN ComponentCountryMapping ccm WITH (NOLOCK) ON ccm.Fk_ComponentID = trt.FK_ComponentID 
+		WHERE ep.RowStatus = 1 AND trt.RowStatus = 1 AND ccm.Rowstatus = 1 and trt.Status in (1,3,4,8,9,13,14,12)
+
+	  --------- inserting data------------------
+	  INSERT INTO pr.trtspecialinputs_log (PK_TRTSpecialInputsID, Fk_ComponentTypeID,
+	    FK_ComponentID,AssociateID, ProjectID, Fk_CurrencyID, Amount, InvoiceNumber,
+		RewardName, ApproverID, Department, vertical, Funded, uploaderID,
+	    SpecialCaseReason, IsApprovalAttached, InputRemarks, FileUploadID,
+		FK_RejectedRoleID,RejectedBy, RejectionReason, OtherMailUploadID,
+		[Status], ApprovedBy, ApporvedDate, ApproverRoleID, LogCreatedBy, CreatedBy,
+	    LogCreateddate, Createddate, ModifiedBy, ModifiedDate, Remarks, Rowstatus)
+	  SELECT trt.PK_TRTSpecialInputsID, trt.Fk_ComponentTypeID, trt.FK_ComponentID,
+	    trt.AssociateID, trt.ProjectID, trt.Fk_CurrencyID, trt.Amount, trt.InvoiceNumber,
+		trt.RewardName, trt.ApproverID, trt.Department, trt.vertical, trt.Funded,
+		trt.uploaderID, trt.SpecialCaseReason, trt.IsApprovalAttached, trt.InputRemarks,
+		trt.FileUploadID, trt.FK_RejectedRoleID, trt.RejectedBy, trt.RejectionReason,
+		trt.OtherMailUploadID, trt.[Status], trt.ApprovedBy, trt.ApprovedDate,
+	    trt.ApproverRoleID, trt.EPCreatedby, trt.CreatedBy,@Currentdate, trt.Createddate,
+		trt.ModifiedBy, trt.ModifiedDate, trt.Remarks, trt.Rowstatus
+	  FROM #Exception_TRT trt	
+
+		DELETE FROM #Exception_TRT WHERE ISNULL(ExceptionRemarks,'')<>''	
+	
+	   UPDATE ESTP 
+		  SET ESTP.Status = CASE WHEN STP.Approve_Reject = 'Approved' THEN IIF( @CreatedRole = 8,13,14) ELSE IIF( @CreatedRole = 8,9,8) END,
+			ESTP.ModifiedBy = STP.EPCreatedBy,
+			ESTP.ModifiedDate = @Currentdate, 			
+			ESTP.Remarks = CASE WHEN STP.Approve_Reject = 'Approved' THEN 'Bulk Approve' ELSE 'Bulk Reject' END, 
+			ESTP.RejectionReason = STP.EPRejectionReason, 
+			ESTP.ApprovedBy = CASE WHEN STP.Approve_Reject = 'Approved' THEN STP.EPCreatedBy ELSE ESTP.ApprovedBy END, 
+			ESTP.ApprovedDate = CASE WHEN STP.Approve_Reject = 'Approved' THEN @Currentdate ELSE ESTP.ApprovedDate END, 
+			ESTP.ApproverRoleID = CASE WHEN STP.Approve_Reject = 'Approved'  THEN IIF( @CreatedRole = 8,8,3) ELSE ESTP.ApproverRoleID END,
+			ESTP.RejectedBy = CASE WHEN STP.Approve_Reject = 'Reject' THEN STP.EPCreatedBy ELSE ESTP.RejectedBy END, 
+			ESTP.FK_RejectedRoleID = CASE WHEN STP.Approve_Reject = 'Reject' THEN IIF( @CreatedRole = 8,8,3)  END
+		  FROM PR.TRTSpecialInputs ESTP WITH (NOLOCK) 
+		  INNER JOIN #Exception_TRT STP WITH (NOLOCK) 
+			ON ESTP.PK_TRTSpecialInputsID = STP.PK_TRTSpecialInputsID 
+		  WHERE STP.Approve_Reject IN ('Approved', 'Reject')
+	 
+	  DROP TABLE #Exception_TRT
+
+	END
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId = 6)
+	BEGIN
+	--------- inserting data------------------
+	  INSERT INTO pr.CognizantBusinessAllowance_log (Fk_CognizantbusinessAllowanceID,
+	    AssociateID, Amount,[Level], BUProposedCBAAmount, PreviousCBAAmountProposed,
+		SpecialCaseReason, SpecialCaseMailUploadID, InputRemarks, Createdby,
+		Createddate, Modifiedby, Modifieddate, Remarks, Rowstatus,
+		[Status], AttachMail1, AttachMail2, Logcreatedby, LogCreateddate)
+	  SELECT cba.PK_CognizantBusinessAllowanceID, cba.AssociateID, cba.Amount, cba.[Level],
+	    cba.BUProposedCBAAmount, cba.PreviousCBAAmountProposed, cba.SpecialCaseReason,
+	    cba.SpecialCaseMailUploadID, cba.InputRemarks, cba.Createdby, cba.Createddate,
+		cba.Modifiedby, cba.Modifieddate, cba.Remarks, cba.Rowstatus, cba.[Status],
+		cba.AttachMail1, cba.AttachMail2, SCBA.CreatedBy, GETDATE()
+	  FROM pr.CognizantBusinessAllowance cba WITH (NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance SCBA WITH(NOLOCK) 
+	    ON cba.PK_CognizantBusinessAllowanceID = SCBA.UniqueID 
+      WHERE cba.RowStatus=1 AND SCBA.RowStatus = 1 AND cba.[Status] IN (1,3,4,8,9,13,14,12)
+	  -----------------Update----------------
+	  UPDATE PCBA SET PCBA.RowStatus = 0, PCBA.ModifiedBy = SCBA.CreatedBy, 
+	    PCBA.ModifiedDate = GETDATE(), PCBA.remarks = SCBA.Remarks, 
+		PCBA.RejectionReason = SCBA.RejectionReason, PCBA.RejectedBy = SCBA.CreatedBy 
+	  FROM PR.CognizantBusinessAllowance PCBA WITH(NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance SCBA WITH(NOLOCK) 
+	    ON PCBA.PK_CognizantBusinessAllowanceID = SCBA.UniqueID 
+	  WHERE PCBA.RowStatus = 1 AND SCBA.RowStatus = 1  AND PCBA.[Status] IN (1,3,4,8,9,13,14,12)
+      
+	END
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId = 44)
+	BEGIN
+	  --------- inserting data------------------
+	  INSERT INTO pr.OutreachRecovery_Log (Fk_ORID,AssociateID, [Location], ProjectID,
+	    Amount, DeductionMonth,[Status], Fk_RejectedRoleID,RejectedBy,
+		RejectionReason, ApprovedBy, ApprovedDate, Createdby, Createddate, Modifiedby,
+		ModifiedDate, Rowstatus, LogCreatedby, Logcreateddate)
+	  SELECT ORR.PK_ORID,ORR.AssociateID, ORR.[Location], ORR.ProjectID, ORR.Amount, 
+	    ORR.DeductionMonth, ORR.[Status], ORR.Fk_RejectedRoleID, ORR.RejectedBy,
+	    ORR.RejectionReason, ORR.Approvedby, ORR.ApprovedDate, ORR.CreatedBy,
+		ORR.CreatedDate, ORR.ModifiedBy, ORR.ModifiedDate, ORR.RowStatus, ORR.CreatedBy, GETDATE()
+	  FROM PR.OutreachRecovery ORR WITH (NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance SCBA WITH(NOLOCK) 
+	    ON ORR.UniqueID = SCBA.UniqueID 
+	  WHERE ORR.RowStatus = 1 AND SCBA.RowStatus = 1 AND ORR.[Status] IN (1,3,4,8,9,13,14,12)
+      -----------------Update----------------
+	  UPDATE PCBA SET PCBA.RowStatus = 0, PCBA.ModifiedBy = SCBA.CreatedBy, 
+	    PCBA.ModifiedDate=GETDATE(), PCBA.remarks = SCBA.Remarks, 
+		PCBA.RejectionReason = SCBA.RejectionReason, PCBA.RejectedBy = SCBA.CreatedBy
+	  FROM PR.OutreachRecovery PCBA WITH(NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance SCBA WITH(NOLOCK) 
+	    ON PCBA.UniqueID = SCBA.UniqueID 
+	  WHERE PCBA.RowStatus = 1 AND SCBA.RowStatus = 1 AND PCBA.[Status] IN (1,3,4,8,9,13,14,12)
+     
+	END
+    -------------COMPONENT GROUP SELECTION----------------------
+	IF(@componentGroupId = 43)
+	BEGIN
+	  --------- inserting data------------------
+	  INSERT INTO pr.GymRecovery_Log(Fk_GRID,AssociateID, [Location], Facility, ProjectID,
+	    Amount, DeductionMonth, RegisteredDate, [Status], Fk_RejectedRoleID, RejectedBy,
+		RejectionReason, ApprovedBy, ApprovedDate, Createdby, Createddate, Modifiedby,
+		ModifiedDate, Rowstatus, Logcreateddate)
+	  SELECT GR.PK_GRID, GR.AssociateID, GR.[Location], GR.Facility, GR.ProjectID, GR.Amount,
+	    GR.DeductionMonth, GR.RegisteredDate, GR.[Status], GR.Fk_RejectedRoleID, GR.RejectedBy,
+	    GR.RejectionReason, GR.Approvedby, GR.ApprovedDate, GR.CreatedBy, GR.CreatedDate,
+	    GR.ModifiedBy, GR.ModifiedDate, GR.RowStatus,GETDATE()
+	  FROM PR.GymRecovery GR WITH (NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance SCBA WITH(NOLOCK) 
+	    ON GR.PK_GRID=SCBA.UniqueID 
+	  WHERE GR.RowStatus=1 AND SCBA.RowStatus=1  and GR.Status in (1,3,4,8,9,13,14,12)
+	  -----------------Update----------------
+	  UPDATE PCBA SET PCBA.RowStatus = 0, PCBA.ModifiedBy = SCBA.CreatedBy, 
+	    PCBA.ModifiedDate = GETDATE(), PCBA.remarks = SCBA.Remarks, 
+		PCBA.RejectionReason = SCBA.RejectionReason, PCBA.RejectedBy = SCBA.CreatedBy
+	  FROM PR.GymRecovery PCBA WITH(NOLOCK) INNER JOIN STG.ExceptiontovalidAllowance SCBA WITH(NOLOCK) 
+	    ON PCBA.PK_GRID=SCBA.UniqueID 
+	  WHERE PCBA.RowStatus = 1 AND SCBA.RowStatus = 1 AND PCBA.[Status] IN (1,3,4,8,9,13,14,12)
+     
+	END
+	IF(@componentGroupId = 102)
+	BEGIN
+	  -------------- Fetch data-----------
+	  INSERT INTO PR.INDShiftComponents_log (FK_INDShiftComponentID, AssociateID,
+	    FK_ComponentID, FK_ShiftTypeID, ProjectID, StartDate, EndDate, Amount,
+		Capacity, Department, TransportEligibility, Grade, FK_RejectedRoleID,
+		RejectionReason, RejectedBy, RejectedDate, [Status], ApprovedBy, ApprovedDate,
+		CreatedBy, CreatedDate, ModifiedBy, ModifiedDate, Remarks, RowStatus, MailerStatus,
+		ApprovalFileUploadID, LogCreatedby, LogCreateddate)
+	  SELECT SDA.PK_INDShiftComponentID, SDA.AssociateID, 177, SDA.FK_ShiftTypeID, SDA.ProjectID, 
+	    SDA.StartDate, SDA.EndDate, SDA.Amount, SDA.Capacity, SDA.Department, 
+		SDA.TransportEligibility, SDA.Grade, SDA.FK_RejectedRoleID, SDA.RejectionReason,
+		SDA.RejectedBy, SDA.RejectedDate, SDA.[Status], SDA.ApprovedBy, SDA.ApprovedDate,
+		SDA.CreatedBy, SDA.CreatedDate, SDA.ModifiedBy, SDA.ModifiedDate, SDA.Remarks,
+		SDA.RowStatus, SDA.MailerStatus, SDA.ApprovalFileUploadID, STP.CreatedBy, GETDATE()
+	  FROM PR.INDShiftComponents SDA WITH (NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance STP WITH (NOLOCK) 
+	    ON SDA.PK_INDShiftComponentID = STP.UniqueID 
+      WHERE STP.Rowstatus = 1 AND SDA.RowStatus = 1 AND SDA.Status IN (15,35)
+	   --(1,3,4,8,14,18,17,15,16,12,21,35) ----need to check
+		
+	  SELECT ic.FK_ComponentID AS FK_ComponentID, 
+	    ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID,
+		ic.PK_INDShiftComponentID AS PK_INDShiftComponentID, 
+		ic.[Status] as [Status], ic.RejectionReason AS RejectionReason,
+		(CASE WHEN ic.[status] NOT IN (15,35) 
+		   THEN 'Only records in Approved by PM/D+ status can be approved/rejected by PFSS admin' 
+		     WHEN (ISNULL(ep.RejectionReason,'') = '' AND ep.approve_Reject = 'Reject') 
+		       THEN 'Rejection reason is mandatory' ELSE '' END) AS ExceptionRemarks, 
+		 ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate,
+		 ep.ModifiedBy AS ModifiedBy, ep.ModifiedDate AS ModifiedDate,
+		 NULL AS Remarks, 1 AS RowStatus, 0 AS MailStatus 
+	  INTO #Exception
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    INNER JOIN PR.INDShiftComponents ic ON ep.UniqueID = ic.PK_INDShiftComponentID 
+		INNER JOIN ComponentCountryMapping ccm ON ccm.Fk_ComponentID = ic.FK_ComponentID 
+	  WHERE ep.RowStatus = 1 AND ic.RowStatus = 1 AND ccm.Rowstatus = 1 AND ic.FK_ComponentID = 177
+	  
+	  SELECT 177 AS FK_ComponentID, 366 AS Pk_ComponentCountryMappingID,
+		ep.UniqueID, 40 AS [Status], 'Unique id is invalid' AS RejectionReason,
+		(CASE WHEN ISNULL(ic.PK_INDShiftComponentID,'') = '' 
+		   THEN 'Please upload the valid Unique id' ELSE '' END) AS ExceptionRemarks,
+		ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate, 
+		ep.ModifiedBy AS ModifiedBy, ep.ModifiedDate AS ModifiedDate, NULL AS Remarks,
+		1 AS RowStatus, 0 AS MailStatus 
+	  INTO #Exception2 
+	  FROM STG.ExceptiontovalidAllowance ep 
+		LEFT OUTER JOIN PR.INDShiftComponents ic ON ep.UniqueID = ic.PK_INDShiftComponentID 
+		AND ic.RowStatus = 1 AND ic.FK_ComponentID = 177 
+	  WHERE ep.RowStatus=1 
+
+	  DELETE FROM #Exception WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  DELETE FROM #Exception2 WHERE ISNULL(ExceptionRemarks,'')<>''	
+
+	  SELECT  [exp].FK_ComponentID, [exp].Pk_ComponentCountryMappingID, [exp].PK_INDShiftComponentID,
+		[exp].[Status], [exp].RejectionReason, ExceptionRemarks, [exp].CreatedBy,
+		[exp].Createddate, [exp].ModifiedBy, [exp].ModifiedDate,[exp].Remarks, [exp].RowStatus,[exp].MailStatus 
+	  INTO #Approve 
+	  FROM #Exception [exp] INNER JOIN stg.ExceptiontovalidAllowance stg 
+		ON [exp].PK_INDShiftComponentID=stg.UniqueID 
+	  WHERE Approve_Reject = 'Approved' 
+	    AND FK_ComponentGroupID = 102 AND stg.RowStatus = 1
+
+	  SELECT  [exp].FK_ComponentID, [exp].Pk_ComponentCountryMappingID,
+	    [exp].PK_INDShiftComponentID, [exp].[Status], [exp].RejectionReason,
+		ExceptionRemarks, [exp].CreatedBy, [exp].Createddate, [exp].ModifiedBy,
+		[exp].ModifiedDate, [exp].Remarks, [exp].RowStatus, [exp].MailStatus   
+	  INTO #Reject 
+	  FROM #Exception [exp] INNER JOIN stg.ExceptiontovalidAllowance stg 
+	    ON [exp].PK_INDShiftComponentID = stg.UniqueID 
+	  WHERE Approve_Reject = 'Reject' 
+	    AND FK_ComponentGroupID = 102 AND stg.RowStatus=1 
+	   -----------------Update----------------
+	  UPDATE ESTP SET ESTP.RowStatus = 0, ESTP.ModifiedBy = STP.CreatedBy,
+	    ESTP.ModifiedDate = GETDATE(), ESTP.Remarks = STP.Remarks, 
+		ESTP.RejectionReason = STP.RejectionReason, ESTP.RejectedBy = STP.CreatedBy
+	  FROM PR.INDShiftComponents ESTP WITH (NOLOCK) 
+	    INNER JOIN #Reject STP WITH (NOLOCK)
+	    ON ESTP.PK_INDShiftComponentID = STP.PK_INDShiftComponentID 
+      WHERE STP.Rowstatus = 1 AND ESTP.RowStatus = 1 
+	    AND ESTP.[Status] IN (15,35)
+	    --(1,3,4,8,14,18,17,15,16,12,21,35) ----need to check
+
+	  UPDATE ESTP SET ESTP.[Status] = 12, ESTP.ModifiedBy = STP.CreatedBy,
+	    ESTP.ModifiedDate = GETDATE(), ESTP.Remarks = STP.Remarks, 
+		ESTP.RejectionReason = STP.RejectionReason
+	  FROM PR.INDShiftComponents ESTP WITH (NOLOCK) 
+	    INNER JOIN #Approve STP WITH (NOLOCK)
+	    ON ESTP.PK_INDShiftComponentID = STP.PK_INDShiftComponentID
+      WHERE STP.Rowstatus = 1 AND ESTP.RowStatus=1 AND ESTP.Status IN (15,35) --(1,3,4,8,14,18,17,15,16,12,21,35)
+	  
+	  DROP TABLE #Approve
+	  DROP TABLE #Reject
+	  DROP TABLE #Exception
+	  DROP TABLE #Exception2
+	END
+	IF(@componentGroupId = 103)
+	BEGIN
+	  -------------- Fetch data-----------
+	  INSERT INTO PR.INDShiftComponents_log (FK_INDShiftComponentID,AssociateID,
+	    FK_ComponentID, FK_ShiftTypeID, ProjectID, StartDate, EndDate, Amount,
+		Capacity, Department, TransportEligibility, Grade, FK_RejectedRoleID,
+	    RejectionReason, RejectedBy, RejectedDate, [Status], ApprovedBy, ApprovedDate,
+		CreatedBy, CreatedDate, ModifiedBy, ModifiedDate, Remarks, RowStatus,
+		MailerStatus, ApprovalFileUploadID, LogCreatedby, LogCreateddate)
+	  SELECT SDA.PK_INDShiftComponentID, SDA.AssociateID, 178, SDA.FK_ShiftTypeID,
+	    SDA.ProjectID, SDA.StartDate, SDA.EndDate, SDA.Amount, SDA.Capacity, SDA.Department,
+		SDA.TransportEligibility, SDA.Grade, SDA.FK_RejectedRoleID,SDA.RejectionReason,
+		SDA.RejectedBy, SDA.RejectedDate, SDA.[Status], SDA.ApprovedBy, SDA.ApprovedDate,
+		SDA.CreatedBy, SDA.CreatedDate, SDA.ModifiedBy, SDA.ModifiedDate, SDA.Remarks,
+		SDA.RowStatus, SDA.MailerStatus, SDA.ApprovalFileUploadID, STP.CreatedBy, GETDATE()
+	  FROM PR.INDShiftComponents  SDA WITH (NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance STP WITH (NOLOCK) 
+	    ON SDA.PK_INDShiftComponentID = STP.UniqueID 
+      WHERE STP.Rowstatus = 1 AND SDA.RowStatus = 1 and SDA.[Status] IN (15,35)
+	   --(1,3,4,8,14,18,17,15,16,12,21,35) ----need to check
+	  SELECT ic.FK_ComponentID AS FK_ComponentID, 
+	    ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID,
+		ic.PK_INDShiftComponentID AS PK_INDShiftComponentID, ic.[Status] AS [Status],
+		ic.RejectionReason AS RejectionReason, 
+		(CASE WHEN ic.STATUS NOT IN (15,35) THEN 
+		   'Only records in Approved by PM/D+ status can be approved/rejected by PFSS admin' 
+		   WHEN (ISNULL(ep.RejectionReason, '') = '' AND ep.approve_Reject = 'Reject') THEN 
+		     'Rejection reason is mandatory' ELSE '' END) AS ExceptionRemarks,
+		ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate, ep.ModifiedBy AS ModifiedBy,
+		ep.ModifiedDate AS ModifiedDate, NULL AS Remarks,1 AS RowStatus, 0 AS MailStatus 
+	  INTO #ExceptionSbi
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    INNER JOIN PR.INDShiftComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftComponentID
+		INNER JOIN ComponentCountryMapping ccm 
+		ON ccm.Fk_ComponentID = ic.FK_ComponentID
+	  WHERE ep.RowStatus = 1 AND ic.RowStatus = 1 AND ccm.Rowstatus = 1 AND ic.FK_ComponentID = 178
+	  
+	  SELECT 178 AS FK_ComponentID, 367 AS Pk_ComponentCountryMappingID, ep.UniqueID, 
+	    40 AS [Status], 'Unique id is invalid' AS RejectionReason,
+	    (CASE WHEN  ISNULL(ic.PK_INDShiftComponentID, '') = '' THEN 
+	       'Please upload the valid Unique id' ELSE '' END) AS ExceptionRemarks,
+	    ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate,
+		ep.ModifiedBy AS ModifiedBy, ep.ModifiedDate AS ModifiedDate,
+		NULL AS Remarks, 1 AS RowStatus, 0 AS MailStatus 
+	  INTO #Exception3 
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    LEFT OUTER JOIN PR.INDShiftComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftComponentID AND ic.RowStatus = 1  AND ic.FK_ComponentID = 178
+	  WHERE ep.RowStatus = 1 
+
+	  DELETE FROM #ExceptionSbi WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  DELETE FROM #Exception3 WHERE ISNULL(ExceptionRemarks,'')<>''	
+
+	  SELECT [exp].FK_ComponentID, [exp].Pk_ComponentCountryMappingID, [exp].PK_INDShiftComponentID,
+		[exp].[Status], [exp].RejectionReason, ExceptionRemarks, [exp].CreatedBy, [exp].Createddate,
+		[exp].ModifiedBy, [exp].ModifiedDate, [exp].Remarks, [exp].RowStatus, [exp].MailStatus
+	  INTO #ApproveSbi 
+	  FROM #ExceptionSbi [exp]
+	    INNER JOIN stg.ExceptiontovalidAllowance stg 
+		ON [exp].PK_INDShiftComponentID = stg.UniqueID 
+	  WHERE Approve_Reject = 'Approved' 
+	    AND FK_ComponentGroupID = 103 AND stg.RowStatus=1
+
+	   SELECT  [exp].FK_ComponentID, [exp].Pk_ComponentCountryMappingID, [exp].PK_INDShiftComponentID,
+	     [exp].[Status], [exp].RejectionReason, ExceptionRemarks, [exp].CreatedBy, [exp].Createddate,
+		 [exp].ModifiedBy,[exp].ModifiedDate, [exp].Remarks, [exp].RowStatus, [exp].MailStatus
+	  INTO #RejectSbi 
+	  FROM #ExceptionSbi [exp]
+	    INNER JOIN stg.ExceptiontovalidAllowance stg 
+		ON [exp].PK_INDShiftComponentID=stg.UniqueID 
+	  WHERE Approve_Reject = 'Reject' AND FK_ComponentGroupID = 103 AND stg.RowStatus = 1 
+	  -----------------Update----------------
+	  UPDATE ESTP SET ESTP.RowStatus =0, ESTP.ModifiedBy = STP.CreatedBy, ESTP.ModifiedDate = GETDATE(),
+	    ESTP.Remarks = STP.Remarks, ESTP.RejectionReason = STP.RejectionReason, 
+	    ESTP.RejectedBy = STP.CreatedBy  
+	  FROM PR.INDShiftComponents ESTP WITH (NOLOCK) 
+	    INNER JOIN #RejectSbi STP WITH (NOLOCK)
+	    ON ESTP.PK_INDShiftComponentID=STP.PK_INDShiftComponentID 
+      WHERE STP.Rowstatus = 1 AND ESTP.RowStatus = 1 AND ESTP.[Status] IN (15,35)
+	  
+	  --(1,3,4,8,14,18,17,15,16,12,21,35) ----need to check
+
+	  UPDATE ESTP SET ESTP.[Status] = 12, ESTP.ModifiedBy = STP.CreatedBy, 
+	    ESTP.ModifiedDate = GETDATE(), ESTP.Remarks = STP.Remarks, 
+		ESTP.RejectionReason = STP.RejectionReason, ESTP.RejectedBy = STP.CreatedBy
+	  FROM PR.INDShiftComponents ESTP WITH (NOLOCK) 
+	    INNER JOIN #ApproveSbi STP WITH (NOLOCK)
+	    ON ESTP.PK_INDShiftComponentID=STP.PK_INDShiftComponentID
+      WHERE STP.Rowstatus = 1 AND ESTP.RowStatus = 1 
+	    AND ESTP.[Status] IN (15,35) --(1,3,4,8,14,18,17,15,16,12,21,35)
+
+	   DROP TABLE #ApproveSbi
+	   DROP TABLE #RejectSbi
+	   DROP TABLE #ExceptionSbi
+	   DROP TABLE #Exception3
+	END
+	
+	IF(@componentGroupId = 104)
+	BEGIN
+	  -------------- Fetch data-----------
+	  INSERT INTO PR.INDShiftComponents_log (FK_INDShiftComponentID, AssociateID,
+	    FK_ComponentID, FK_ShiftTypeID, ProjectID, StartDate, EndDate, Amount, Capacity,
+		Department,TransportEligibility,Grade,FK_RejectedRoleID, RejectionReason,RejectedBy,
+		RejectedDate, [Status], ApprovedBy, ApprovedDate, CreatedBy, CreatedDate, ModifiedBy,
+		ModifiedDate, Remarks, RowStatus, MailerStatus, ApprovalFileUploadID, 
+		LogCreatedby,LogCreateddate)
+	  SELECT SDA.PK_INDShiftComponentID, SDA.AssociateID, 179, SDA.FK_ShiftTypeID, SDA.ProjectID,
+	    SDA.StartDate, SDA.EndDate, SDA.Amount, SDA.Capacity, SDA.Department, SDA.TransportEligibility,
+		SDA.Grade, SDA.FK_RejectedRoleID, SDA.RejectionReason, SDA.RejectedBy, SDA.RejectedDate,
+		SDA.[Status], SDA.ApprovedBy, SDA.ApprovedDate, SDA.CreatedBy, SDA.CreatedDate,
+	    SDA.ModifiedBy, SDA.ModifiedDate, SDA.Remarks, SDA.RowStatus, SDA.MailerStatus,
+		SDA.ApprovalFileUploadID, STP.CreatedBy,GETDATE()
+	  FROM PR.INDShiftComponents  SDA WITH (NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance STP WITH (NOLOCK) 
+	    ON SDA.PK_INDShiftComponentID = STP.UniqueID 
+      WHERE STP.Rowstatus = 1 AND SDA.RowStatus = 1 AND SDA.[Status] IN (15,35)
+	   --(1,3,4,8,14,18,17,15,16,12,21,35) ----need to check
+	  
+	  SELECT ic.FK_ComponentID AS FK_ComponentID, 
+	    ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID,
+		ic.PK_INDShiftComponentID AS PK_INDShiftComponentID, ic.[Status] AS [Status],
+		ic.RejectionReason AS RejectionReason, 
+		(CASE WHEN IC.STATUS NOT IN (15,35) THEN 
+	      'Only records in Approved by PM/D+ status can be approved/rejected by PFSS admin' 
+		  WHEN (ISNULL(ep.RejectionReason, '') = '' AND ep.approve_Reject = 'Reject') THEN 
+		    'Rejection reason is mandatory' ELSE '' END) AS ExceptionRemarks, ep.CreatedBy AS CreatedBy,
+			GETDATE() AS Createddate, ep.ModifiedBy AS ModifiedBy, ep.ModifiedDate AS ModifiedDate,
+			NULL AS Remarks, 1 AS RowStatus, 0 AS MailStatus 
+	  INTO #Exceptiondbo 
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    INNER JOIN PR.INDShiftComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftComponentID 
+		INNER JOIN ComponentCountryMapping ccm 
+		ON ccm.Fk_ComponentID=ic.FK_ComponentID
+	  WHERE ep.RowStatus = 1 AND ic.RowStatus = 1 
+	    AND ccm.Rowstatus = 1 AND ic.FK_ComponentID=179
+
+      SELECT 179 AS FK_ComponentID, 368 AS Pk_ComponentCountryMappingID,
+		ep.UniqueID, 40 AS [Status], 'Unique id is invalid' AS RejectionReason,
+		(CASE WHEN  ISNULL(ic.PK_INDShiftComponentID, '') = '' THEN 
+		  'Please upload the valid Unique id' ELSE '' END) AS ExceptionRemarks,
+		ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate, ep.ModifiedBy AS ModifiedBy,
+		ep.ModifiedDate AS ModifiedDate, NULL AS Remarks, 1 AS RowStatus,0 AS MailStatus 
+	  INTO #Exception4
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    LEFT OUTER JOIN PR.INDShiftComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftComponentID AND ic.RowStatus = 1 AND ic.FK_ComponentID=179
+	  WHERE ep.RowStatus = 1 
+
+	  DELETE FROM #Exceptiondbo WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  DELETE FROM #Exception4 WHERE ISNULL(ExceptionRemarks,'')<>''	
+
+	  SELECT [exp].FK_ComponentID, [exp].Pk_ComponentCountryMappingID,
+	    [exp].PK_INDShiftComponentID, [exp].[Status], [exp].RejectionReason, 
+		ExceptionRemarks, [exp].CreatedBy, [exp].Createddate, [exp].ModifiedBy,
+		[exp].ModifiedDate, [exp].Remarks, [exp].RowStatus, [exp].MailStatus 
+	  INTO #Approvedbo 
+	  FROM #Exceptiondbo [exp]
+	    INNER JOIN stg.ExceptiontovalidAllowance stg 
+		ON [exp].PK_INDShiftComponentID = stg.UniqueID 
+	  WHERE Approve_Reject = 'Approved' 
+	    AND FK_ComponentGroupID = 104 AND stg.RowStatus=1
+
+	  SELECT  [exp].FK_ComponentID, [exp].Pk_ComponentCountryMappingID, 
+	    [exp].PK_INDShiftComponentID,[exp].[Status], [exp].RejectionReason,
+		ExceptionRemarks, [exp].CreatedBy, [exp].Createddate, [exp].ModifiedBy,
+		[exp].ModifiedDate, [exp].Remarks, [exp].RowStatus, [exp].MailStatus   
+	  INTO #Rejectdbo 
+	  FROM #Exceptiondbo [exp]
+	    INNER JOIN stg.ExceptiontovalidAllowance stg 
+		ON [exp].PK_INDShiftComponentID = stg.UniqueID 
+	  WHERE Approve_Reject = 'Reject' 
+	    AND FK_ComponentGroupID = 104 AND stg.RowStatus=1 
+	  -----------------Update----------------
+	  UPDATE ESTP SET ESTP.RowStatus = 0, ESTP.ModifiedBy = STP.CreatedBy, 
+	    ESTP.ModifiedDate = GETDATE(), ESTP.Remarks = STP.Remarks, 
+		ESTP.RejectionReason = STP.RejectionReason, ESTP.RejectedBy = STP.CreatedBy
+	  FROM PR.INDShiftComponents ESTP WITH (NOLOCK) 
+	    INNER JOIN #Rejectdbo STP WITH (NOLOCK)
+	    ON ESTP.PK_INDShiftComponentID = STP.PK_INDShiftComponentID 
+      WHERE STP.Rowstatus = 1 AND ESTP.RowStatus = 1 AND ESTP.[Status] IN (15,35)
+	   --(1,3,4,8,14,18,17,15,16,12,21,35) ----need to check
+
+	  UPDATE ESTP SET ESTP.[Status] = 12, ESTP.ModifiedBy = STP.CreatedBy,
+	    ESTP.ModifiedDate = GETDATE(), ESTP.Remarks = STP.Remarks, 
+		ESTP.RejectionReason = STP.RejectionReason, ESTP.RejectedBy = STP.CreatedBy
+	  FROM PR.INDShiftComponents ESTP WITH (NOLOCK) 
+	    INNER JOIN #Approvedbo STP WITH (NOLOCK)
+	    ON ESTP.PK_INDShiftComponentID = STP.PK_INDShiftComponentID
+      WHERE STP.Rowstatus = 1 AND ESTP.RowStatus = 1 
+	    AND ESTP.[Status] IN (15,35) --(1,3,4,8,14,18,17,15,16,12,21,35)
+
+	  DROP TABLE #Approvedbo
+	  DROP TABLE #Rejectdbo
+	  DROP TABLE #Exceptiondbo
+	  DROP TABLE #Exception4
+	END
+	
+	IF(@componentGroupId = 105)
+	BEGIN
+	  -------------- Fetch data-----------
+	  INSERT INTO PR.INDShiftNSAComponents_log (FK_INDShiftNSAComponentID, AssociateID,
+	    FK_ComponentID, FK_ShiftTypeID, ProjectID, StartDate, EndDate, Amount, Capacity,
+		Department, TransportEligibility, Grade, FK_RejectedRoleID, RejectionReason,
+		RejectedBy, RejectedDate, [Status], ApprovedBy, ApprovedDate, CreatedBy,
+		CreatedDate, ModifiedBy, ModifiedDate, Remarks, RowStatus, MailerStatus,
+		ApprovalFileUploadID, LogCreatedby, LogCreateddate)
+	  SELECT SDA.PK_INDShiftNSAComponentID, SDA.AssociateID, 180, SDA.FK_ShiftTypeID,
+	    SDA.ProjectID, SDA.StartDate, SDA.EndDate, SDA.Amount, SDA.Capacity, 
+		SDA.Department, SDA.TransportEligibility, SDA.Grade, SDA.FK_RejectedRoleID,
+	    SDA.RejectionReason, SDA.RejectedBy, SDA.RejectedDate, SDA.[Status], SDA.ApprovedBy, 
+		SDA.ApprovedDate, SDA.CreatedBy, SDA.CreatedDate, SDA.ModifiedBy, SDA.ModifiedDate, 
+		SDA.Remarks, SDA.RowStatus, SDA.MailerStatus, SDA.ApprovalFileUploadID,STP.CreatedBy, GETDATE()
+	  FROM PR.INDShiftNSAComponents  SDA WITH (NOLOCK) 
+	    INNER JOIN STG.ExceptiontovalidAllowance STP WITH (NOLOCK) 
+	    ON SDA.PK_INDShiftNSAComponentID=STP.UniqueID 
+      WHERE STP.Rowstatus = 1 AND SDA.RowStatus = 1 AND SDA.[Status] IN (15,35)
+	   --(1,3,4,8,14,18,17,15,16,12,21,35) ----need to check
+
+	  SELECT ic.FK_ComponentID AS FK_ComponentID, 
+	    ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID,
+		ic.PK_INDShiftNSAComponentID AS PK_INDShiftComponentID, ic.[Status] AS [Status],
+		ic.RejectionReason AS RejectionReason, (CASE WHEN ic.[status] NOT IN (15,35) 
+		THEN 'Only records in Approved by PM/D+ status can be approved/rejected by PFSS admin' 
+		  WHEN (ISNULL(ep.RejectionReason, '') ='' AND ep.approve_Reject = 'Reject') 
+		    THEN 'Rejection reason is mandatory'
+			ELSE '' END) AS ExceptionRemarks, ep.CreatedBy AS CreatedBy,GETDATE() as Createddate,
+		ep.ModifiedBy AS ModifiedBy, ep.ModifiedDate AS ModifiedDate,NULL AS Remarks,
+		1 AS RowStatus, 0 AS MailStatus
+	  INTO #ExceptionNSA2 
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    INNER JOIN PR.INDShiftNSAComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftNSAComponentID 
+		INNER JOIN ComponentCountryMapping ccm 
+		ON ccm.Fk_ComponentID=ic.FK_ComponentID
+	  WHERE ep.RowStatus = 1 AND ic.RowStatus = 1 
+	    AND ccm.Rowstatus = 1 AND ic.FK_ComponentID=180
+
+	  SELECT 180 AS FK_ComponentID, 371 AS Pk_ComponentCountryMappingID,
+		ep.UniqueID, 40 AS [Status],'Unique id is invalid' AS RejectionReason,
+		(CASE WHEN  ISNULL(ic.PK_INDShiftNSAComponentID, '') = '' 
+		  THEN 'Please upload the valid Unique id' ELSE '' END) AS ExceptionRemarks,
+		ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate, ep.ModifiedBy AS ModifiedBy, 
+		ep.ModifiedDate AS ModifiedDate, NULL AS Remarks, 1 AS RowStatus, 0 AS MailStatus 
+	  INTO #Exception5 
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    LEFT OUTER JOIN PR.INDShiftNSAComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftNSAComponentID 
+		AND ic.RowStatus = 1  and ic.FK_ComponentID=180
+	  WHERE ep.RowStatus = 1 
+
+	  SELECT ic.FK_ComponentID AS FK_ComponentID, 
+	    ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID,
+	    ic.PK_INDShiftNSAComponentID AS PK_INDShiftComponentID, ic.[Status] AS [Status],
+		ic.RejectionReason as RejectionReason, 
+		(CASE WHEN ((CIS.[STATUS] = 12 AND cis.rowstatus = 0) OR (CIS.[Status] <> 12)) THEN 
+	      'The corresponding NSA Records are not in approved status, hence NSA2 records'+
+	      'for the below associates cannot be processed further' 
+		 ELSE '' END) AS ExceptionRemarks, ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate,
+		ep.ModifiedBy AS ModifiedBy, ep.ModifiedDate AS ModifiedDate,NULL AS Remarks,
+		1 AS RowStatus, 0 AS MailStatus 
+	  INTO #PFSSExceptionNSA1 
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    INNER JOIN PR.INDShiftNSAComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftNSAComponentID
+		INNER JOIN ComponentCountryMapping ccm 
+		ON ccm.Fk_ComponentID = ic.FK_ComponentID
+		INNER JOIN PR.ShiftTimePayout CIS WITH (NOLOCK) 
+		ON CIS.AssociateID=ic.AssociateID AND CIS.NSADate = ic.StartDate 
+		  AND ic.projectid=CIS.projectid
+	  WHERE ep.RowStatus = 1 AND ic.RowStatus = 1 
+	    AND ccm.Rowstatus = 1 AND ic.FK_ComponentID = 180
+		AND CIS.Fk_ComponentID = 6 AND Approve_Reject = 'Approved'
+
+	  SELECT ic.FK_ComponentID AS FK_ComponentID, 
+	    ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID,
+		ic.PK_INDShiftNSAComponentID AS PK_INDShiftComponentID, ic.[Status] AS [Status],
+		ic.RejectionReason AS RejectionReason,
+	   (CASE WHEN ((CIS.[Status] = 12 AND cis.rowstatus = 0) OR (CIS.[Status] <> 12)) 
+	    THEN 'The corresponding NSA Records are not in approved status, hence NSA2 records'+
+	     'for the below associates cannot be processed further' ELSE '' END) AS ExceptionRemarks,
+		 ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate, ep.ModifiedBy AS ModifiedBy,
+		 ep.ModifiedDate AS ModifiedDate, NULL AS Remarks, 1 AS RowStatus, 0 AS MailStatus 
+	  INTO #PFSSExceptionNSA2 
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    INNER JOIN PR.INDShiftNSAComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftNSAComponentID
+		INNER JOIN ComponentCountryMapping ccm 
+		ON ccm.Fk_ComponentID = ic.FK_ComponentID
+		INNER JOIN PR.ITShiftAllowance CIS WITH (NOLOCK) 
+		ON CIS.AssociateID = ic.AssociateID
+		AND CIS.NSADate = ic.StartDate AND ic.projectid = CIS.projectid
+	  WHERE ep.RowStatus = 1 AND ic.RowStatus=1 
+	    AND ccm.Rowstatus = 1 AND ic.FK_ComponentID = 180
+		AND CIS.Fk_ComponentID=52 AND Approve_Reject = 'Approved'
+
+	  SELECT ic.FK_ComponentID AS FK_ComponentID, 
+	    ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID, 
+		ic.PK_INDShiftNSAComponentID AS PK_INDShiftComponentID, ic.[Status] AS [Status],
+		ic.RejectionReason as RejectionReason,
+	    (CASE WHEN ((CIS.[Status] = 12 AND cis.rowstatus = 0) OR (CIS.[Status] <> 12)) THEN 
+	    'The corresponding NSA Records are not in approved status, hence NSA2 records'+
+	    'for the below associates cannot be processed further' ELSE '' END) AS ExceptionRemarks,
+	    ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate, ep.ModifiedBy AS ModifiedBy,
+	    ep.ModifiedDate AS ModifiedDate, NULL AS Remarks, 1 AS RowStatus, 0 AS MailStatus 
+		INTO #PFSSExceptionNSA3 
+		FROM STG.ExceptiontovalidAllowance ep 
+		INNER JOIN PR.INDShiftNSAComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftNSAComponentID 
+		INNER JOIN ComponentCountryMapping ccm 
+		ON ccm.Fk_ComponentID = ic.FK_ComponentID
+		INNER JOIN PR.ADMShiftAllowance CIS WITH (NOLOCK) 
+		ON CIS.AssociateID = ic.AssociateID AND CIS.NSADate = ic.StartDate 
+		  AND ic.projectid=CIS.projectid
+	  WHERE ep.RowStatus = 1 AND ic.RowStatus = 1 
+	    AND ccm.Rowstatus = 1 AND ic.FK_ComponentID = 180
+		AND CIS.Fk_ComponentID = 172 AND Approve_Reject = 'Approved'
+
+	  SELECT ic.FK_ComponentID AS FK_ComponentID, 
+	    ccm.Pk_ComponentCountryMappingID AS Pk_ComponentCountryMappingID,
+		ic.PK_INDShiftNSAComponentID AS PK_INDShiftComponentID, ic.[Status] AS [Status],
+		ic.RejectionReason AS RejectionReason,
+	    (CASE WHEN ((CIS.[Status] = 12 AND cis.rowstatus = 0) OR (CIS.[Status] <> 12)) THEN 
+	     'The corresponding NSA Records are not in approved status, hence NSA2 records'+
+	     'for the below associates cannot be processed further' ELSE '' END) AS ExceptionRemarks,
+		ep.CreatedBy AS CreatedBy, GETDATE() AS Createddate, ep.ModifiedBy AS ModifiedBy,
+			ep.ModifiedDate as ModifiedDate,null as Remarks,1 as RowStatus,0 as MailStatus 
+	  INTO #PFSSExceptionNSA4 
+	  FROM STG.ExceptiontovalidAllowance ep 
+	    INNER JOIN PR.INDShiftNSAComponents ic 
+		ON ep.UniqueID = ic.PK_INDShiftNSAComponentID 
+		INNER JOIN ComponentCountryMapping ccm 
+		ON ccm.Fk_ComponentID = ic.FK_ComponentID
+		INNER JOIN PR.bpsnsa CIS WITH (NOLOCK) 
+		ON CIS.AssociateID=ic.AssociateID AND CIS.NSADate = ic.StartDate 
+		  AND ic.projectid=CIS.projectid
+	  WHERE ep.RowStatus = 1 AND ic.RowStatus = 1 AND ccm.Rowstatus = 1 
+	    AND ic.FK_ComponentID = 180 AND Approve_Reject='Approved'
 
 
-	END TRY
- BEGIN CATCH
- SELECT @@ERROR
- END CATCH 
-END
+	  DELETE FROM #ExceptionNSA2 WHERE ISNULL(ExceptionRemarks,'')<>''	
+	  DELETE FROM #Exception5 WHERE ISNULL(ExceptionRemarks,'')<>''
+	  DELETE A FROM #ExceptionNSA2 A 
+	    INNER JOIN #PFSSExceptionNSA1 B 
+		ON A.PK_INDShiftComponentID = B.PK_INDShiftComponentID
+	  WHERE ISNULL(B.ExceptionRemarks, '') <> ''
+	  
+	  DELETE A FROM #ExceptionNSA2 A 
+	    INNER JOIN #PFSSExceptionNSA2 B 
+		ON A.PK_INDShiftComponentID = B.PK_INDShiftComponentID
+	  WHERE ISNULL(B.ExceptionRemarks, '') <> ''
+	  
+	  DELETE A FROM #ExceptionNSA2 A 
+	    INNER JOIN #PFSSExceptionNSA3 B 
+		ON A.PK_INDShiftComponentID = B.PK_INDShiftComponentID
+	  WHERE ISNULL(B.ExceptionRemarks, '' ) <> ''
+	  
+	  DELETE A FROM #ExceptionNSA2 A 
+	    INNER JOIN #PFSSExceptionNSA4 B 
+		ON A.PK_INDShiftComponentID = B.PK_INDShiftComponentID
+	  WHERE ISNULL(B.ExceptionRemarks, '') <> ''
+
+	  SELECT  [exp].FK_ComponentID, [exp].Pk_ComponentCountryMappingID, [exp].PK_INDShiftComponentID,
+		[exp].[Status], [exp].RejectionReason, ExceptionRemarks, [exp].CreatedBy,[exp].Createddate, 
+		[exp].ModifiedBy, [exp].ModifiedDate, [exp].Remarks, [exp].RowStatus,[exp].MailStatus 
+	  INTO #ApproveNSA2 
+	  FROM #ExceptionNSA2 [exp]
+	    INNER JOIN stg.ExceptiontovalidAllowance stg 
+		ON [exp].PK_INDShiftComponentID = stg.UniqueID 
+	  WHERE Approve_Reject = 'Approved' AND FK_ComponentGroupID = 105 AND stg.RowStatus = 1
+
+	  SELECT  [exp].FK_ComponentID, [exp].Pk_ComponentCountryMappingID, [exp].PK_INDShiftComponentID,
+	    [exp].[Status], [exp].RejectionReason, ExceptionRemarks, [exp].CreatedBy, [exp].Createddate,
+		[exp].ModifiedBy, [exp].ModifiedDate, [exp].Remarks, [exp].RowStatus, [exp].MailStatus
+	  INTO #RejectNSA2 
+	  FROM #ExceptionNSA2 [exp]
+	    INNER JOIN stg.ExceptiontovalidAllowance stg 
+		ON [exp].PK_INDShiftComponentID = stg.UniqueID 
+	  WHERE Approve_Reject = 'Reject' AND FK_ComponentGroupID = 105 AND stg.RowStatus = 1 
+	   -----------------Update----------------
+	   
+	  UPDATE ESTP SET ESTP.RowStatus = 0, ESTP.ModifiedBy = STP.CreatedBy, 
+	    ESTP.ModifiedDate = GETDATE(), ESTP.Remarks = STP.Remarks
+	  FROM PR.INDShiftNSAComponents ESTP WITH (NOLOCK) 
+	    INNER JOIN #RejectNSA2 STP WITH (NOLOCK)
+	    ON ESTP.PK_INDShiftNSAComponentID = STP.PK_INDShiftComponentID 
+      WHERE STP.Rowstatus = 1 AND ESTP.RowStatus = 1 AND ESTP.[Status] IN (15,35)
+	   --(1,3,4,8,14,18,17,15,16,12,21,35) ----need to check
+
+	  UPDATE ESTP SET ESTP.Status = 12, ESTP.ModifiedBy = STP.CreatedBy, ESTP.ModifiedDate = GETDATE(),
+	    ESTP.Remarks = STP.Remarks, ESTP.RejectionReason = STP.RejectionReason, 
+		ESTP.RejectedBy = STP.CreatedBy 
+	  FROM PR.INDShiftNSAComponents ESTP WITH (NOLOCK) 
+	    INNER JOIN #ApproveNSA2 STP WITH (NOLOCK)
+	    ON ESTP.PK_INDShiftNSAComponentID=STP.PK_INDShiftComponentID
+      WHERE STP.Rowstatus = 1 AND ESTP.RowStatus = 1 
+	    AND ESTP.[Status] in (15,35) --(1,3,4,8,14,18,17,15,16,12,21,35)
+
+	  DROP TABLE #ApproveNSA2
+	  DROP TABLE #RejectNSA2
+	  DROP TABLE #ExceptionNSA2
+	  DROP TABLE #Exception5
+	END
+
+	------------UPDATE SAN MASTER ---------------------------
+	
+	UPDATE SANDataMaster SET IsProcessed=13, ModifiedDate = GETDATE()
+	WHERE FileUploadId=@FileUploadID AND IsProcessed=12
+
+	----------------------TRUNC TABLE ------------------
+    EXEC [Trunc].[usp_TruncateTable] '[STG].[ExceptiontovalidAllowance]'
+    COMMIT TRANSACTION
+  END TRY
+  BEGIN CATCH
+	ROLLBACK TRANSACTION
+	DECLARE @ERROR_ID  VARCHAR(8000)    
+    DECLARE @ERROR_MSG  VARCHAR(8000)        
+    DECLARE @ERROR_SEVERITY  VARCHAR(8000)    
+    DECLARE @ERROR_STATE  VARCHAR(100)        
+    DECLARE @ERROR_PROCEDURE  VARCHAR(8000)    
+    DECLARE @ERROR_LINE  VARCHAR(8000)    
+	EXEC [Trunc].[usp_TruncateTable] '[STG].[ExceptiontovalidAllowance]'
+    SELECT @ERROR_ID= ERROR_NUMBER(),    
+           @ERROR_MSG= ERROR_MESSAGE(),    
+           @ERROR_SEVERITY=ERROR_SEVERITY(),    
+           @ERROR_STATE=ERROR_STATE(),    
+           @ERROR_PROCEDURE='[dbo].[usp_StagingToMain_BulkRejection]',    
+           @ERROR_LINE = ERROR_LINE()    
+    INSERT INTO ExceptionLog (ErrorSource, ExceptionMessage, ExceptionStackTrace, 
+	  InnerException, ExceptionDateTime, CustomMessage)
+    VALUES ('Console', @ERROR_ID+@ERROR_MSG, @ERROR_SEVERITY, @ERROR_STATE, GETDATE(), @ERROR_PROCEDURE)          
+    RAISERROR(@ERROR_ID,@ERROR_SEVERITY,@ERROR_STATE,@ERROR_MSG);
+  END CATCH

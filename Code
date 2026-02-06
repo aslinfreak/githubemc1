@@ -2,7 +2,7 @@ USE [OneC_SPay]
 GO
 
 Declare
-@ComponentGrpID INT=12,@componentid INT=5,@Month INT=2,@Year INT=2026,@LoginID INT=2272251,@RoleID INT=19,@QUARTER int=0
+@ComponentGrpID INT=4,@componentid INT=5,@Month INT=2,@Year INT=2026,@LoginID INT=2272251,@RoleID INT=19,@QUARTER int=0
 
 
 Declare @RolePriority int  
@@ -2247,4 +2247,5 @@ BEGIN
   END  
  END  
 END  
+
 
